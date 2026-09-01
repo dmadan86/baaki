@@ -314,7 +314,15 @@ export async function enqueueReceipt(input: {
   expenseId: string;
   groupId: string;
   visibility: 'group' | 'parties';
-  base64: string;
+  /**
+   * A file on this device to take over. Preferred: the image has already been
+   * written once by the resize, so copying it costs a file copy, where `base64`
+   * costs a megabyte-plus string built natively, carried over the bridge, and
+   * decoded back into the same bytes.
+   */
+  sourceUri?: string;
+  /** The bytes, for callers that already hold them (the OCR path). */
+  base64?: string;
   contentType: string;
 }): Promise<PendingReceipt> {
   const attachmentId = randomUUID();
@@ -336,7 +344,15 @@ export async function enqueueReceipt(input: {
 
   const dir = new Directory(Paths.document, PENDING_DIR);
   if (!dir.exists) dir.create({ intermediates: true });
-  pendingFile(entry).write(new Uint8Array(decode(input.base64)));
+  if (input.sourceUri) {
+    // Copied, not moved: the source is the manipulator's own output in the cache
+    // directory, and the caller may still be showing it as the tile's image.
+    await new File(input.sourceUri).copy(pendingFile(entry));
+  } else if (input.base64) {
+    pendingFile(entry).write(new Uint8Array(decode(input.base64)));
+  } else {
+    throw new Error('enqueueReceipt needs either sourceUri or base64.');
+  }
 
   const queue = await readQueue();
   await writeQueue([...queue, entry]);

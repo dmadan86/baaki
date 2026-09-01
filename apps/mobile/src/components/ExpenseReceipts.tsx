@@ -47,7 +47,12 @@ import {
   useReplaceExpenseAttachmentImage,
   type ExpenseAttachmentRow,
 } from '@/data/hooks';
-import { captureReceipt, pickReceiptImage } from '@/lib/image';
+import {
+  captureReceiptAsset,
+  pickReceiptAsset,
+  prepareReceipt,
+  type PickedAsset,
+} from '@/lib/image';
 import { EMPTY_ANNOTATIONS, isEmptyAnnotations, type Annotations } from '@/lib/annotations';
 import { imageUrl, restrictedImageUrl } from '@/lib/storage';
 import { cacheImage, cachedImageUri, evictImage } from '@/lib/storage/imageCache';
@@ -299,11 +304,23 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
     // by a run of the app that was killed is here on the next launch.
     const pending = usePendingReceipts(expenseId);
 
-    // The brief moment between choosing a photo and it being written to disk.
-    // Short, but not free — the bytes can be a couple of megabytes — and it is
-    // the one window in which nothing is on screen yet, so the add affordance
-    // holds a spinner rather than looking like it ignored the tap.
-    const [adding, setAdding] = useState(false);
+    // The picked photograph, shown from its own local file while it is being
+    // resized and written into the queue.
+    //
+    // That work is a second or more on a mid-range phone — decode a 12-megapixel
+    // image, scale it, re-encode it — and it used to happen behind a spinner in
+    // the add tile, with the picture itself appearing only at the end. So the
+    // picker handed back the original first: this holds its URI, the strip draws
+    // it immediately, and the real pending tile replaces it the moment the queue
+    // has the file.
+    const [preparing, setPreparing] = useState<string | null>(null);
+
+    // Attachments the person has just removed, hidden while the delete makes its
+    // round trip. The list is the mirror's, and the mirror only forgets the row
+    // after the RPC lands and a pull brings the change back — several seconds in
+    // which the tile they deleted was still sitting there. Cleared by the row
+    // actually going (the filter below stops matching) or by the failure.
+    const [removedIds, setRemovedIds] = useState<readonly string[]>([]);
 
     // The per-expense receipt ceiling (A46): a free group keeps a small number of
     // gallery images per expense; paid lifts it. This is the affordance — the
@@ -375,6 +392,9 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
         list.push({ kind: 'legacy', key: 'legacy', path: legacyReceiptPath, visibility: 'group' });
       }
       for (const row of attachments.data) {
+        // Just deleted, and the mirror has not caught up yet. Hiding it here
+        // rather than waiting is what makes the tap feel like it did something.
+        if (removedIds.includes(row.id)) continue;
         list.push({ kind: 'attachment', key: row.id, row });
       }
       // Show a parked capture only until its real row lands — once the upload has
@@ -387,7 +407,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
         }
       }
       return list;
-    }, [legacyReceiptPath, attachments.data, pending]);
+    }, [legacyReceiptPath, attachments.data, pending, removedIds]);
 
     const urls = useResolvedUrls(expenseId, items);
     const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -430,20 +450,19 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
      * back — the tile is on screen the moment the write lands, and the upload is
      * the queue's problem from then on, not this screen's.
      */
-    const commitAdd = (
-      picked: NonNullable<Awaited<ReturnType<typeof captureReceipt>>>,
-      visibility: 'group' | 'parties',
-    ) => {
-      const contentType = picked.mimeType ?? 'image/jpeg';
-      setAdding(true);
+    const commitAdd = (asset: PickedAsset, visibility: 'group' | 'parties') => {
+      // On screen from here, from the original file — before the resize, before
+      // the queue, before anything touches the network.
+      setPreparing(asset.uri);
       void (async () => {
         try {
+          const file = await prepareReceipt(asset);
           await enqueueReceipt({
             expenseId,
             groupId,
             visibility,
-            base64: picked.base64,
-            contentType,
+            sourceUri: file.uri,
+            contentType: file.mimeType,
           });
         } catch {
           // The bytes never reached the disk (a full device, a revoked path), so
@@ -452,7 +471,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
           Alert.alert(t.receipts.couldNotKeep);
           return;
         } finally {
-          setAdding(false);
+          setPreparing(null);
         }
         await sendPending();
       })();
@@ -472,15 +491,15 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
      * storage rules — payment proofs still use it, and a receipt already added
      * that way keeps its Private tag.
      */
-    const add = (picked: Awaited<ReturnType<typeof captureReceipt>>) => {
-      if (!picked) return; // Cancelled/declined.
-      commitAdd(picked, 'group');
+    const add = (asset: PickedAsset | null) => {
+      if (!asset) return; // Cancelled/declined.
+      commitAdd(asset, 'group');
     };
 
     const startAdd = () => {
       Alert.alert(t.receipts.add, undefined, [
-        { text: t.receipts.scan, onPress: () => void captureReceipt().then(add) },
-        { text: t.receipts.choosePhoto, onPress: () => void pickReceiptImage().then(add) },
+        { text: t.receipts.scan, onPress: () => void captureReceiptAsset().then(add) },
+        { text: t.receipts.choosePhoto, onPress: () => void pickReceiptAsset().then(add) },
         { text: t.common.cancel, style: 'cancel' },
       ]);
     };
@@ -499,7 +518,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
     // Nothing to show and cannot add here → render nothing, so a non-party's bill
     // is not cluttered with an empty section. `externalAdd` also counts as "cannot
     // add here": the parent's button owns adding, so an empty gallery is nothing.
-    if (items.length === 0 && (!canManage || externalAdd)) return null;
+    if (items.length === 0 && preparing === null && (!canManage || externalAdd)) return null;
 
     const removeAt = (index: number) => {
       const it = items[index];
@@ -527,11 +546,20 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
               });
             } else {
               const storagePath = it.row.storagePath;
+              const attachmentId = it.row.id;
+              // Gone from the strip now. The row itself only disappears once the
+              // RPC has landed and a pull has brought the mirror up to date, and
+              // watching a deleted receipt sit there through both is the whole
+              // complaint. Put back if the delete turns out to have failed.
+              setRemovedIds((current) => [...current, attachmentId]);
               removeAttachment.mutate(
-                { attachmentId: it.row.id, storagePath },
+                { attachmentId, storagePath },
                 // Removing a live attachment frees a slot, so re-ask the cap gate.
                 {
-                  onError,
+                  onError: () => {
+                    setRemovedIds((current) => current.filter((id) => id !== attachmentId));
+                    onError();
+                  },
                   onSuccess: () => {
                     evictImage('expense-attachments', storagePath);
                     refreshCap();
@@ -609,18 +637,18 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
             what it is. The empty state does not need it: the tile below already
             reads "Add receipt" in bigger type, so the heading was the same word
             twice, stacked. */}
-        {items.length > 0 ? (
+        {items.length > 0 || preparing !== null ? (
           <Text variant="caption" tone="muted">
             {t.receipts.title}
           </Text>
         ) : null}
-        {items.length === 0 ? (
+        {items.length === 0 && preparing === null ? (
           // No receipt yet (and, per the guard above, the viewer may add one). A
           // lone 96px tile left a wide empty band under it; a full-width row that
           // reads "Add receipt" fills the space and makes the affordance obvious.
           <Pressable
             onPress={handleAddPress}
-            disabled={adding}
+            disabled={preparing !== null}
             accessibilityRole="button"
             accessibilityLabel={t.receipts.add}
             style={({ pressed }) => ({
@@ -647,7 +675,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
                 backgroundColor: theme.color.surface,
               }}
             >
-              {adding ? (
+              {preparing !== null ? (
                 <ActivityIndicator color={theme.color.brand} />
               ) : (
                 <Ionicons name="camera-outline" size={iconSize.lg} color={theme.color.brand} />
@@ -670,7 +698,7 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
             {canManage && !externalAdd ? (
               <Pressable
                 onPress={handleAddPress}
-                disabled={adding}
+                disabled={preparing !== null}
                 accessibilityRole="button"
                 accessibilityLabel={t.receipts.add}
                 style={{
@@ -684,12 +712,24 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
                   backgroundColor: theme.color.surfaceMuted,
                 }}
               >
-                {adding ? (
-                  <ActivityIndicator color={theme.color.brand} />
-                ) : (
-                  <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
-                )}
+                <Ionicons name="add" size={iconSize.lg} color={theme.color.brand} />
               </Pressable>
+            ) : null}
+
+            {/* The photograph just chosen, straight from its own file, while it
+              is being resized and written into the queue. It is the same tile
+              the queue will draw a moment later, wearing the same "on its way"
+              scrim — so the handover from this to the real pending item is
+              invisible, and there is no window where the strip looks empty. */}
+            {preparing !== null ? (
+              <Thumb
+                url={preparing}
+                resolved
+                isPrivate={false}
+                status="uploading"
+                label={`${t.receipts.title} — ${t.receipts.sending}`}
+                onPress={() => {}}
+              />
             ) : null}
 
             {items.map((it, index) => (
@@ -719,40 +759,31 @@ export const ExpenseReceipts = forwardRef<ExpenseReceiptsHandle, ExpenseReceipts
           </ScrollView>
         )}
 
-        {stripStatus ? (
-          // One line under the strip saying what is happening to the receipts
-          // that are not up yet. The tiles carry badges, but a badge is 20px on
-          // a photograph — this is the sentence somebody can actually read, and
-          // the only place a retry is offered without opening anything.
+        {stripStatus === 'failed' ? (
+          // Only for the state somebody has to act on.
+          //
+          // This line used to mirror every state the tiles were already showing:
+          // a spinner in the tile and a spinner under it, saying "Sending" about
+          // the same upload — two announcements of one thing, and the strip
+          // visibly busier than the work it was reporting. A send in progress
+          // needs no words; the scrim on the tile is the whole story. A send that
+          // failed does, because the way out of it is a retry, and this is the
+          // only place that offers one without opening anything.
           <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-            {stripStatus === 'uploading' ? (
-              <ActivityIndicator size="small" color={theme.color.textMuted} />
-            ) : (
-              <Ionicons
-                name={stripStatus === 'failed' ? 'alert-circle' : 'cloud-upload-outline'}
-                size={iconSize.sm}
-                color={stripStatus === 'failed' ? theme.color.negative : theme.color.textMuted}
-              />
-            )}
-            <Text
-              variant="micro"
-              tone={stripStatus === 'failed' ? undefined : 'muted'}
-              style={stripStatus === 'failed' ? { color: theme.color.negative } : undefined}
-            >
+            <Ionicons name="alert-circle" size={iconSize.sm} color={theme.color.negative} />
+            <Text variant="micro" style={{ color: theme.color.negative }}>
               {statusWord(stripStatus)}
             </Text>
-            {stripStatus === 'failed' ? (
-              <Pressable
-                onPress={() => retryFailed(failedIds)}
-                accessibilityRole="button"
-                accessibilityLabel={t.receipts.tryAgain}
-                hitSlop={8}
-              >
-                <Text variant="micro" style={{ color: theme.color.brand }}>
-                  {t.receipts.tryAgain}
-                </Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              onPress={() => retryFailed(failedIds)}
+              accessibilityRole="button"
+              accessibilityLabel={t.receipts.tryAgain}
+              hitSlop={8}
+            >
+              <Text variant="micro" style={{ color: theme.color.brand }}>
+                {t.receipts.tryAgain}
+              </Text>
+            </Pressable>
           </Row>
         ) : null}
 
