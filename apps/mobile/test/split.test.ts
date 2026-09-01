@@ -4,6 +4,8 @@ import { computeShares } from '@waves/core';
 
 import {
   entryValues,
+  exactRemainder,
+  exactValues,
   fillEntries,
   formatEntry,
   parseEntry,
@@ -208,5 +210,77 @@ describe('what the screen hands to the money engine', () => {
 
     expect(shares.size).toBe(many.length);
     expect([...shares.values()].reduce((sum, share) => sum + share, 0n)).toBe(123456789n);
+  });
+});
+
+describe('an exact split', () => {
+  const people = ['a', 'b', 'c'];
+
+  it('reads each field as money in the expense currency', () => {
+    expect(exactValues({ a: '12.50', b: '7', c: '' }, people, 'INR')).toEqual({
+      a: 1250n,
+      b: 700n,
+      c: 0n,
+    });
+  });
+
+  it('reads a currency with no minor unit as whole units', () => {
+    expect(exactValues({ a: '1200', b: '800', c: '0' }, people, 'JPY')).toEqual({
+      a: 1200n,
+      b: 800n,
+      c: 0n,
+    });
+  });
+
+  it('leaves out anybody who is not in the split', () => {
+    // `d` was ticked off after their figure was typed; the text is kept on the
+    // screen but must not reach the engine, which rejects a non-participant.
+    expect(exactValues({ a: '10', b: '10', c: '10', d: '99' }, people, 'INR')).toEqual({
+      a: 1000n,
+      b: 1000n,
+      c: 1000n,
+    });
+  });
+
+  it('says what is left to hand out, and what is over', () => {
+    expect(exactRemainder({ a: '10', b: '10', c: '10' }, people, 'INR', 3000n)).toBe(0n);
+    expect(exactRemainder({ a: '10', b: '10', c: '' }, people, 'INR', 3000n)).toBe(1000n);
+    expect(exactRemainder({ a: '10', b: '10', c: '20' }, people, 'INR', 3000n)).toBe(-1000n);
+  });
+
+  it('agrees with the engine: a remainder of zero is a split that computes', () => {
+    const entries = { a: '12.50', b: '7.25', c: '10.25' };
+    expect(exactRemainder(entries, people, 'INR', 3000n)).toBe(0n);
+
+    const shares = computeShares({
+      amount: 3000n,
+      currency: 'INR',
+      params: { kind: 'exact', amounts: exactValues(entries, people, 'INR') },
+      participants: people,
+      seed: 'expense-1',
+    });
+    expect(shares.get('a')).toBe(1250n);
+    expect(shares.get('b')).toBe(725n);
+    expect(shares.get('c')).toBe(1025n);
+  });
+
+  it('agrees with the engine the other way too: a remainder is a refusal', () => {
+    // The message under the field and the server's EXACT_SUM_MISMATCH are the
+    // same rule; this is what stops the two ever drifting apart.
+    const entries = { a: '10', b: '10', c: '5' };
+    expect(exactRemainder(entries, people, 'INR', 3000n)).not.toBe(0n);
+    expect(() =>
+      computeShares({
+        amount: 3000n,
+        currency: 'INR',
+        params: { kind: 'exact', amounts: exactValues(entries, people, 'INR') },
+        participants: people,
+        seed: 'expense-1',
+      }),
+    ).toThrow();
+  });
+
+  it('has no opinion of its own in splitProblem — money is judged elsewhere', () => {
+    expect(splitProblem(SplitKind.Exact, { a: '1' }, people)).toBeNull();
   });
 });

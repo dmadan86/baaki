@@ -28,6 +28,7 @@ import {
   PayerProblemCode,
   rebalancePayers,
   ridersSplit,
+  sanitiseMinorInput,
   serialisePayers,
   splitByUnits,
   treatSplit,
@@ -103,6 +104,8 @@ import {
   fillEntries,
   formatEntry,
   parseEntry,
+  exactRemainder,
+  exactValues,
   splitProblem,
   SplitKind,
   type SplitEntries,
@@ -149,9 +152,12 @@ interface ExpenseDraft {
   /** The stored conversion rate for a foreign-currency expense (ADR-003). */
   fx?: FxRecord | null;
   participants: MemberId[];
-  /** Kept apart, because a weight of 1 is not one percent. */
+  /** Kept apart, because a weight of 1 is not one percent — nor is either of
+   *  them ₹1. Optional: drafts written before the exact split existed have no
+   *  `exacts`, which reads as an empty set of fields, not as a lost one. */
   weights: SplitEntries;
   percents: SplitEntries;
+  exacts?: SplitEntries;
   category: string | null;
   /** The custom tag's display, when `category` is a custom tag (extends TDR §8). */
   categoryMeta: CategoryMeta | null;
@@ -159,6 +165,88 @@ interface ExpenseDraft {
   categoryChosen: boolean;
   /** Where the spend happened (A43), when the person attached one. */
   location?: ExpenseLocation | null;
+}
+
+/**
+ * The number beside one person in a weighted or exact split.
+ *
+ * Its own component for two reasons. The obvious one: three kinds of field with
+ * three keypads, three suffixes and three spoken labels is a lot of ternaries to
+ * read inside a list of people. The load-bearing one: an exact field is *money*,
+ * so it has to sanitise each keystroke against the expense's currency — and
+ * doing that in the screen's own render meant `currency` was captured by a
+ * closure the React Compiler could not prove safe, which cost the split preview
+ * and the params their memoisation ("existing memoization could not be
+ * preserved"). Held here, the currency is a prop this component reads, and the
+ * screen above keeps its memos.
+ */
+function SplitEntryField({
+  kind,
+  currency,
+  value,
+  onChange,
+  name,
+}: {
+  kind: SplitKind;
+  currency: string;
+  value: string;
+  /** Called with the text as it should be stored — already sanitised for money. */
+  onChange: (text: string) => void;
+  /** Whose figure this is, for the spoken label. */
+  name: string;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const { t } = useStrings();
+  const exact = kind === SplitKind.Exact;
+  const percent = kind === SplitKind.Percent;
+
+  return (
+    <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
+      <TextInput
+        value={value}
+        onChangeText={(text) =>
+          // Money is cleaned on the way in — the currency decides whether a
+          // decimal point is offered at all, and a second one never lands in the
+          // field. A weight or a percentage is stored as typed and judged by
+          // `splitProblem`, which refuses rather than trims.
+          onChange(exact ? sanitiseMinorInput(text, currency as CurrencyCode) : text)
+        }
+        keyboardType={
+          exact ? amountKeyboard(currency as CurrencyCode) : percent ? 'decimal-pad' : 'number-pad'
+        }
+        selectTextOnFocus
+        placeholder={kind === SplitKind.Shares ? '1' : '0'}
+        placeholderTextColor={theme.color.textFaint}
+        accessibilityLabel={
+          exact
+            ? fill(t.expense.exactShareLabel, { name })
+            : percent
+              ? `${name}'s percentage`
+              : `${name}'s shares`
+        }
+        style={{
+          // An amount needs more room than a weight: two decimals and a
+          // thousands' worth of digits do not fit in 72.
+          width: exact ? 104 : 72,
+          // A 44pt floor makes the field a real tap target; `textAlignVertical`
+          // keeps the digit centred in the taller box on Android.
+          minHeight: 44,
+          fontSize: 16,
+          fontWeight: '700',
+          textAlign: 'right',
+          textAlignVertical: 'center',
+          color: theme.color.text,
+          backgroundColor: theme.color.bg,
+          borderRadius: theme.radius.sm,
+          paddingVertical: theme.spacing.sm,
+          paddingHorizontal: theme.spacing.sm,
+        }}
+      />
+      <Text variant="micro" tone="muted">
+        {percent ? '%' : exact ? currencySymbol(currency) : '×'}
+      </Text>
+    </Row>
+  );
 }
 
 /** A saved split's integers, back as the text somebody would have typed. */
@@ -323,6 +411,10 @@ export default function AddExpenseScreen() {
   // reinterpret one number as the other.
   const [weights, setWeights] = useState<SplitEntries>({});
   const [percents, setPercents] = useState<SplitEntries>({});
+  // The exact split's fields: money as typed, one line per person. Kept apart
+  // from the two weighted maps for the same reason those are kept apart from
+  // each other — 1 is not one percent, and neither of them is ₹1.
+  const [exacts, setExacts] = useState<SplitEntries>({});
   // Travel split presets (trip groups). Each produces the canonical split params
   // the ledger already understands, so nothing new is stored: nights → shares,
   // this-ride → equal (both drive the normal fields), car rental → an
@@ -554,6 +646,7 @@ export default function AddExpenseScreen() {
       setParticipants(draft.participants);
       setWeights(draft.weights ?? {});
       setPercents(draft.percents ?? {});
+      setExacts(draft.exacts ?? {});
       setCategory(draft.category ?? null);
       setCategoryMeta(draft.categoryMeta ?? null);
       setCategoryChosen(draft.categoryChosen ?? false);
@@ -606,7 +699,9 @@ export default function AddExpenseScreen() {
           ? SplitKind.Percent
           : version.split_type === 'shares'
             ? SplitKind.Shares
-            : SplitKind.Equal,
+            : version.split_type === 'exact'
+              ? SplitKind.Exact
+              : SplitKind.Equal,
       );
       // The numbers somebody chose the first time, back in the fields they were
       // typed into — an edit that silently re-divided them equally would be a
@@ -616,6 +711,15 @@ export default function AddExpenseScreen() {
         setWeights(textEntries(params.weights, 'shares'));
       } else if (params.kind === 'percent') {
         setPercents(textEntries(params.basisPoints, 'percent'));
+      } else if (params.kind === 'exact') {
+        setExacts(
+          Object.fromEntries(
+            Object.entries(params.amounts).map(([memberId, minor]) => [
+              memberId,
+              formatMinorInput(BigInt(minor), version.currency as CurrencyCode),
+            ]),
+          ),
+        );
       }
     } else {
       setParticipants((members.data ?? []).map((member) => member.id));
@@ -651,14 +755,15 @@ export default function AddExpenseScreen() {
     if (filled) setPercents(filled);
   }
 
-  const entries = splitKind === SplitKind.Shares ? weights : percents;
+  const entries =
+    splitKind === SplitKind.Shares ? weights : splitKind === SplitKind.Exact ? exacts : percents;
   const setEntry = (memberId: MemberId, text: string): void => {
     clearPreset();
     const update = (current: SplitEntries): SplitEntries => ({ ...current, [memberId]: text });
     if (splitKind === SplitKind.Shares) setWeights(update);
+    else if (splitKind === SplitKind.Exact) setExacts(update);
     else setPercents(update);
   };
-  const splitIssue = splitProblem(splitKind, entries, participants);
 
   // The split used to fold into a one-line summary card, opening itself when the
   // configuration was not the "I paid, split equally" default. The fold is gone:
@@ -867,6 +972,7 @@ export default function AddExpenseScreen() {
       participants,
       weights,
       percents,
+      exacts,
       category,
       categoryMeta,
       categoryChosen,
@@ -919,8 +1025,24 @@ export default function AddExpenseScreen() {
     if (splitKind === SplitKind.Percent) {
       return { kind: 'percent', basisPoints: entryValues('percent', percents, participants) };
     }
+    if (splitKind === SplitKind.Exact) {
+      return {
+        kind: 'exact',
+        amounts: exactValues(exacts, participants, currency),
+      };
+    }
     return { kind: 'equal' };
-  }, [splitKind, weights, percents, participants, treatHost, presetParams, amount]);
+  }, [
+    splitKind,
+    weights,
+    percents,
+    exacts,
+    currency,
+    participants,
+    treatHost,
+    presetParams,
+    amount,
+  ]);
 
   // Preview with the same engine the server uses; if they ever disagree the
   // server wins and tells us why (SHARE_MISMATCH).
@@ -938,6 +1060,25 @@ export default function AddExpenseScreen() {
       return null;
     }
   }, [amount, currency, splitParams, participants, targetExpenseId]);
+
+  // What is still unassigned in an exact split, signed like the payer side's
+  // delta: positive is left to hand out, negative is more than the bill. Only
+  // worth saying once there is a bill to measure against — "₹0 left" over an
+  // empty form is noise, not guidance.
+  const exactLeft =
+    splitKind === SplitKind.Exact && amount > 0n
+      ? exactRemainder(exacts, participants, currency, amount)
+      : 0n;
+  const exactIssue =
+    splitKind !== SplitKind.Exact || amount === 0n || participants.length === 0 || exactLeft === 0n
+      ? null
+      : (exactLeft > 0n ? t.expense.paidLeftToAssign : t.expense.paidOverAssigned).replace(
+          '{amount}',
+          format(money(exactLeft < 0n ? -exactLeft : exactLeft, currency), { locale }),
+        );
+  // The exact split's own complaint takes precedence: it is about money, and the
+  // weighted check has nothing to say about a set of typed amounts.
+  const splitIssue = exactIssue ?? splitProblem(splitKind, entries, participants);
 
   if (group.isLoading || members.isLoading || restored.loading) {
     // Shell first: the back button and title paint instantly on navigation, and
@@ -1603,18 +1744,22 @@ export default function AddExpenseScreen() {
                 clearPreset();
                 setSplitKind(next);
               }}
-              options={[SplitKind.Equal, SplitKind.Shares, SplitKind.Percent].map((kind) => ({
-                value: kind,
-                label:
-                  kind === SplitKind.Equal
-                    ? t.expense.equally
-                    : kind === SplitKind.Shares
-                      ? t.expense.shares
-                      : t.expense.percent,
-                icon: (color: string) => (
-                  <Ionicons name={splitIcon(kind)} size={iconSize.md} color={color} />
-                ),
-              }))}
+              options={[SplitKind.Equal, SplitKind.Shares, SplitKind.Percent, SplitKind.Exact].map(
+                (kind) => ({
+                  value: kind,
+                  label:
+                    kind === SplitKind.Equal
+                      ? t.expense.equally
+                      : kind === SplitKind.Shares
+                        ? t.expense.shares
+                        : kind === SplitKind.Percent
+                          ? t.expense.percent
+                          : t.expense.exactly,
+                  icon: (color: string) => (
+                    <Ionicons name={splitIcon(kind)} size={iconSize.md} color={color} />
+                  ),
+                }),
+              )}
             />
           </View>
 
@@ -1888,42 +2033,13 @@ export default function AddExpenseScreen() {
                   </Pressable>
 
                   {splitKind !== SplitKind.Equal && selected ? (
-                    <Row style={{ gap: 2, alignItems: 'center', flexGrow: 0, flexShrink: 0 }}>
-                      <TextInput
-                        value={entries[member.id] ?? ''}
-                        onChangeText={(text) => setEntry(member.id, text)}
-                        keyboardType={
-                          splitKind === SplitKind.Percent ? 'decimal-pad' : 'number-pad'
-                        }
-                        selectTextOnFocus
-                        placeholder={splitKind === SplitKind.Percent ? '0' : '1'}
-                        placeholderTextColor={theme.color.textFaint}
-                        accessibilityLabel={
-                          splitKind === SplitKind.Percent
-                            ? `${name}'s percentage`
-                            : `${name}'s shares`
-                        }
-                        style={{
-                          width: 72,
-                          // A 44pt floor makes the share/percent field a real tap
-                          // target; `textAlignVertical` keeps the digit centred in
-                          // the taller box on Android.
-                          minHeight: 44,
-                          fontSize: 16,
-                          fontWeight: '700',
-                          textAlign: 'right',
-                          textAlignVertical: 'center',
-                          color: theme.color.text,
-                          backgroundColor: theme.color.bg,
-                          borderRadius: theme.radius.sm,
-                          paddingVertical: theme.spacing.sm,
-                          paddingHorizontal: theme.spacing.sm,
-                        }}
-                      />
-                      <Text variant="micro" tone="muted">
-                        {splitKind === SplitKind.Percent ? '%' : '×'}
-                      </Text>
-                    </Row>
+                    <SplitEntryField
+                      kind={splitKind}
+                      currency={currency}
+                      value={entries[member.id] ?? ''}
+                      onChange={(text) => setEntry(member.id, text)}
+                      name={name}
+                    />
                   ) : null}
 
                   <Pressable
