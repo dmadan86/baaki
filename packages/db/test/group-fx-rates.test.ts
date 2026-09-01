@@ -42,9 +42,9 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
-const fxRates = async (): Promise<Record<string, { num: string; den: string; source: string }>> => {
+const fxRates = async (): Promise<Record<string, { num: string; den: string; ts: string; source: string }>> => {
   const { rows } = await client.query(`SELECT fx_rates FROM groups WHERE id = $1`, [group.groupId]);
-  return (rows[0]?.fx_rates ?? {}) as Record<string, { num: string; den: string; source: string }>;
+  return (rows[0]?.fx_rates ?? {}) as Record<string, { num: string; den: string; ts: string; source: string }>;
 };
 
 describe('an admin pins a trip rate', () => {
@@ -55,7 +55,7 @@ describe('an admin pins a trip rate', () => {
     );
     const map = await fxRates();
     expect(map.VND).toMatchObject({ num: '312', den: '1', source: 'manual' });
-    expect(map.VND.ts).toBeTruthy();
+    expect(map.VND?.ts).toBeTruthy();
   });
 
   it('clears one currency with a null rate, leaving the rest', async () => {
