@@ -70,9 +70,13 @@ function useOverlay(visible: boolean, reduceMotion: boolean) {
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
+  // Mount the moment we open — a state adjustment on the visible prop, done in
+  // render rather than in the effect (which then only drives the animation and
+  // never calls setState synchronously in its body).
+  if (visible && !mounted) setMounted(true);
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       Animated.spring(progress, {
         toValue: 1,
         useNativeDriver: true,
