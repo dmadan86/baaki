@@ -1807,7 +1807,12 @@ export function useGroupFxRates(groupId: string): LocalRead<GroupFxRateRow[]> {
 export function useSetGroupFxRate(groupId: string) {
   const { mutate } = useSync();
   return useMutation({
-    mutationFn: (input: { from: string; num: bigint | null; den: bigint | null; source?: string }) =>
+    mutationFn: (input: {
+      from: string;
+      num: bigint | null;
+      den: bigint | null;
+      source?: string;
+    }) =>
       mutate(MutationKind.GroupFxRateSet, groupId, {
         from: input.from,
         num: input.num === null ? null : input.num.toString(),

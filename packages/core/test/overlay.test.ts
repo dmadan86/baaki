@@ -837,7 +837,6 @@ describe('category budgets ride the group row', () => {
       transport: { amountMinor: '100000', currency: 'INR' },
     });
   });
-
 });
 
 describe('trip rates ride the group row', () => {

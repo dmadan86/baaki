@@ -75,7 +75,9 @@ describe("the group's stored map", () => {
   it('has no rate for an unlisted pair and never throws on junk', () => {
     expect(groupFxRate({ INR: toGroupFxEntry(trip) }, 'THB', 'VND')).toBeNull();
     expect(groupFxRate(null, 'INR', 'VND')).toBeNull();
-    expect(groupFxRate({ INR: { num: 'x', den: '0', ts: '', source: '' } }, 'INR', 'VND')).toBeNull();
+    expect(
+      groupFxRate({ INR: { num: 'x', den: '0', ts: '', source: '' } }, 'INR', 'VND'),
+    ).toBeNull();
   });
 });
 

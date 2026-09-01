@@ -535,7 +535,10 @@ export interface MirrorGroup extends MirrorRow {
   readonly category_budgets?: Record<string, { amountMinor: string; currency: string }> | null;
   /** The trip's pinned rates, keyed by the currency paid in; each converts to
    *  this group's `default_currency`. Group-visible, admin-set. */
-  readonly fx_rates?: Record<string, { num: string; den: string; ts: string; source: string }> | null;
+  readonly fx_rates?: Record<
+    string,
+    { num: string; den: string; ts: string; source: string }
+  > | null;
   readonly pending?: boolean;
 }
 

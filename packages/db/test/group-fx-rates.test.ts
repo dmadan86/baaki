@@ -42,9 +42,14 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
-const fxRates = async (): Promise<Record<string, { num: string; den: string; ts: string; source: string }>> => {
+const fxRates = async (): Promise<
+  Record<string, { num: string; den: string; ts: string; source: string }>
+> => {
   const { rows } = await client.query(`SELECT fx_rates FROM groups WHERE id = $1`, [group.groupId]);
-  return (rows[0]?.fx_rates ?? {}) as Record<string, { num: string; den: string; ts: string; source: string }>;
+  return (rows[0]?.fx_rates ?? {}) as Record<
+    string,
+    { num: string; den: string; ts: string; source: string }
+  >;
 };
 
 describe('an admin pins a trip rate', () => {
@@ -60,9 +65,15 @@ describe('an admin pins a trip rate', () => {
 
   it('clears one currency with a null rate, leaving the rest', async () => {
     await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [group.groupId]);
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'THB', 42, 100, 'manual')`, [group.groupId]);
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', NULL, NULL, 'manual')`, [group.groupId]);
+      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
+        group.groupId,
+      ]);
+      await client.query(`SELECT baaki_set_group_fx_rate($1, 'THB', 42, 100, 'manual')`, [
+        group.groupId,
+      ]);
+      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', NULL, NULL, 'manual')`, [
+        group.groupId,
+      ]);
     });
     const map = await fxRates();
     expect(map.VND).toBeUndefined();
@@ -74,7 +85,9 @@ describe('what the RPC refuses', () => {
   it('denies a non-admin', async () => {
     const message = await expectDenied(
       as(group.profileIds[1] as string, () =>
-        client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [group.groupId]),
+        client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
+          group.groupId,
+        ]),
       ),
     );
     expect(message).toContain('NOT_AN_ADMIN');
@@ -103,9 +116,10 @@ describe('the column cannot be written around the RPC', () => {
   it('blocks a direct fx_rates update from a client', async () => {
     const message = await expectDenied(
       as(group.profileIds[0] as string, () =>
-        client.query(`UPDATE groups SET fx_rates = '{"VND":{"num":"1","den":"1"}}'::jsonb WHERE id = $1`, [
-          group.groupId,
-        ]),
+        client.query(
+          `UPDATE groups SET fx_rates = '{"VND":{"num":"1","den":"1"}}'::jsonb WHERE id = $1`,
+          [group.groupId],
+        ),
       ),
     );
     expect(message).toContain('FORBIDDEN_COLUMN');
