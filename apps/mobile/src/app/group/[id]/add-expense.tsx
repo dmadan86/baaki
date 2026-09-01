@@ -112,6 +112,17 @@ import { clearDraft, syncEngine, useDraft, useRestoredDraft, useSync } from '@/s
 /** Shared empty set — a new one per render would defeat every memo below it. */
 const EMPTY_LOCKS: ReadonlySet<MemberId> = new Set();
 
+/**
+ * The width of one "paid by" tile.
+ *
+ * Fixed on purpose: the lane must be the same shape in a group of Hethus as in
+ * a group of Lokesh Rangasamys. Just wide enough to clear the 44pt avatar it
+ * holds and give a long name somewhere to put its ellipsis — 76 left so much
+ * slack around each avatar that four people read as four separated islands
+ * rather than one row of faces.
+ */
+const PAYER_TILE_WIDTH = 60;
+
 /** Who paid what, in minor units. */
 type PayerMap = ReadonlyMap<MemberId, bigint>;
 
@@ -649,36 +660,23 @@ export default function AddExpenseScreen() {
   };
   const splitIssue = splitProblem(splitKind, entries, participants);
 
-  /**
-   * The split, folded into one sentence until somebody wants to argue with it.
-   *
-   * Almost every expense is "I paid, split it equally with everyone" — and that
-   * case was costing three open sections (how to split, who paid, who is in) and
-   * a screenful of scroll between the amount and the save button. Collapsed, the
-   * sentence still says exactly what will be saved, which is the part that must
-   * never be hidden; expanded, nothing about the controls has changed.
-   *
-   * It opens itself whenever the configuration is not that default, and stays
-   * open while the numbers do not add up — a validation message under a fold is
-   * a validation message nobody reads.
-   */
-  const isDefaultSplit =
-    splitKind === SplitKind.Equal &&
-    // "I paid" — one payer, and it is me. Two payers is never the default case,
-    // so tapping a second person opens the section that explains the split.
-    payers.size === 1 &&
-    myMemberId !== null &&
-    payers.has(myMemberId) &&
-    participants.length > 0 &&
-    participants.length === (members.data ?? []).length;
-  const [splitOpen, setSplitOpen] = useState(false);
-  const showSplit = splitOpen || !isDefaultSplit || splitIssue !== null;
+  // The split used to fold into a one-line summary card, opening itself when the
+  // configuration was not the "I paid, split equally" default. The fold is gone:
+  // the three controls (how to split, who paid, who is in) stand open under a
+  // plain heading, so changing a split is the tap that changes it rather than a
+  // tap to open, then a tap to change.
 
   // "More details" folds category, payment method, location and the FX rate off
-  // the common path — the same collapse the split summary uses. It opens itself
-  // whenever one of those carries a non-default value, so an edit (or a foreign
-  // currency, whose rate must be typed to save) is never hidden behind the fold.
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // the common path. It opens itself whenever one of those carries a non-default
+  // value, so an edit (or a foreign currency, whose rate must be typed to save)
+  // is not hidden behind the fold on arrival.
+  //
+  // `null` means "nobody has said": follow that rule. A tap replaces it with a
+  // decision, in either direction. It used to be a plain boolean OR-ed with the
+  // rule, and the header was disabled while the rule said open — so on a bill
+  // that carried any detail, "Fewer details" sat there looking tappable and did
+  // nothing.
+  const [detailsChoice, setDetailsChoice] = useState<boolean | null>(null);
 
   const isTrip = group.data?.type === 'trip';
   const groupCurrency = group.data?.default_currency ?? 'INR';
@@ -701,6 +699,14 @@ export default function AddExpenseScreen() {
   // A bill that already records several payers is in several-payer mode however
   // the flag was left — an edit must never offer to quietly drop one of them.
   const manyPayers = payerMode === 'many' || payers.size > 1;
+  // The chooser's order: whoever is paying, then everybody else, each keeping
+  // the group's own order within their half (`sort` is stable). The lane scrolls
+  // sideways, so without this a payer picked from the end of a long member list
+  // would be the one thing on the screen you cannot see.
+  const payerChoices = useMemo(() => {
+    const rows = members.data ?? [];
+    return [...rows].sort((a, b) => Number(payers.has(b.id)) - Number(payers.has(a.id)));
+  }, [members.data, payers]);
 
   /** Re-derive the figures, then refresh every field except the typed ones. */
   const applyPayers = (
@@ -977,7 +983,6 @@ export default function AddExpenseScreen() {
     // that comes back minutes later off a queue.
     if (payerProblem) {
       setError(payerMessage);
-      setSplitOpen(true);
       return;
     }
     setSaving(true);
@@ -1239,7 +1244,6 @@ export default function AddExpenseScreen() {
       setWeights(Object.fromEntries(chosen.map((id) => [id, String(units[id])])));
       setPresetLabel(t.expense.presets.nights);
       setPresetEditor(null);
-      setSplitOpen(true);
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'preset.nights'));
     }
@@ -1253,7 +1257,6 @@ export default function AddExpenseScreen() {
       setParticipants(result.participants);
       setPresetLabel(t.expense.presets.ride);
       setPresetEditor(null);
-      setSplitOpen(true);
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'preset.ride'));
     }
@@ -1277,7 +1280,6 @@ export default function AddExpenseScreen() {
       setPresetParams(result.params);
       setPresetLabel(t.expense.presets.car);
       setPresetEditor(null);
-      setSplitOpen(true);
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'preset.car'));
     }
@@ -1299,7 +1301,6 @@ export default function AddExpenseScreen() {
       setTreatHost(host);
       setPresetLabel(t.expense.presets.treat);
       setPresetEditor(null);
-      setSplitOpen(true);
     } catch (caught) {
       setError(friendlyError(caught, t.couldNotSave, 'preset.treat'));
     }
@@ -1343,44 +1344,7 @@ export default function AddExpenseScreen() {
   // and any detail somebody has already set is a decision that must not hide.
   const detailsNonDefault =
     currency !== groupCurrency || location !== null || paymentMethod !== 'cash' || categoryChosen;
-  const showDetails = detailsOpen || detailsNonDefault;
-
-  // The split, as the outcome rather than the machinery: "You paid · split
-  // equally with everyone". The payer leads (you, or the person who did); the
-  // tail is the preset's own words, or "split equally with everyone" for the
-  // default, or the split kind and headcount for anything hand-tuned.
-  const solePayer = payers.size === 1 ? (payerIds[0] ?? null) : null;
-  const payerMember =
-    solePayer && solePayer !== myMemberId
-      ? (members.data ?? []).find((member) => member.id === solePayer)
-      : undefined;
-  const payerName =
-    payers.size > 1
-      ? // Several people put money in — the names would not fit and the amounts
-        // are right below anyway, so the summary counts them.
-        plural(locale, payers.size, t.expense.paidByCount)
-      : solePayer !== null && solePayer === myMemberId
-        ? t.expense.youPaid
-        : // Somebody else paid. `members` excludes anyone who has left the group,
-          // so a bill paid by a departed member resolves to nothing here — and
-          // falling through to "You paid" claimed their bill for the reader.
-          t.expense.paidByName.replace(
-            '{name}',
-            payerMember ? displayName(payerMember, profile?.id) : t.misc.someone,
-          );
-  const splitTail =
-    presetLabel ??
-    (isDefaultSplit
-      ? t.expense.splitEquallyEveryone
-      : [
-          splitKind === SplitKind.Equal
-            ? t.expense.equally
-            : splitKind === SplitKind.Shares
-              ? t.expense.shares
-              : t.expense.percent,
-          plural(locale, participants.length, t.memberCount),
-        ].join(' · '));
-  const splitSummary = `${payerName} · ${splitTail}`;
+  const showDetails = detailsChoice ?? detailsNonDefault;
 
   // The bottom-bar sub-line. When an equal split lands the same amount on every
   // head, say it in money — "3 people owe ₹200 each" — which is the number
@@ -1470,49 +1434,62 @@ export default function AddExpenseScreen() {
             than a card that makes this look like a receipt scanner. Scan is
             metered and gives way when the group is capped; Add photo keeps an
             image on the device and never records a receipt server-side, so it
-            is offered even at the cap. */}
+            is offered even at the cap.
+
+            New expenses only. On an edit the gallery below is already the place
+            bills are added and removed — it carries its own add tile — so these
+            two would be a second door to the same room, one of which (scan)
+            would also re-read a bill that has already been entered. */}
           <View style={{ gap: theme.spacing.sm }}>
-            <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-              {!capLocked ? (
-                <Button
-                  label={scanning ? t.expense.reading : t.expense.scanReceipt}
-                  variant="ghost"
-                  size="sm"
-                  disabled={scanning || saving || capStatus === 'loading'}
-                  onPress={() => void scan()}
-                  icon={
-                    <Ionicons name="camera-outline" size={iconSize.md} color={theme.color.brand} />
-                  }
-                />
-              ) : null}
-              <Button
-                label={t.expense.addPhoto}
-                variant="ghost"
-                size="sm"
-                disabled={scanning || saving}
-                onPress={() => void attach()}
-                icon={
-                  <Ionicons name="image-outline" size={iconSize.md} color={theme.color.brand} />
-                }
-              />
-            </Row>
-            {capLocked ? (
-              <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text variant="caption" tone="muted" style={{ flex: 1, minWidth: 0 }}>
-                  {t.expense.capReachedBody}
-                </Text>
-                <Button
-                  label={t.expense.capUpgrade}
-                  size="sm"
-                  onPress={() => router.push('/settings/upgrade')}
-                />
-              </Row>
-            ) : null}
-            {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
-            {scanNote ? (
-              <Text variant="caption" tone="brand">
-                {scanNote}
-              </Text>
+            {!editing ? (
+              <>
+                <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  {!capLocked ? (
+                    <Button
+                      label={scanning ? t.expense.reading : t.expense.scanReceipt}
+                      variant="ghost"
+                      size="sm"
+                      disabled={scanning || saving || capStatus === 'loading'}
+                      onPress={() => void scan()}
+                      icon={
+                        <Ionicons
+                          name="camera-outline"
+                          size={iconSize.md}
+                          color={theme.color.brand}
+                        />
+                      }
+                    />
+                  ) : null}
+                  <Button
+                    label={t.expense.addPhoto}
+                    variant="ghost"
+                    size="sm"
+                    disabled={scanning || saving}
+                    onPress={() => void attach()}
+                    icon={
+                      <Ionicons name="image-outline" size={iconSize.md} color={theme.color.brand} />
+                    }
+                  />
+                </Row>
+                {capLocked ? (
+                  <Row style={{ gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Text variant="caption" tone="muted" style={{ flex: 1, minWidth: 0 }}>
+                      {t.expense.capReachedBody}
+                    </Text>
+                    <Button
+                      label={t.expense.capUpgrade}
+                      size="sm"
+                      onPress={() => router.push('/settings/upgrade')}
+                    />
+                  </Row>
+                ) : null}
+                {scanning ? <ActivityIndicator color={theme.color.brand} /> : null}
+                {scanNote ? (
+                  <Text variant="caption" tone="brand">
+                    {scanNote}
+                  </Text>
+                ) : null}
+              </>
             ) : null}
 
             {/* The bills kept against this expense — the same gallery the expense
@@ -1582,52 +1559,15 @@ export default function AddExpenseScreen() {
             </Pressable>
           ) : null}
 
-          {/* The one-line answer to "who pays what", tappable to open the three
-            controls that decide it. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showSplit }}
-            accessibilityLabel={t.expense.howToSplit}
-            onPress={() => setSplitOpen((open) => !open)}
-            // Never fold a broken split away behind its own summary.
-            disabled={splitIssue !== null}
-          >
-            <Card style={{ gap: theme.spacing.xs }}>
-              <Row style={{ justifyContent: 'space-between', gap: theme.spacing.md }}>
-                {/* The same glyph the chosen chip wears, and the same one the
-                    expense screen shows against "Split" — one mark for one way
-                    of splitting, wherever it appears. */}
-                <Ionicons
-                  name={splitIcon(splitKind)}
-                  size={iconSize.lg}
-                  color={theme.color.brand}
-                />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="caption" tone="muted">
-                    {t.expense.howToSplit}
-                  </Text>
-                  <Text variant="subheading" numberOfLines={2}>
-                    {splitSummary}
-                  </Text>
-                </View>
-                <Row style={{ gap: theme.spacing.xs, alignItems: 'center', flexShrink: 0 }}>
-                  <Text variant="caption" tone="brand">
-                    {showSplit ? t.common.done : t.common.edit}
-                  </Text>
-                  <Ionicons
-                    name={showSplit ? 'chevron-up' : 'chevron-down'}
-                    size={iconSize.md}
-                    color={theme.color.brand}
-                  />
-                </Row>
-              </Row>
-            </Card>
-          </Pressable>
+          {/* Just the heading. The summary card that used to stand here folded
+            the three controls away behind a sentence — one more thing to read,
+            and one more tap between somebody and the split they came to change.
+            The controls below say the same thing and can be acted on. */}
+          <Text variant="caption" tone="muted">
+            {t.expense.howToSplit}
+          </Text>
 
-          {/* Kept mounted and hidden rather than unmounted: the weighted split's
-            fields hold text somebody is mid-way through typing, and a fold that
-            threw it away would be a worse trade than a taller tree. */}
-          <View style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
+          <View style={{ gap: theme.spacing.sm }}>
             {isTrip && !editing ? (
               <View style={{ gap: theme.spacing.xs }}>
                 <Text variant="micro" tone="muted">
@@ -1707,7 +1647,7 @@ export default function AddExpenseScreen() {
 
             One payer stays exactly one tap: a row of avatars, no figures, no
             arithmetic. The amounts appear only once a second person is on it. */}
-          <Card style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
+          <Card style={{ gap: theme.spacing.sm }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" tone="muted">
                 {t.paidBy}
@@ -1742,8 +1682,25 @@ export default function AddExpenseScreen() {
               </Row>
             </Row>
 
-            <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-              {(members.data ?? []).map((member) => {
+            {/* One lane that scrolls, not a grid that reflows. Wrapping made the
+              row's height depend on how long the names in this group happen to
+              be — one "Lokesh Rangasamy" pushed the whole card taller and shoved
+              its neighbours onto a second line, so the same control was a
+              different shape in every group. Every tile is now the same width,
+              the name gets one line and an ellipsis, and the overflow goes
+              sideways where a tap can reach it.
+
+              Whoever is paying leads the lane (`payerChoices`), so on a long
+              member list the answer is at the start rather than somewhere off
+              the right-hand edge. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              // The lane sits inside a Card, which already pads it — the extra
+              // right padding is the "there is more this way" gutter.
+              contentContainerStyle={{ gap: theme.spacing.xs, paddingRight: theme.spacing.xl }}
+            >
+              {payerChoices.map((member) => {
                 const isPayer = payers.has(member.id);
                 return (
                   <Pressable
@@ -1757,19 +1714,25 @@ export default function AddExpenseScreen() {
                     accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
                     onPress={() => togglePayer(member.id)}
                     style={{
+                      width: PAYER_TILE_WIDTH,
                       alignItems: 'center',
                       gap: 4,
                       opacity: isPayer ? 1 : 0.45,
                     }}
                   >
                     <Avatar name={displayName(member)} ghost={isGhost(member)} />
-                    <Text variant="micro" tone={isPayer ? 'brand' : 'muted'}>
+                    <Text
+                      variant="micro"
+                      tone={isPayer ? 'brand' : 'muted'}
+                      numberOfLines={1}
+                      style={{ textAlign: 'center' }}
+                    >
                       {displayName(member, profile?.id)}
                     </Text>
                   </Pressable>
                 );
               })}
-            </Row>
+            </ScrollView>
 
             {manyPayers && payers.size > 1 ? (
               <View style={{ gap: theme.spacing.xs }}>
@@ -1862,7 +1825,7 @@ export default function AddExpenseScreen() {
             ) : null}
           </Card>
 
-          <Card style={{ gap: theme.spacing.sm, display: showSplit ? 'flex' : 'none' }}>
+          <Card style={{ gap: theme.spacing.sm }}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Text variant="caption" tone="muted">
                 {t.expense.splitBetween}
@@ -2005,9 +1968,7 @@ export default function AddExpenseScreen() {
             accessibilityRole="button"
             accessibilityState={{ expanded: showDetails }}
             accessibilityLabel={t.expense.moreDetails}
-            onPress={() => setDetailsOpen((open) => !open)}
-            // A detail that is already set must not be foldable away.
-            disabled={detailsNonDefault}
+            onPress={() => setDetailsChoice(!showDetails)}
           >
             <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <Text variant="caption" tone="brand" style={{ fontWeight: '700' }}>
