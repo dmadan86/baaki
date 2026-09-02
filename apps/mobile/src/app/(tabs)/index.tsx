@@ -390,7 +390,8 @@ export default function HomeScreen() {
               <TourTarget id="addExpense">
                 <HeroPill
                   icon="add"
-                  label={t.addExpense}
+                  label={t.expenseShort}
+                  a11yLabel={t.addExpense}
                   onPress={() => router.push('/capture')}
                   onLongPress={() => setQuickAddOpen(true)}
                 />
@@ -682,11 +683,15 @@ function useBalanceHidden(): { hidden: boolean; ready: boolean; toggle: () => vo
 function HeroPill({
   icon,
   label,
+  a11yLabel,
   onPress,
   onLongPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  /** Spoken label; defaults to `label`. The pill shows a short noun ("Expense")
+      but a screen reader still hears the full verb phrase ("Add expense"). */
+  a11yLabel?: string;
   onPress: () => void;
   onLongPress?: () => void;
 }) {
@@ -694,7 +699,7 @@ function HeroPill({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={a11yLabel ?? label}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={250}

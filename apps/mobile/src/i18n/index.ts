@@ -239,6 +239,8 @@ export interface UiStrings {
   profile: string;
   home: string;
   addExpense: string;
+  /** Short noun label for the dashboard hero pill; the `+` carries the verb. */
+  expenseShort: string;
   /** The dashboard's primary quick-add circle (→ capture). Pairs with newGroup. */
   newExpense: string;
   scanBill: string;
@@ -2573,6 +2575,7 @@ const en: UiStrings = {
   profile: 'Account',
   home: 'Home',
   addExpense: 'Add expense',
+  expenseShort: 'Expense',
   newExpense: 'New expense',
   scanBill: 'Scan bill',
   settleUp: 'Settle up',
@@ -4712,6 +4715,7 @@ const ta: UiStrings = {
   profile: 'கணக்கு',
   home: 'முகப்பு',
   addExpense: 'செலவு சேர்',
+  expenseShort: 'செலவு',
   newExpense: 'புதிய செலவு',
   scanBill: 'ரசீது ஸ்கேன்',
   settleUp: 'தீர்ப்பது',
@@ -6936,6 +6940,7 @@ const hi: UiStrings = {
   profile: 'खाता',
   home: 'होम',
   addExpense: 'खर्च जोड़ें',
+  expenseShort: 'खर्च',
   newExpense: 'नया खर्च',
   scanBill: 'बिल स्कैन',
   settleUp: 'हिसाब चुकाएँ',
@@ -9091,6 +9096,7 @@ const ar: UiStrings = {
   profile: 'الحساب',
   home: 'الرئيسية',
   addExpense: 'إضافة مصروف',
+  expenseShort: 'مصروف',
   newExpense: 'مصروف جديد',
   scanBill: 'مسح الفاتورة',
   settleUp: 'تسوية',
