@@ -74,6 +74,16 @@ const MAX_LISTEN_MS = 9500;
 const HARD_STOP_MS = 1800;
 
 /**
+ * How long an attempt may listen with no transcript at all before it is judged
+ * mute. A live recogniser emits interim results within about a second of speech;
+ * this beat past that with nothing back means this engine is not transcribing.
+ * On an on-device attempt that triggers a one-time fall back to the network
+ * engine (which speaks English on any connected phone) — the field's silent
+ * on-device model, heard-but-no-words, fixed in place.
+ */
+const PROGRESS_MS = 3800;
+
+/**
  * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
  * swell that makes the button read as a live orb rather than a flat disc. It is
  * the calm base layer under the sharper expanding rings; the two together are the
@@ -493,7 +503,24 @@ export function VoiceCapture({
   const gotResult = useRef(false);
   const volumeSeen = useRef(0);
   const usedOnDevice = useRef(false);
+  // A one-time on-device -> network fallback has already been spent this attempt.
+  const retried = useRef(false);
+  // The no-transcript watchdog (see PROGRESS_MS), armed at open.
+  const progress = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearProgress = useCallback((): void => {
+    if (progress.current === null) return;
+    clearTimeout(progress.current);
+    progress.current = null;
+  }, []);
+  // The latest `start`, reached indirectly so the fallback watchdog inside
+  // `start` can re-enter it without naming the still-declaring const.
+  const startRef = useRef<(forceNetwork?: boolean) => void>(() => {});
   const [diag, setDiag] = useState<string | null>(null);
+  // A live status line while listening — which engine, how many audio packets
+  // have arrived, whether any words came back. A debug aid for a device where
+  // voice silently does nothing: one screenshot mid-listen says where it breaks.
+  const [engine, setEngine] = useState<'on-device' | 'network' | null>(null);
+  const [volCount, setVolCount] = useState(0);
 
   useSpeechRecognitionEvent('start', () => {
     if (!speechMic.owns(session)) return;
@@ -503,6 +530,7 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('result', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    clearProgress();
     gotResult.current = true;
     const transcript = event.results[0]?.transcript ?? '';
     latest.current = transcript;
@@ -516,6 +544,7 @@ export function VoiceCapture({
     if (!speechMic.owns(session)) return;
     clearStall();
     volumeSeen.current += 1;
+    setVolCount((n) => n + 1);
     const norm = Math.max(0, Math.min(1, event.value / 10));
     // `.set()`, not `.value =`: Reanimated 4's method API, the one the React
     // compiler allows off the UI thread (see PressableScale in lib/anim).
@@ -526,6 +555,7 @@ export function VoiceCapture({
     if (!speechMic.owns(session)) return;
     clearStall();
     clearMaxListen();
+    clearProgress();
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
     setListening(false);
@@ -547,6 +577,7 @@ export function VoiceCapture({
     if (!speechMic.ended(session)) return;
     clearStall();
     clearMaxListen();
+    clearProgress();
     setListening(false);
     level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
@@ -560,135 +591,168 @@ export function VoiceCapture({
     }
   });
 
-  const start = useCallback(async (): Promise<void> => {
-    // One start at a time from this panel, and one capture at a time in the app.
-    if (starting.current) return;
-    starting.current = true;
-    // Still holding the mic from a session the panel has already given up on —
-    // an error whose `end` never arrived, say. The tap is a deliberate retry, so
-    // let go of the old session here; the claim below then waits for its
-    // teardown rather than opening a second recogniser on top of it.
-    if (speechMic.owns(session)) speechMic.release(session);
-    setError(null);
-    // Speaking again is the retry: clear both miss states as the mic opens, and
-    // let the screen drop any parsed miss it is still holding.
-    setEmptyMiss(false);
-    onListen?.();
-    latest.current = '';
-    setLive('');
-    level.set(0);
-    gotResult.current = false;
-    volumeSeen.current = 0;
-    setDiag(null);
-
-    // Claim the recogniser first, and wait here for any previous session's
-    // teardown to land. Everything below must give it back — a claimed mic that
-    // is never released is one nothing can reopen.
-    const claimed = await speechMic.acquire(session);
-    if (!mounted.current) {
-      starting.current = false;
-      if (claimed) speechMic.release(session);
-      return;
-    }
-    if (!claimed) {
-      starting.current = false;
-      setError(t.misc.dictationFailed);
-      return;
-    }
-
-    const give = (): void => {
-      starting.current = false;
-      speechMic.release(session);
-    };
-
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!mounted.current) return give();
-    if (!permission.granted) {
-      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-      return give();
-    }
-
-    // On-device only when an English model is actually installed; otherwise the
-    // recogniser is left to use the network, which speaks English on every phone.
-    // Requiring on-device for a model that is not there is what returned silence.
-    const onDevice = await englishInstalledOnDevice();
-    if (!mounted.current) return give();
-    usedOnDevice.current = onDevice;
-
-    setListening(true);
-    try {
-      ExpoSpeechRecognitionModule.start({
-        // Recognition is English-only — the surface each speaker reads is still
-        // localised, but the mic listens in English (device region where it can,
-        // else en-IN), so there is one locale to get right and no chip to miss.
-        lang: englishSpeechLocale(locale),
-        interimResults: true,
-        maxAlternatives: 1,
-        // One sentence, then it settles — the same shape a note dictation uses.
-        continuous: false,
-        requiresOnDeviceRecognition: onDevice,
-        addsPunctuation: onDevice,
-        // Meter the input so the waveform can ride real loudness (~10 Hz is
-        // plenty for a smooth wave and cheap to ease over).
-        volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
-        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-        iosTaskHint: 'dictation',
-        // People start with a greeting and a beat of thought — "hello… uh… add
-        // 500 to Goa". Android's default endpointing finalises on that first
-        // pause, ending the session on the greeting alone. Give it room: keep
-        // listening for at least a few seconds, and do not treat a two-second
-        // pause as the end of speech. (Android-only extras; iOS endpointing is
-        // already more forgiving and ignores these.)
-        androidIntentOptions: {
-          EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
-          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
-          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
-        },
-      });
-      speechMic.opened(session);
-      starting.current = false;
-      // Nothing has come back yet; if nothing ever does, the recogniser was
-      // torn down under us and the panel must say so rather than pretend.
+  const start = useCallback(
+    async (forceNetwork = false): Promise<void> => {
+      // One start at a time from this panel, and one capture at a time in the app.
+      if (starting.current) return;
+      starting.current = true;
+      // A fresh user-initiated start re-arms the one-time network fallback; a
+      // fallback re-entry keeps it spent. Either way, drop the old attempt's
+      // watchdogs before opening the next.
+      if (!forceNetwork) retried.current = false;
       clearStall();
-      stall.current = setTimeout(() => {
-        stall.current = null;
-        if (!mounted.current || !speechMic.owns(session)) return;
-        clearMaxListen();
-        setListening(false);
-        level.set(withTiming(0, { duration: 150 }));
-        setError(t.misc.dictationFailed);
-        speechMic.release(session);
-      }, STALL_MS);
-
-      // The hard cap: a recogniser that meters audio but never finalises would
-      // otherwise sit on "listening" forever (STALL is cleared by those volume
-      // events). At the cap, stop() to squeeze out any partial as a final; if it
-      // is still holding on after HARD_STOP_MS, release() aborts it and the
-      // capture lands on the calm miss with a diagnostic.
       clearMaxListen();
-      maxListen.current = setTimeout(() => {
-        maxListen.current = null;
-        if (!mounted.current || !speechMic.owns(session)) return;
-        speechMic.stop(session);
-        setTimeout(() => {
+      clearProgress();
+      // Still holding the mic from a session the panel has already given up on —
+      // an error whose `end` never arrived, say. The tap is a deliberate retry, so
+      // let go of the old session here; the claim below then waits for its
+      // teardown rather than opening a second recogniser on top of it.
+      if (speechMic.owns(session)) speechMic.release(session);
+      setError(null);
+      // Speaking again is the retry: clear both miss states as the mic opens, and
+      // let the screen drop any parsed miss it is still holding.
+      setEmptyMiss(false);
+      onListen?.();
+      latest.current = '';
+      setLive('');
+      level.set(0);
+      gotResult.current = false;
+      volumeSeen.current = 0;
+      setDiag(null);
+
+      // Claim the recogniser first, and wait here for any previous session's
+      // teardown to land. Everything below must give it back — a claimed mic that
+      // is never released is one nothing can reopen.
+      const claimed = await speechMic.acquire(session);
+      if (!mounted.current) {
+        starting.current = false;
+        if (claimed) speechMic.release(session);
+        return;
+      }
+      if (!claimed) {
+        starting.current = false;
+        setError(t.misc.dictationFailed);
+        return;
+      }
+
+      const give = (): void => {
+        starting.current = false;
+        speechMic.release(session);
+      };
+
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!mounted.current) return give();
+      if (!permission.granted) {
+        setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
+        return give();
+      }
+
+      // On-device only when an English model is actually installed; otherwise the
+      // recogniser is left to use the network, which speaks English on every phone.
+      // Requiring on-device for a model that is not there is what returned silence.
+      const onDevice = forceNetwork ? false : await englishInstalledOnDevice();
+      if (!mounted.current) return give();
+      usedOnDevice.current = onDevice;
+      setEngine(onDevice ? 'on-device' : 'network');
+      setVolCount(0);
+
+      setListening(true);
+      try {
+        ExpoSpeechRecognitionModule.start({
+          // Recognition is English-only — the surface each speaker reads is still
+          // localised, but the mic listens in English (device region where it can,
+          // else en-IN), so there is one locale to get right and no chip to miss.
+          lang: englishSpeechLocale(locale),
+          interimResults: true,
+          maxAlternatives: 1,
+          // One sentence, then it settles — the same shape a note dictation uses.
+          continuous: false,
+          requiresOnDeviceRecognition: onDevice,
+          addsPunctuation: onDevice,
+          // Meter the input so the waveform can ride real loudness (~10 Hz is
+          // plenty for a smooth wave and cheap to ease over).
+          volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
+          contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
+          iosTaskHint: 'dictation',
+          // People start with a greeting and a beat of thought — "hello… uh… add
+          // 500 to Goa". Android's default endpointing finalises on that first
+          // pause, ending the session on the greeting alone. Give it room: keep
+          // listening for at least a few seconds, and do not treat a two-second
+          // pause as the end of speech. (Android-only extras; iOS endpointing is
+          // already more forgiving and ignores these.)
+          androidIntentOptions: {
+            EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+          },
+        });
+        speechMic.opened(session);
+        starting.current = false;
+
+        // No transcript yet; if none arrives by PROGRESS_MS this engine is not
+        // transcribing. An on-device attempt falls back once to the network engine
+        // (the field's silent on-device model); a network attempt that is already
+        // mute is left to STALL / the hard cap to resolve.
+        clearProgress();
+        progress.current = setTimeout(() => {
+          progress.current = null;
+          if (!mounted.current || !speechMic.owns(session) || gotResult.current) return;
+          if (usedOnDevice.current && !retried.current) {
+            retried.current = true;
+            startRef.current(true);
+          }
+        }, PROGRESS_MS);
+
+        // Nothing has come back yet; if nothing ever does, the recogniser was
+        // torn down under us and the panel must say so rather than pretend.
+        clearStall();
+        stall.current = setTimeout(() => {
+          stall.current = null;
           if (!mounted.current || !speechMic.owns(session)) return;
+          clearMaxListen();
+          clearProgress();
           setListening(false);
           level.set(withTiming(0, { duration: 150 }));
-          const said = latest.current.trim();
-          if (said) onDone(said);
-          else {
-            setEmptyMiss(true);
-            setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
-          }
+          setError(t.misc.dictationFailed);
           speechMic.release(session);
-        }, HARD_STOP_MS);
-      }, MAX_LISTEN_MS);
-    } catch {
-      setListening(false);
-      setError(t.misc.dictationFailed);
-      give();
-    }
-  }, [clearMaxListen, clearStall, hints, level, locale, onDone, onListen, session, t]);
+        }, STALL_MS);
+
+        // The hard cap: a recogniser that meters audio but never finalises would
+        // otherwise sit on "listening" forever (STALL is cleared by those volume
+        // events). At the cap, stop() to squeeze out any partial as a final; if it
+        // is still holding on after HARD_STOP_MS, release() aborts it and the
+        // capture lands on the calm miss with a diagnostic.
+        clearMaxListen();
+        maxListen.current = setTimeout(() => {
+          maxListen.current = null;
+          if (!mounted.current || !speechMic.owns(session)) return;
+          speechMic.stop(session);
+          setTimeout(() => {
+            if (!mounted.current || !speechMic.owns(session)) return;
+            setListening(false);
+            level.set(withTiming(0, { duration: 150 }));
+            const said = latest.current.trim();
+            if (said) onDone(said);
+            else {
+              setEmptyMiss(true);
+              setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
+            }
+            speechMic.release(session);
+          }, HARD_STOP_MS);
+        }, MAX_LISTEN_MS);
+      } catch {
+        setListening(false);
+        setError(t.misc.dictationFailed);
+        give();
+      }
+    },
+    [clearMaxListen, clearProgress, clearStall, hints, level, locale, onDone, onListen, session, t],
+  );
+
+  // Point the recursion handle at the current start on every change.
+  useEffect(() => {
+    startRef.current = start;
+  }, [start]);
 
   const stop = useCallback((): void => {
     // Ask the recogniser to finish, but keep the session: `stop()` (unlike
@@ -723,10 +787,11 @@ export function VoiceCapture({
       mounted.current = false;
       clearStall();
       clearMaxListen();
+      clearProgress();
       starting.current = false;
       speechMic.release(session);
     };
-  }, [clearMaxListen, clearStall, session]);
+  }, [clearMaxListen, clearProgress, clearStall, session]);
 
   if (!available) {
     return (
@@ -813,6 +878,11 @@ export function VoiceCapture({
         ) : !listening && !showMiss && !live ? (
           <Text variant="caption" tone="faint" align="center">
             {t.voice.example}
+          </Text>
+        ) : null}
+        {listening ? (
+          <Text variant="caption" tone="faint" align="center">
+            {`${engine ?? '…'} · vol ${volCount} · w ${live ? 1 : 0}`}
           </Text>
         ) : null}
       </View>
