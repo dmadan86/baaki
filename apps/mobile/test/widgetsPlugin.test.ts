@@ -80,7 +80,7 @@ describe('withWavesWidgets — emitted native sources', () => {
     }
   });
 
-  it('each Kotlin provider targets its package, layout, and deep link', () => {
+  it('each Kotlin provider targets its package, layout, and its tap action', () => {
     for (const widget of WIDGETS) {
       const kotlin = readFileSync(
         join(main, 'java', ...PKG.split('.'), 'widget', `${widget.className}.kt`),
@@ -89,10 +89,28 @@ describe('withWavesWidgets — emitted native sources', () => {
       expect(kotlin).toContain(`package ${PKG}.widget`);
       expect(kotlin).toContain(`import ${PKG}.R`);
       expect(kotlin).toContain(`R.layout.widget_${widget.key}`);
-      expect(kotlin).toContain(`Uri.parse("${widget.link}")`);
+      if ((widget as { trampoline?: boolean }).trampoline) {
+        // The trampoline widget launches its capture Activity, not a deep link.
+        expect(kotlin).toContain('VoiceCaptureActivity::class.java');
+        expect(kotlin).not.toContain('Uri.parse');
+      } else {
+        expect(kotlin).toContain(`Uri.parse("${widget.link}")`);
+      }
       // Immutable pending intents are mandatory from Android 12.
       expect(kotlin).toContain('FLAG_IMMUTABLE');
     }
+  });
+
+  it('the voice widget emits a trampoline Activity that recognises speech and deep-links it back', () => {
+    const kotlin = readFileSync(
+      join(main, 'java', ...PKG.split('.'), 'widget', 'VoiceCaptureActivity.kt'),
+      'utf8',
+    );
+    expect(kotlin).toContain('RecognizerIntent.ACTION_RECOGNIZE_SPEECH');
+    expect(kotlin).toContain('EXTRA_PREFER_OFFLINE');
+    // Hands the transcript to the app on the voice deep link.
+    expect(kotlin).toContain('waves:///voice');
+    expect(kotlin).toContain('appendQueryParameter("heard"');
   });
 
   it('the scan widget carries the consume-once nonce the capture screen expects', () => {
