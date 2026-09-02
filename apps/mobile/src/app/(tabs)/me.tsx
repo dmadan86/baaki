@@ -3,15 +3,16 @@
  *
  * A person's own money, nothing shared. It wears the same clothes as the
  * dashboard: an edge-to-edge saturated hero that runs up under the status bar,
- * a swipeable deck of figures inside it (this month's net, what you spent, the
- * share you kept), the add actions on the hero itself, and a dot pager for the
- * swipe. A month switcher in the hero header steps back through past months so
- * the ledger is a record you can browse, not just a snapshot of today.
+ * holding this month's net big and, flat beneath it, the three figures the month
+ * turns on (income in, spent out, the share kept) plus both add actions. Nothing
+ * hides behind a swipe. A month switcher in the hero header steps back through
+ * past months so the ledger is a record you can browse, not just today.
  *
- * Below the hero, the white body: three stat tiles for the management areas
- * (recurring, loans, budgets) and the month's entries grouped by day the way a
- * bank statement reads. Everything is local-first from the mirror and every
- * figure is computed on the device.
+ * Below the hero, the white body reads top-down the way a person scans it: the
+ * month's entries grouped by day like a bank statement, its category breakdown
+ * and trend, and — demoted to a quiet tools shelf at the foot — the three
+ * management areas (recurring, loans, budgets). Everything is local-first from
+ * the mirror and every figure is computed on the device.
  *
  * Opening the tab also posts any auto-recurring entries that have come due since
  * it was last open (idempotent — see `postDueRecurring`).
@@ -20,15 +21,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  Animated,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -83,12 +76,9 @@ import { useStrings } from '@/i18n';
 // when you overspent — so the hero opens on the colour of how the month went.
 const SAVED_WASH = ['#1E5A8C', '#0C2E4A'] as const; // blue — money kept
 const OVERSPENT_WASH = ['#8C1D3F', '#4A0F20'] as const; // red — money lost
-const SPENT_WASH = ['#463F86', '#221C46'] as const; // indigo — what went out
-const SAVINGS_WASH = ['#12667A', '#06323D'] as const; // teal — the rate you kept
 
-// One faint watermark glyph per slide, in the same order, bled off the corner
-// and crossfading on the same scroll value as the wash.
-const SLIDE_ICONS = ['wallet-outline', 'card-outline', 'trending-up-outline'] as const;
+// One faint watermark glyph, bled off the hero's corner.
+const HERO_GLYPH = 'wallet-outline' as const;
 
 const HERO_CONTROL_BG = 'rgba(255, 255, 255, 0.16)';
 
@@ -264,41 +254,6 @@ export default function MeScreen() {
             gap: theme.spacing.xl,
           }}
         >
-          {/* The three management areas as a compact stat row. Each tile's big
-              figure is the size of that collection — how many recurring rules, how
-              much is owed, how many budgets — so the number answers "how many/how
-              much" on its own. A coloured qualifier line carries the one thing that
-              wants attention (N due, N active, N over), shown only when there is
-              one; the figure itself stays neutral. */}
-          <Row style={{ gap: theme.spacing.md }}>
-            <StatTile
-              icon="repeat"
-              value={String(ledger.recurrings.length)}
-              hint={dueCount > 0 ? `${dueCount} ${t.personal.due.toLowerCase()}` : undefined}
-              label={t.personal.recurring}
-              onPress={() => router.push('/personal/recurring')}
-            />
-            <StatTile
-              icon="cash-outline"
-              value={activeLoans.length > 0 ? fmt(outstanding) : '—'}
-              hint={
-                activeLoans.length > 0
-                  ? `${activeLoans.length} ${t.personal.active.toLowerCase()}`
-                  : undefined
-              }
-              label={t.personal.loans}
-              onPress={() => router.push('/personal/loans')}
-            />
-            <StatTile
-              icon="pie-chart-outline"
-              value={String(ledger.budgets.length)}
-              hint={overBudgets > 0 ? `${overBudgets} ${t.personal.over}` : undefined}
-              tone={overBudgets > 0 ? 'negative' : undefined}
-              label={t.personal.budgets}
-              onPress={() => router.push('/personal/budgets')}
-            />
-          </Row>
-
           {/* Two quiet contextual lines: what recurring item is next, and the
               category that has run furthest past its cap this month. */}
           {upcoming || worstOver ? (
@@ -414,6 +369,43 @@ export default function MeScreen() {
             )}
           </View>
 
+          {/* The management areas, demoted below the ledger to a quiet tools
+              shelf — each tile's figure is the size of that collection, with a
+              coloured qualifier for the one thing that wants attention. */}
+          <View style={{ gap: theme.spacing.sm }}>
+            <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+              {t.personal.tools.toUpperCase()}
+            </Text>
+            <Row style={{ gap: theme.spacing.md }}>
+              <StatTile
+                icon="repeat"
+                value={String(ledger.recurrings.length)}
+                hint={dueCount > 0 ? `${dueCount} ${t.personal.due.toLowerCase()}` : undefined}
+                label={t.personal.recurring}
+                onPress={() => router.push('/personal/recurring')}
+              />
+              <StatTile
+                icon="cash-outline"
+                value={activeLoans.length > 0 ? fmt(outstanding) : '—'}
+                hint={
+                  activeLoans.length > 0
+                    ? `${activeLoans.length} ${t.personal.active.toLowerCase()}`
+                    : undefined
+                }
+                label={t.personal.loans}
+                onPress={() => router.push('/personal/loans')}
+              />
+              <StatTile
+                icon="pie-chart-outline"
+                value={String(ledger.budgets.length)}
+                hint={overBudgets > 0 ? `${overBudgets} ${t.personal.over}` : undefined}
+                tone={overBudgets > 0 ? 'negative' : undefined}
+                label={t.personal.budgets}
+                onPress={() => router.push('/personal/budgets')}
+              />
+            </Row>
+          </View>
+
           {/* A quiet reassurance: this ledger is the person's alone. */}
           <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
             <Ionicons name="lock-closed-outline" size={iconSize.xs} color={theme.color.textFaint} />
@@ -480,11 +472,12 @@ function whenLabel(
 // ─────────────────────────────────────────────────────────────── hero ──
 
 /**
- * The edge-to-edge hero: a swipeable deck of three figures on a saturated wash,
- * the add actions, and a dot pager — the dashboard's account panel, told for a
- * private ledger. The carousel's live scroll offset drives the wash crossfade and
- * the pager, so colour, corner glyph and dots all move with the finger; it owns
- * that value itself since every piece that reads it lives inside the hero.
+ * The edge-to-edge hero: a static account panel for the private ledger. The
+ * month's net rides big on a saturated wash — blue when you saved, red when you
+ * overspent — and the three figures that frame it (income in, spent out, the
+ * share you kept) read flat beneath a spend-against-income bar, so everything the
+ * month turns on is on show at once with nothing behind a swipe. The month
+ * switcher steps the whole panel back through past months.
  */
 function MeHero({
   net,
@@ -515,51 +508,17 @@ function MeHero({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-
-  // The deck's scroll offset, owned here so the wash, the corner glyph and the
-  // dot pager all ride one value. Lazy-init, never read through `.current` in
-  // render (the ref lint the compiler enforces).
-  const [scrollX] = useState(() => new Animated.Value(0));
-  // Each slide fills the hero's inner width; its snap point is that plus the gap.
-  const cardWidth = width - theme.spacing.xl * 2;
-  const gap = theme.spacing.md;
-  const snap = cardWidth + gap;
 
   const saved = net >= 0n;
   const fmt = (amount: bigint): string =>
     format(money(amount, currency), { locale, compactFraction: true });
 
-  // The net slide shows its figure as an absolute value, so the saved/overspent
-  // direction lives in the label — the only slide whose sign carries meaning.
-  const washes = [saved ? SAVED_WASH : OVERSPENT_WASH, SPENT_WASH, SAVINGS_WASH];
-  const slides = [
-    {
-      key: 'net',
-      label: `${saved ? t.personal.saved : t.personal.overspent} · ${currency}`,
-      value: `${net < 0n ? '−' : ''}${fmt(net < 0n ? -net : net)}`,
-    },
-    {
-      key: 'spent',
-      label: `${t.personal.expenses} · ${currency}`,
-      value: fmt(expense),
-    },
-    {
-      key: 'savings',
-      label: t.personal.savingsRate,
-      value: rate === null ? '—' : `${Math.round(rate * 100)}%`,
-    },
-  ];
+  // The wash is the verdict of the month: blue kept, red lost.
+  const wash = saved ? SAVED_WASH : OVERSPENT_WASH;
 
-  // Share of income spent, for the persistent bar under the deck.
+  // Share of income spent, for the bar under the net.
   const ratio =
     income > 0n ? Math.min(1, Number((expense * 1000n) / income) / 1000) : expense > 0n ? 1 : 0;
-
-  const rangeFor = (index: number): number[] => [
-    (index - 1) * snap,
-    index * snap,
-    (index + 1) * snap,
-  ];
 
   return (
     <View
@@ -573,29 +532,19 @@ function MeHero({
         overflow: 'hidden',
       }}
     >
-      {/* One wash layer per slide, stacked and crossfading on the scroll value —
-          the first sits opaque as the base, the rest fade in at their own snap. */}
-      {washes.map((colors, index) => (
-        <Animated.View
-          key={slides[index]?.key ?? index}
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            index === 0
-              ? null
-              : {
-                  opacity: scrollX.interpolate({
-                    inputRange: rangeFor(index),
-                    outputRange: [0, 1, 0],
-                    extrapolate: 'clamp',
-                  }),
-                },
-          ]}
-        >
-          <Gradient colors={colors} radius={0} style={{ flex: 1 }} />
-        </Animated.View>
-      ))}
-      <HeroBackdrop scrollX={scrollX} snap={snap} />
+      {/* The saturated ground. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Gradient colors={wash} radius={0} style={{ flex: 1 }} />
+      </View>
+      {/* One faint watermark bled off the corner. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Ionicons
+          name={HERO_GLYPH}
+          size={208}
+          color={theme.color.onBrand}
+          style={{ position: 'absolute', right: -44, bottom: -52, opacity: 0.16 }}
+        />
+      </View>
 
       {/* Month switcher — the hero's header, centred, ‹ August 2026 ›. */}
       <Row style={{ alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
@@ -634,50 +583,19 @@ function MeHero({
         </Pressable>
       </Row>
 
-      {/* The swipeable figures. Full-width slides, no peek — they ride transparent
-          on the wash, so a peek would show floating text with no card edge; the
-          dot pager carries the "swipe me" signal instead. */}
-      <Animated.ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={snap}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        disableIntervalMomentum
-        scrollEventThrottle={16}
-        contentContainerStyle={{ gap }}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-          useNativeDriver: true,
-        })}
-      >
-        {slides.map((slide, index) => (
-          <Animated.View
-            key={slide.key}
-            style={{
-              width: cardWidth,
-              opacity: scrollX.interpolate({
-                inputRange: rangeFor(index),
-                outputRange: [0.75, 1, 0.75],
-                extrapolate: 'clamp',
-              }),
-              transform: [
-                {
-                  scale: scrollX.interpolate({
-                    inputRange: rangeFor(index),
-                    outputRange: [0.94, 1, 0.94],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ],
-            }}
-          >
-            <MetricSlide label={slide.label} value={slide.value} />
-          </Animated.View>
-        ))}
-      </Animated.ScrollView>
+      {/* The month's net, big and static — the label carries the saved/overspent
+          direction so the figure itself is shown as an absolute value. */}
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="caption" tone="onBrand" numberOfLines={1} style={{ opacity: 0.85 }}>
+          {`${saved ? t.personal.saved : t.personal.overspent} · ${currency}`}
+        </Text>
+        <Text variant="display" tone="onBrand" numberOfLines={1} adjustsFontSizeToFit>
+          {`${net < 0n ? '−' : ''}${fmt(net < 0n ? -net : net)}`}
+        </Text>
+      </View>
 
-      {/* Spend against income — a persistent bar under the deck, with income and
-          spend read out beneath it, so the context is there on every slide. */}
+      {/* Spend against income, then the three flat figures the month turns on:
+          what came in, what went out, and the share kept. */}
       <View style={{ gap: theme.spacing.sm }}>
         <View
           style={{
@@ -697,141 +615,38 @@ function MeHero({
         </View>
         <Row style={{ justifyContent: 'space-between' }}>
           <HeroFigure label={t.personal.income} value={fmt(income)} icon="arrow-down" />
-          <HeroFigure label={t.personal.expenses} value={fmt(expense)} icon="arrow-up" alignEnd />
-        </Row>
-      </View>
-
-      {/* The add actions and the pager travel as one block. */}
-      <View style={{ gap: theme.spacing.md }}>
-        <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-          <HeroPill
-            icon="add"
-            label={t.personal.addExpense}
-            onPress={() =>
-              router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })
-            }
+          <HeroFigure label={t.personal.expenses} value={fmt(expense)} icon="arrow-up" />
+          <HeroFigure
+            label={t.personal.savingsRate}
+            value={rate === null ? '—' : `${Math.round(rate * 100)}%`}
+            icon="trending-up"
+            alignEnd
           />
-          <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-            <HeroCircle
-              icon="arrow-down"
-              label={t.personal.addIncome}
-              onPress={() =>
-                router.push({ pathname: '/personal/entry', params: { kind: 'income' } })
-              }
-            />
-            <HeroCircle
-              icon="list-outline"
-              label={t.personal.transactions}
-              onPress={() => router.push('/personal/transactions')}
-            />
-          </Row>
         </Row>
-
-        <HeroDots count={slides.length} scrollX={scrollX} snap={snap} />
       </View>
-    </View>
-  );
-}
 
-/** One figure slide, riding transparent on the wash — a label and the money big
- *  beneath it, white ink throughout so it reads the same in light and dark. */
-function MetricSlide({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
-  return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <Text variant="caption" tone="onBrand" numberOfLines={1} style={{ opacity: 0.85 }}>
-        {label}
-      </Text>
-      <Text variant="display" tone="onBrand" numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** The corner watermark — one faint glyph per slide, crossfading on the scroll
- *  value, clipped to the hero's rounded corner and never eating a tap. */
-function HeroBackdrop({ scrollX, snap }: { scrollX: Animated.Value; snap: number }) {
-  const theme = useTheme();
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {SLIDE_ICONS.map((icon, index) => (
-        <Animated.View
-          key={icon}
-          style={{
-            position: 'absolute',
-            right: -44,
-            bottom: -52,
-            opacity: scrollX.interpolate({
-              inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap],
-              outputRange: [0, 0.16, 0],
-              extrapolate: 'clamp',
-            }),
-          }}
-        >
-          <Ionicons name={icon} size={208} color={theme.color.onBrand} />
-        </Animated.View>
-      ))}
-    </View>
-  );
-}
-
-const DOT_SIZE = 6;
-const DOT_ACTIVE_WIDTH = 18;
-
-/** The dot pager: a fixed-width white pill that translates across faint static
- *  dots off the live scroll value — native-driven, so it tracks the finger. */
-function HeroDots({
-  count,
-  scrollX,
-  snap,
-}: {
-  count: number;
-  scrollX: Animated.Value;
-  snap: number;
-}) {
-  const theme = useTheme();
-  const gap = theme.spacing.xs;
-  const step = DOT_SIZE + gap;
-  const trackWidth = count * DOT_SIZE + Math.max(0, count - 1) * gap;
-  const translateX =
-    count > 1
-      ? scrollX.interpolate({
-          inputRange: Array.from({ length: count }, (_, i) => i * snap),
-          outputRange: Array.from({ length: count }, (_, i) => i * step),
-          extrapolate: 'clamp',
-        })
-      : 0;
-  return (
-    <Row style={{ justifyContent: 'center' }}>
-      <View style={{ width: trackWidth, height: DOT_SIZE }}>
-        <Row style={{ position: 'absolute', left: 0, top: 0, gap }}>
-          {Array.from({ length: count }, (_, index) => (
-            <View
-              key={index}
-              style={{
-                width: DOT_SIZE,
-                height: DOT_SIZE,
-                borderRadius: DOT_SIZE / 2,
-                backgroundColor: 'rgba(255, 255, 255, 0.35)',
-              }}
-            />
-          ))}
-        </Row>
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: (DOT_SIZE - DOT_ACTIVE_WIDTH) / 2,
-            width: DOT_ACTIVE_WIDTH,
-            height: DOT_SIZE,
-            borderRadius: DOT_SIZE / 2,
-            backgroundColor: '#FFFFFF',
-            transform: [{ translateX }],
-          }}
+      {/* The add actions — both labelled, expense primary, income secondary, with
+          the ledger shortcut on the end. */}
+      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+        <HeroPill
+          tone="solid"
+          icon="add"
+          label={t.personal.addExpense}
+          onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })}
         />
-      </View>
-    </Row>
+        <HeroPill
+          tone="ghost"
+          icon="add"
+          label={t.personal.addIncome}
+          onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'income' } })}
+        />
+        <HeroCircle
+          icon="list-outline"
+          label={t.personal.transactions}
+          onPress={() => router.push('/personal/transactions')}
+        />
+      </Row>
+    </View>
   );
 }
 
@@ -862,35 +677,43 @@ function HeroFigure({
   );
 }
 
-/** The primary add action on the hero — a white pill with brand ink. */
+/** An add action on the hero — a pill that shares the row evenly. `solid` is the
+ *  primary white pill with brand ink; `ghost` is a translucent secondary in white
+ *  ink, so both actions read as buttons and neither is an unlabelled glyph. */
 function HeroPill({
   icon,
   label,
   onPress,
+  tone = 'solid',
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  tone?: 'solid' | 'ghost';
 }) {
   const theme = useTheme();
+  const ghost = tone === 'ghost';
+  const ink = ghost ? theme.color.onBrand : theme.color.brand;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => ({
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: theme.spacing.xs,
         paddingVertical: theme.spacing.sm + 2,
-        paddingHorizontal: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.md,
         borderRadius: theme.radius.pill,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: ghost ? HERO_CONTROL_BG : '#FFFFFF',
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <Ionicons name={icon} size={iconSize.lg} color={theme.color.brand} />
-      <Text variant="subheading" style={{ color: theme.color.brand }} numberOfLines={1}>
+      <Ionicons name={icon} size={iconSize.lg} color={ink} />
+      <Text variant="subheading" style={{ color: ink }} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>

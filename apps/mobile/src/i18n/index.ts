@@ -2507,6 +2507,7 @@ export interface UiStrings {
     justMeHint: string;
     deleteConfirm: string;
     whereMoneyWent: string;
+    tools: string;
     last3Months: string;
     upcoming: string;
     overBudget: string;
@@ -4624,6 +4625,7 @@ const en: UiStrings = {
     justMeHint: 'A private entry in your own ledger — not shared with anyone.',
     deleteConfirm: 'Delete this entry? This cannot be undone.',
     whereMoneyWent: 'Where your money went',
+    tools: 'Tools',
     last3Months: 'Last 3 months',
     upcoming: 'Upcoming',
     overBudget: 'Over budget',
@@ -6845,6 +6847,7 @@ const ta: UiStrings = {
     justMeHint: 'உங்கள் சொந்தக் கணக்கில் தனிப்பட்ட பதிவு — யாருடனும் பகிரப்படாது.',
     deleteConfirm: 'இந்தப் பதிவை நீக்கவா? இதை மீட்க முடியாது.',
     whereMoneyWent: 'உங்கள் பணம் எங்கே போனது',
+    tools: 'கருவிகள்',
     last3Months: 'கடந்த 3 மாதங்கள்',
     upcoming: 'வரவிருப்பது',
     overBudget: 'பட்ஜெட்டைத் தாண்டியது',
@@ -8976,6 +8979,7 @@ const hi: UiStrings = {
     justMeHint: 'आपके अपने खाते में निजी प्रविष्टि — किसी के साथ साझा नहीं।',
     deleteConfirm: 'यह प्रविष्टि हटाएँ? इसे वापस नहीं किया जा सकता।',
     whereMoneyWent: 'आपका पैसा कहाँ गया',
+    tools: 'उपकरण',
     last3Months: 'पिछले 3 महीने',
     upcoming: 'आने वाला',
     overBudget: 'बजट से अधिक',
@@ -11341,6 +11345,7 @@ const ar: UiStrings = {
     justMeHint: 'إدخال خاص في دفترك أنت — غير مشارَك مع أحد.',
     deleteConfirm: 'حذف هذا الإدخال؟ لا يمكن التراجع.',
     whereMoneyWent: 'أين ذهبت أموالك',
+    tools: 'الأدوات',
     last3Months: 'آخر 3 أشهر',
     upcoming: 'القادم',
     overBudget: 'تجاوز الميزانية',
