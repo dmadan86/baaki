@@ -413,22 +413,6 @@ async function englishInstalledOnDevice(): Promise<boolean> {
   }
 }
 
-/**
- * A compact, single-line summary of why a capture failed, shown under the calm
- * miss copy. Not for the everyday user so much as for pinning a device-only
- * silent-mic bug from a screenshot: it says which engine ran, whether any audio
- * reached it (volume packets), and whether any words came back.
- *
- *   `voice: on-device · heard audio · no words`  → the engine is broken/absent
- *   `voice: network · no audio · no words`        → mic/permission/routing
- */
-function buildDiag(onDevice: boolean, volume: number, words: boolean): string {
-  const engine = onDevice ? 'on-device' : 'network';
-  const audio = volume > 0 ? 'heard audio' : 'no audio';
-  const said = words ? 'got words' : 'no words';
-  return `voice: ${engine} · ${audio} · ${said}`;
-}
-
 export function VoiceCapture({
   onDone,
   hints,
@@ -501,7 +485,6 @@ export function VoiceCapture({
   // device where voice silently does nothing can be told apart — audio-but-no-
   // words (engine broken) from no-audio (mic/permission) — without a cable.
   const gotResult = useRef(false);
-  const volumeSeen = useRef(0);
   const usedOnDevice = useRef(false);
   // A one-time on-device -> network fallback has already been spent this attempt.
   const retried = useRef(false);
@@ -515,12 +498,13 @@ export function VoiceCapture({
   // The latest `start`, reached indirectly so the fallback watchdog inside
   // `start` can re-enter it without naming the still-declaring const.
   const startRef = useRef<(forceNetwork?: boolean) => void>(() => {});
-  const [diag, setDiag] = useState<string | null>(null);
-  // A live status line while listening — which engine, how many audio packets
-  // have arrived, whether any words came back. A debug aid for a device where
-  // voice silently does nothing: one screenshot mid-listen says where it breaks.
+  // Which engine the current attempt used — the setup-offline offer keys off a
+  // network miss (its recogniser can be dead on a device with no on-device model).
   const [engine, setEngine] = useState<'on-device' | 'network' | null>(null);
-  const [volCount, setVolCount] = useState(0);
+  // On-device recognition is supported here but the English model is not yet
+  // installed — probed once on mount. Surfaces the setup offer before a failure,
+  // for devices whose network recogniser is unreliable.
+  const [offlineEligible, setOfflineEligible] = useState(false);
   // A one-off setup for a device whose network recogniser hears audio but returns
   // no words: pull the on-device English model down, then recognition runs
   // on-device and skips the broken network path. A status line for the download.
@@ -548,8 +532,6 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('volumechange', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
-    volumeSeen.current += 1;
-    setVolCount((n) => n + 1);
     const norm = Math.max(0, Math.min(1, event.value / 10));
     // `.set()`, not `.value =`: Reanimated 4's method API, the one the React
     // compiler allows off the UI thread (see PressableScale in lib/anim).
@@ -590,10 +572,7 @@ export function VoiceCapture({
     // Heard nothing usable — surface the same calm recovery a parsed miss shows,
     // rather than silently dropping back to the opening prompt as if nothing had
     // been tried, and record why so a silent-mic device can be diagnosed.
-    else {
-      setEmptyMiss(true);
-      setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
-    }
+    else setEmptyMiss(true);
   });
 
   const start = useCallback(
@@ -622,8 +601,6 @@ export function VoiceCapture({
       setLive('');
       level.set(0);
       gotResult.current = false;
-      volumeSeen.current = 0;
-      setDiag(null);
 
       // Claim the recogniser first, and wait here for any previous session's
       // teardown to land. Everything below must give it back — a claimed mic that
@@ -659,7 +636,6 @@ export function VoiceCapture({
       if (!mounted.current) return give();
       usedOnDevice.current = onDevice;
       setEngine(onDevice ? 'on-device' : 'network');
-      setVolCount(0);
 
       setListening(true);
       try {
@@ -738,10 +714,7 @@ export function VoiceCapture({
             level.set(withTiming(0, { duration: 150 }));
             const said = latest.current.trim();
             if (said) onDone(said);
-            else {
-              setEmptyMiss(true);
-              setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
-            }
+            else setEmptyMiss(true);
             speechMic.release(session);
           }, HARD_STOP_MS);
         }, MAX_LISTEN_MS);
@@ -772,6 +745,7 @@ export function VoiceCapture({
         // The model is on the device now: latch it so the next capture asks for
         // on-device recognition (see englishInstalledOnDevice), and open the mic.
         englishOnDeviceConfirmed = true;
+        setOfflineEligible(false);
         setDownloadMsg(t.voice.offlineReady);
         void start();
       } else {
@@ -792,6 +766,33 @@ export function VoiceCapture({
     // would make the handler above drop the words spoken before the tap.
     speechMic.stop(session);
   }, [session]);
+
+  // Probe once: is on-device supported but not yet installed? If so, the offline
+  // model is worth offering up front — on some devices the network engine hears
+  // audio but returns nothing, and the on-device model is the only path that
+  // works. A pure read; never triggers a download on its own.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        if (!recognitionAvailable()) return;
+        let supports = false;
+        try {
+          supports = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+        } catch {
+          supports = false;
+        }
+        if (!supports) return;
+        const installed = await englishInstalledOnDevice();
+        if (alive && !installed) setOfflineEligible(true);
+      } catch {
+        // A failing probe just means no proactive offer — the on-miss one remains.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
   // making them tap a second one to start would be a step too many. Suppressed
@@ -908,14 +909,24 @@ export function VoiceCapture({
         {listening && !reduceMotion ? (
           <Waveform active={listening} level={level} />
         ) : !listening && !showMiss && !live ? (
-          <Text variant="caption" tone="faint" align="center">
-            {t.voice.example}
-          </Text>
-        ) : null}
-        {listening ? (
-          <Text variant="caption" tone="faint" align="center">
-            {`${engine ?? '…'} · vol ${volCount} · w ${live ? 1 : 0}`}
-          </Text>
+          <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Text variant="caption" tone="faint" align="center">
+              {t.voice.example}
+            </Text>
+            {offlineEligible ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={downloading}
+                onPress={() => void setupOffline()}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: downloading ? 0.5 : pressed ? 0.6 : 1 })}
+              >
+                <Text variant="caption" tone="brand" style={{ fontWeight: '600' }}>
+                  {t.voice.setupOffline}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
 
@@ -930,16 +941,10 @@ export function VoiceCapture({
       {/* A one-line failure diagnostic, shown only on a miss — which engine ran,
           whether audio reached it, whether any words returned. Lets a device
           where voice silently does nothing be told apart from a cable. */}
-      {showMiss && diag ? (
-        <Text variant="caption" tone="faint" align="center">
-          {diag}
-        </Text>
-      ) : null}
-
       {/* When the network engine heard audio but returned nothing, its recogniser
           is broken on this device — offer the on-device model, which recognises
           without the network path at all. */}
-      {showMiss && engine === 'network' ? (
+      {showMiss && (engine === 'network' || offlineEligible) ? (
         <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
           <Pressable
             accessibilityRole="button"
