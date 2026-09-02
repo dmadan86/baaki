@@ -1088,7 +1088,17 @@ async function pull(
   // per-group `maybeSingle` was the first of twelve serial round trips each
   // group cost, and twelve of anything serial is what made a five-group first
   // sync take seconds.
-  const groupList = [...groupIds];
+  // A group id is a bare uuid; every personal scope key carries a ':<name>'
+  // suffix (':ghost_merges', ':category_tags', ':personal'). The deletes above
+  // drop the *current* caller's scope keys, but a stale cursor from a previous
+  // account slips past them: a re-login leaves the old '<oldId>:ghost_merges'
+  // cursor in the client, it is sent on every poll, and its uuid no longer
+  // matches the computed `gmScope`, so the exact-key delete misses it. Handed to
+  // a uuid column ('.in(id, …)' on groups, '.eq(group_id, …)' per group) it is
+  // the '22P02 invalid input syntax for type uuid: "<id>:ghost_merges"' that
+  // floods the logs every poll. Keep only bare ids so no scoped key can reach a
+  // uuid column, whatever account minted it.
+  const groupList = [...groupIds].filter((id) => !id.includes(':'));
   const groupRows = new Map<string, Record<string, unknown>>();
   if (groupList.length > 0) {
     const { data, error } = await caller.from('groups').select('*').in('id', groupList);
