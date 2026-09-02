@@ -38,6 +38,7 @@ import {
   recentMonths,
   resolveCategory,
   savingsRate,
+  spendDelta,
   worstOverBudget,
   type MonthCashflow,
   type PersonalTxn,
@@ -210,6 +211,19 @@ export default function MeScreen() {
   const trend = cashflowTrend(ledger.txns, recentMonths(month, 3), dc);
   const trendActive = trend.some((m) => m.income > 0n || m.expense > 0n);
 
+  // A one-line month-over-month spend insight: how this month compares to the
+  // last month you actually used. null when there is nothing honest to compare.
+  const delta = spendDelta(ledger.txns, month, dc);
+  const deltaAbs = delta ? (delta.delta < 0n ? -delta.delta : delta.delta) : 0n;
+  const deltaLine = delta
+    ? delta.delta === 0n
+      ? t.personal.spentSameAsLast
+      : (delta.delta > 0n ? t.personal.spentMoreThanLast : t.personal.spentLessThanLast).replace(
+          '{amount}',
+          fmt(deltaAbs),
+        )
+    : null;
+
   // Private ledger: while the biometric gate is unresolved the whole screen is a
   // blank shield — no hero, no figures — so nothing is on show behind the OS
   // prompt. A failed check has already navigated away by the time this renders.
@@ -254,6 +268,29 @@ export default function MeScreen() {
             gap: theme.spacing.xl,
           }}
         >
+          {/* A one-line month-over-month spend insight, tinted by direction:
+              red when this month ran hotter than last, positive when cooler. */}
+          {deltaLine && delta ? (
+            <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+              <Ionicons
+                name={
+                  delta.delta > 0n ? 'trending-up' : delta.delta < 0n ? 'trending-down' : 'remove'
+                }
+                size={iconSize.sm}
+                color={
+                  delta.delta > 0n
+                    ? theme.color.negative
+                    : delta.delta < 0n
+                      ? theme.color.positive
+                      : theme.color.textMuted
+                }
+              />
+              <Text variant="caption" tone="muted">
+                {deltaLine}
+              </Text>
+            </Row>
+          ) : null}
+
           {/* Two quiet contextual lines: what recurring item is next, and the
               category that has run furthest past its cap this month. */}
           {upcoming || worstOver ? (

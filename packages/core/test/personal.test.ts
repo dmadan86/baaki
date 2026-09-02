@@ -22,6 +22,7 @@ import {
   recurringCatchUp,
   recurringOccurrenceId,
   savingsRate,
+  spendDelta,
   worstOverBudget,
   type PersonalBudget,
   type PersonalLoan,
@@ -433,5 +434,46 @@ describe('worstOverBudget', () => {
     const txns = [txn({ kind: 'expense', category: 'food', amount: 10000n, date: '2026-08-02' })];
     expect(worstOverBudget(budgets, txns, '2026-08', 'INR')).toBeNull();
     expect(worstOverBudget([], txns, '2026-08', 'INR')).toBeNull();
+  });
+});
+
+describe('spendDelta', () => {
+  const txns = [
+    txn({ kind: 'income', amount: 100000n, date: '2026-07-05' }),
+    txn({ kind: 'expense', amount: 20000n, date: '2026-07-10' }),
+    txn({ kind: 'expense', amount: 30000n, date: '2026-08-10' }),
+  ];
+
+  it('compares this month to the prior month', () => {
+    // Aug spend 30000, Jul spend 20000 -> +10000
+    expect(spendDelta(txns, '2026-08', 'INR')).toEqual({ prevExpense: 20000n, delta: 10000n });
+  });
+
+  it('is negative when this month spent less', () => {
+    // Jun spend 50000, Jul spend 20000 -> -30000
+    const withJun = [txn({ kind: 'expense', amount: 50000n, date: '2026-06-10' }), ...txns];
+    expect(spendDelta(withJun, '2026-07', 'INR')).toEqual({ prevExpense: 50000n, delta: -30000n });
+  });
+
+  it('is null when the prior month was never used', () => {
+    // Jun has no activity at all -> nothing honest to compare against
+    expect(spendDelta(txns, '2026-06', 'INR')).toBeNull();
+  });
+
+  it('keeps a used prior month that had zero expense', () => {
+    const t = [
+      txn({ kind: 'income', amount: 80000n, date: '2026-07-01' }), // used, no expense
+      txn({ kind: 'expense', amount: 15000n, date: '2026-08-10' }),
+    ];
+    expect(spendDelta(t, '2026-08', 'INR')).toEqual({ prevExpense: 0n, delta: 15000n });
+  });
+
+  it('is scoped to the currency', () => {
+    const t = [
+      txn({ kind: 'expense', amount: 20000n, currency: 'USD', date: '2026-07-10' }),
+      txn({ kind: 'expense', amount: 30000n, currency: 'USD', date: '2026-08-10' }),
+    ];
+    expect(spendDelta(t, '2026-08', 'INR')).toBeNull(); // no INR prior activity
+    expect(spendDelta(t, '2026-08', 'USD')).toEqual({ prevExpense: 20000n, delta: 10000n });
   });
 });

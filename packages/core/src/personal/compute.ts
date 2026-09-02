@@ -326,6 +326,37 @@ export function cashflowTrend(
   return months.map((month) => ({ month, ...monthlySummary(txns, month, currency) }));
 }
 
+export interface SpendDelta {
+  /** Last month's expense in this currency — the figure being compared against. */
+  readonly prevExpense: bigint;
+  /** This month's expense minus last month's; positive means you spent more. */
+  readonly delta: bigint;
+}
+
+/**
+ * How this month's spend compares to the month before it, for a one-line
+ * "you spent X more/less than last month" insight. `null` when there is nothing
+ * honest to say: a bad anchor, or a prior month with no activity at all (income
+ * or expense) in this currency — comparing against a month you did not use would
+ * read as "you spent everything more", which is noise, not signal. A prior month
+ * that was used but happened to have zero expense is a real comparison and is
+ * kept (the delta is simply this month's whole spend).
+ */
+export function spendDelta(
+  txns: readonly PersonalTxn[],
+  month: string,
+  currency: CurrencyCode,
+): SpendDelta | null {
+  const [prev] = recentMonths(month, 2);
+  // recentMonths always yields at least one key; a malformed anchor collapses the
+  // window to `[month]`, so `prev === month` (or undefined) means no prior to read.
+  if (prev === undefined || prev === month) return null;
+  const current = monthlySummary(txns, month, currency);
+  const prior = monthlySummary(txns, prev, currency);
+  if (prior.income <= 0n && prior.expense <= 0n) return null; // month never used
+  return { prevExpense: prior.expense, delta: current.expense - prior.expense };
+}
+
 // ─────────────────────────────────────────────────────────────── loans ──
 
 /**
