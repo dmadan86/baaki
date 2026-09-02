@@ -5,7 +5,10 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": ["waves", "baaki"],
+    "scheme": [
+      "waves",
+      "baaki"
+    ],
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F3F1FB",
     "runtimeVersion": {
@@ -60,7 +63,9 @@
         {
           "microphonePermission": "Waves uses the microphone only while you hold the mic button, to write down what you say.",
           "speechRecognitionPermission": "Waves turns what you say into the note on an expense, so you can add one without typing at the table.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ],
       [
@@ -85,6 +90,7 @@
         }
       ],
       "./plugins/withShortNativeBuildPath",
+      "./plugins/withGradleMemory",
       "./plugins/withSideBySideDebug",
       "./plugins/withWavesWidgets",
       "./plugins/withWavesWear",

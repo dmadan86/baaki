@@ -13,11 +13,12 @@
  * is the only path here that asks for permission, and only when tapped.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { ActivityIndicator, type LayoutChangeEvent, Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type MapView from 'react-native-maps';
 
 import type { ExpenseLocation } from '@waves/core';
 import { Button, iconSize, Row, Text, useTheme } from '@waves/ui';
@@ -41,6 +42,7 @@ import {
   tileGrid,
   tileUrl,
 } from '@/lib/mapTiles';
+import { nativeMaps } from '@/lib/nativeMaps';
 
 const TILE_URL = process.env.EXPO_PUBLIC_MAP_TILE_URL || DEFAULT_TILE_URL;
 // Where the map opens when there is no starting point and no granted fix — a
@@ -69,6 +71,19 @@ export function LocationPickerSheet({
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // The native Google map, when the module is in this build. Its imperative
+  // handle lets "use my location" and the on-open reseed fly the camera; a fresh
+  // `mapKey` per open remounts it so it always opens on the right region.
+  const useNativeMap = nativeMaps !== null;
+  const mapRef = useRef<MapView | null>(null);
+  const [mapKey, setMapKey] = useState(0);
+  const aspect = size.h > 0 ? size.w / size.h : 1;
+  const flyTo = (to: LatLng, span: 'point' | 'world'): void => {
+    if (useNativeMap && nativeMaps) {
+      mapRef.current?.animateToRegion(nativeMaps.regionForCenter(to, span, aspect), 350);
+    }
+  };
+
   // Re-seed the moment the sheet opens: an edit reopens on its saved point; a
   // fresh pick opens on the world view to tap or zoom into. Done during render
   // (the "adjust state when the input changes" pattern the expense form uses)
@@ -78,6 +93,9 @@ export function LocationPickerSheet({
     setSeededOpen(true);
     setCenter(initial ?? WORLD);
     setZoom(initial ? DEFAULT_ZOOM : WORLD_ZOOM);
+    // Remount the native map so it opens on the reseeded region (initialRegion
+    // is read once at mount).
+    if (useNativeMap) setMapKey((k) => k + 1);
   } else if (!visible && seededOpen) {
     setSeededOpen(false);
   }
@@ -92,11 +110,15 @@ export function LocationPickerSheet({
       if (active && loc) {
         setCenter({ lat: loc.lat, lng: loc.lng });
         setZoom(DEFAULT_ZOOM);
+        flyTo({ lat: loc.lat, lng: loc.lng }, 'point');
       }
     });
     return () => {
       active = false;
     };
+    // `flyTo` is stable enough for this one-shot on-open fix; re-running on its
+    // identity would refire the granted-location upgrade on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initial]);
 
   const onLayout = (event: LayoutChangeEvent): void => {
@@ -118,6 +140,7 @@ export function LocationPickerSheet({
       if (result.ok) {
         setCenter({ lat: result.location.lat, lng: result.location.lng });
         setZoom(DEFAULT_ZOOM);
+        flyTo({ lat: result.location.lat, lng: result.location.lng }, 'point');
       }
     } finally {
       setLocating(false);
@@ -176,105 +199,126 @@ export function LocationPickerSheet({
           </View>
         </Row>
 
-        {/* The map. A Pressable captures the tap that moves the pin. */}
+        {/* The map. Native Google Maps when the module is in this build; the
+            keyless raster-tile map otherwise (an older build, an OTA fallback). */}
         <View style={{ flex: 1 }} onLayout={onLayout}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.location.pickerHint}
-            onPress={(event) => onTapMap(event.nativeEvent.locationX, event.nativeEvent.locationY)}
-            style={{ flex: 1, backgroundColor: theme.color.bg }}
-          >
-            {tiles.map((tile) => (
-              <Image
-                key={`${tile.x}-${tile.y}-${tile.left}`}
-                source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom), headers: TILE_HEADERS }}
+          {useNativeMap && nativeMaps ? (
+            // Native Google map: pans and pinch-zooms itself, its own attribution
+            // baked in, the resting centre read back on pan-end. No tap-to-move,
+            // zoom buttons or credit overlay — the map owns all three.
+            <nativeMaps.GoogleMapSurface
+              key={mapKey}
+              mapRef={mapRef}
+              initialRegion={nativeMaps.regionForCenter(
+                center,
+                initial ? 'point' : 'world',
+                aspect,
+              )}
+              onCenterChange={setCenter}
+            />
+          ) : (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.location.pickerHint}
+                onPress={(event) =>
+                  onTapMap(event.nativeEvent.locationX, event.nativeEvent.locationY)
+                }
+                style={{ flex: 1, backgroundColor: theme.color.bg }}
+              >
+                {tiles.map((tile) => (
+                  <Image
+                    key={`${tile.x}-${tile.y}-${tile.left}`}
+                    source={{ uri: tileUrl(TILE_URL, tile.x, tile.y, zoom), headers: TILE_HEADERS }}
+                    style={{
+                      position: 'absolute',
+                      left: tile.left,
+                      top: tile.top,
+                      width: TILE_SIZE,
+                      height: TILE_SIZE,
+                    }}
+                    contentFit="cover"
+                    transition={120}
+                    cachePolicy="memory-disk"
+                  />
+                ))}
+              </Pressable>
+
+              {/* Fixed centre pin — the point that gets saved. */}
+              <View
+                pointerEvents="none"
                 style={{
                   position: 'absolute',
-                  left: tile.left,
-                  top: tile.top,
-                  width: TILE_SIZE,
-                  height: TILE_SIZE,
-                }}
-                contentFit="cover"
-                transition={120}
-                cachePolicy="memory-disk"
-              />
-            ))}
-          </Pressable>
-
-          {/* Fixed centre pin — the point that gets saved. */}
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name="location"
-              size={iconSize.xxl}
-              color={theme.color.brand}
-              style={{ marginTop: -iconSize.xxl / 2 }}
-            />
-          </View>
-
-          {/* Zoom controls, stacked at the trailing edge. */}
-          <View
-            style={{
-              position: 'absolute',
-              right: theme.spacing.lg,
-              top: theme.spacing.lg,
-              gap: theme.spacing.sm,
-            }}
-          >
-            {(
-              [
-                ['add', () => setZoom((z) => clampZoom(z + 1)), t.location.zoomIn],
-                ['remove', () => setZoom((z) => clampZoom(z - 1)), t.location.zoomOut],
-              ] as const
-            ).map(([icon, onPress, label]) => (
-              <Pressable
-                key={icon}
-                accessibilityRole="button"
-                accessibilityLabel={label}
-                onPress={onPress}
-                style={({ pressed }) => ({
-                  width: 44,
-                  height: 44,
-                  borderRadius: theme.radius.md,
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: theme.color.surface,
-                  opacity: pressed ? 0.7 : 1,
-                })}
+                }}
               >
-                <Ionicons name={icon} size={iconSize.md} color={theme.color.text} />
-              </Pressable>
-            ))}
-          </View>
+                <Ionicons
+                  name="location"
+                  size={iconSize.xxl}
+                  color={theme.color.brand}
+                  style={{ marginTop: -iconSize.xxl / 2 }}
+                />
+              </View>
 
-          {/* Attribution — required by the tile licence (OSM data, CARTO tiles). */}
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              right: 0,
-              bottom: 0,
-              paddingHorizontal: 4,
-              paddingVertical: 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.7)',
-              borderTopLeftRadius: theme.radius.sm,
-            }}
-          >
-            <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
-              {TILE_ATTRIBUTION}
-            </Text>
-          </View>
+              {/* Zoom controls, stacked at the trailing edge. */}
+              <View
+                style={{
+                  position: 'absolute',
+                  right: theme.spacing.lg,
+                  top: theme.spacing.lg,
+                  gap: theme.spacing.sm,
+                }}
+              >
+                {(
+                  [
+                    ['add', () => setZoom((z) => clampZoom(z + 1)), t.location.zoomIn],
+                    ['remove', () => setZoom((z) => clampZoom(z - 1)), t.location.zoomOut],
+                  ] as const
+                ).map(([icon, onPress, label]) => (
+                  <Pressable
+                    key={icon}
+                    accessibilityRole="button"
+                    accessibilityLabel={label}
+                    onPress={onPress}
+                    style={({ pressed }) => ({
+                      width: 44,
+                      height: 44,
+                      borderRadius: theme.radius.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.color.surface,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Ionicons name={icon} size={iconSize.md} color={theme.color.text} />
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Attribution — required by the tile licence (OSM data, CARTO tiles). */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                  paddingHorizontal: 4,
+                  paddingVertical: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  borderTopLeftRadius: theme.radius.sm,
+                }}
+              >
+                <Text variant="micro" style={{ color: '#333', fontSize: 9 }}>
+                  {TILE_ATTRIBUTION}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Footer: the hint, "use my location", and the confirm. */}
