@@ -1169,8 +1169,8 @@ const HERO_GREEN = SLIDE_GRADIENTS[0];
  * holds if both sites read the same numbers, hence the constants.
  */
 const HERO_LABEL_LINE = 18;
-const HERO_AMOUNT_SIZE = 24;
-const HERO_AMOUNT_LINE = 30;
+const HERO_AMOUNT_SIZE = 34;
+const HERO_AMOUNT_LINE = 40;
 const HERO_AMOUNT_STYLE = {
   fontSize: HERO_AMOUNT_SIZE,
   lineHeight: HERO_AMOUNT_LINE,
