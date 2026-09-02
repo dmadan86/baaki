@@ -2172,6 +2172,10 @@ export interface UiStrings {
     /** Accessibility label on the active-range chip's ✕. */
     clearFilter: string;
     /** Empty state when a range is active but nothing falls in it. */
+    today: string;
+    last7: string;
+    last30: string;
+    thisMonth: string;
     noneTitle: string;
     noneBody: string;
   };
@@ -4286,6 +4290,10 @@ const en: UiStrings = {
     apply: 'Show results',
     clear: 'Clear',
     clearFilter: 'Clear date filter',
+    today: 'Today',
+    last7: 'Last 7 days',
+    last30: 'Last 30 days',
+    thisMonth: 'This month',
     noneTitle: 'Nothing in this range',
     noneBody: 'No activity falls on the dates you picked. Try a wider range or clear the filter.',
   },
@@ -6502,6 +6510,10 @@ const ta: UiStrings = {
     apply: 'முடிவுகளைக் காட்டு',
     clear: 'அழி',
     clearFilter: 'தேதி வடிப்பானை அழி',
+    today: 'இன்று',
+    last7: 'கடந்த 7 நாட்கள்',
+    last30: 'கடந்த 30 நாட்கள்',
+    thisMonth: 'இந்த மாதம்',
     noneTitle: 'இந்த வரம்பில் ஒன்றுமில்லை',
     noneBody:
       'நீங்கள் தேர்ந்தெடுத்த தேதிகளில் எந்தச் செயல்பாடும் இல்லை. பரந்த வரம்பை முயற்சிக்கவும் அல்லது வடிப்பானை அழிக்கவும்.',
@@ -8654,6 +8666,10 @@ const hi: UiStrings = {
     apply: 'नतीजे दिखाएँ',
     clear: 'हटाएँ',
     clearFilter: 'तारीख़ फ़िल्टर हटाएँ',
+    today: 'आज',
+    last7: 'पिछले 7 दिन',
+    last30: 'पिछले 30 दिन',
+    thisMonth: 'इस महीने',
     noneTitle: 'इस दायरे में कुछ नहीं',
     noneBody: 'आपकी चुनी तारीख़ों में कोई गतिविधि नहीं है. बड़ा दायरा चुनें या फ़िल्टर हटाएँ.',
   },
@@ -11015,6 +11031,10 @@ const ar: UiStrings = {
     apply: 'عرض النتائج',
     clear: 'مسح',
     clearFilter: 'مسح تصفية التاريخ',
+    today: 'اليوم',
+    last7: 'آخر 7 أيام',
+    last30: 'آخر 30 يومًا',
+    thisMonth: 'هذا الشهر',
     noneTitle: 'لا شيء في هذا النطاق',
     noneBody: 'لا يوجد نشاط في التواريخ التي اخترتها. جرّب نطاقًا أوسع أو امسح التصفية.',
   },
