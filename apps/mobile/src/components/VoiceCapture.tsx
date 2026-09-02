@@ -58,6 +58,32 @@ speechMic.attach({
 const STALL_MS = 8000;
 
 /**
+ * The hard cap on one listening session, armed the moment the recogniser is
+ * opened and — unlike {@link STALL_MS} — never cleared by an incoming event.
+ *
+ * STALL only catches a recogniser that says *nothing at all*. This catches the
+ * other dead end the field hit: one that meters audio (volume events keep the
+ * wave alive) yet never returns a transcript and never ends, leaving the screen
+ * on "listening" until the person gives up. At the cap we `stop()` (which
+ * delivers any partial as a final result), and if even that is ignored we
+ * `release()` — an abort — so the session always lands on a transcript or the
+ * calm miss, never an endless spinner. Set a beat above STALL so the no-event
+ * path reports first.
+ */
+const MAX_LISTEN_MS = 9500;
+const HARD_STOP_MS = 1800;
+
+/**
+ * How long an attempt may listen with no transcript at all before it is judged
+ * mute. A live recogniser emits interim results within about a second of speech;
+ * this beat past that with nothing back means this engine is not transcribing.
+ * On an on-device attempt that triggers a one-time fall back to the network
+ * engine (which speaks English on any connected phone) — the field's silent
+ * on-device model, heard-but-no-words, fixed in place.
+ */
+const PROGRESS_MS = 3800;
+
+/**
  * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
  * swell that makes the button read as a live orb rather than a flat disc. It is
  * the calm base layer under the sharper expanding rings; the two together are the
@@ -444,6 +470,47 @@ export function VoiceCapture({
     stall.current = null;
   }, []);
 
+  // The hard listening cap (see MAX_LISTEN_MS) — armed at open, cleared only by a
+  // terminal event or unmount, never by a mid-session event.
+  const maxListen = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearMaxListen = useCallback((): void => {
+    if (maxListen.current === null) return;
+    clearTimeout(maxListen.current);
+    maxListen.current = null;
+  }, []);
+
+  // Lifecycle facts for the failure diagnostic: whether any transcript came back,
+  // how many volume packets arrived (did audio reach the recogniser at all), and
+  // which engine this attempt used. Surfaced only when a capture fails, so a
+  // device where voice silently does nothing can be told apart — audio-but-no-
+  // words (engine broken) from no-audio (mic/permission) — without a cable.
+  const gotResult = useRef(false);
+  const usedOnDevice = useRef(false);
+  // A one-time on-device -> network fallback has already been spent this attempt.
+  const retried = useRef(false);
+  // The no-transcript watchdog (see PROGRESS_MS), armed at open.
+  const progress = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearProgress = useCallback((): void => {
+    if (progress.current === null) return;
+    clearTimeout(progress.current);
+    progress.current = null;
+  }, []);
+  // The latest `start`, reached indirectly so the fallback watchdog inside
+  // `start` can re-enter it without naming the still-declaring const.
+  const startRef = useRef<(forceNetwork?: boolean) => void>(() => {});
+  // Which engine the current attempt used — the setup-offline offer keys off a
+  // network miss (its recogniser can be dead on a device with no on-device model).
+  const [engine, setEngine] = useState<'on-device' | 'network' | null>(null);
+  // On-device recognition is supported here but the English model is not yet
+  // installed — probed once on mount. Surfaces the setup offer before a failure,
+  // for devices whose network recogniser is unreliable.
+  const [offlineEligible, setOfflineEligible] = useState(false);
+  // A one-off setup for a device whose network recogniser hears audio but returns
+  // no words: pull the on-device English model down, then recognition runs
+  // on-device and skips the broken network path. A status line for the download.
+  const [downloading, setDownloading] = useState(false);
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
+
   useSpeechRecognitionEvent('start', () => {
     if (!speechMic.owns(session)) return;
     clearStall();
@@ -452,6 +519,8 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('result', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    clearProgress();
+    gotResult.current = true;
     const transcript = event.results[0]?.transcript ?? '';
     latest.current = transcript;
     setLive(transcript);
@@ -472,6 +541,8 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('error', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    clearMaxListen();
+    clearProgress();
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
     setListening(false);
@@ -492,116 +563,202 @@ export function VoiceCapture({
     // barely started.
     if (!speechMic.ended(session)) return;
     clearStall();
+    clearMaxListen();
+    clearProgress();
     setListening(false);
     level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
     if (said) onDone(said);
     // Heard nothing usable — surface the same calm recovery a parsed miss shows,
     // rather than silently dropping back to the opening prompt as if nothing had
-    // been tried.
+    // been tried, and record why so a silent-mic device can be diagnosed.
     else setEmptyMiss(true);
   });
 
-  const start = useCallback(async (): Promise<void> => {
-    // One start at a time from this panel, and one capture at a time in the app.
-    if (starting.current) return;
-    starting.current = true;
-    // Still holding the mic from a session the panel has already given up on —
-    // an error whose `end` never arrived, say. The tap is a deliberate retry, so
-    // let go of the old session here; the claim below then waits for its
-    // teardown rather than opening a second recogniser on top of it.
-    if (speechMic.owns(session)) speechMic.release(session);
-    setError(null);
-    // Speaking again is the retry: clear both miss states as the mic opens, and
-    // let the screen drop any parsed miss it is still holding.
-    setEmptyMiss(false);
-    onListen?.();
-    latest.current = '';
-    setLive('');
-    level.set(0);
-
-    // Claim the recogniser first, and wait here for any previous session's
-    // teardown to land. Everything below must give it back — a claimed mic that
-    // is never released is one nothing can reopen.
-    const claimed = await speechMic.acquire(session);
-    if (!mounted.current) {
-      starting.current = false;
-      if (claimed) speechMic.release(session);
-      return;
-    }
-    if (!claimed) {
-      starting.current = false;
-      setError(t.misc.dictationFailed);
-      return;
-    }
-
-    const give = (): void => {
-      starting.current = false;
-      speechMic.release(session);
-    };
-
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!mounted.current) return give();
-    if (!permission.granted) {
-      setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
-      return give();
-    }
-
-    // On-device only when an English model is actually installed; otherwise the
-    // recogniser is left to use the network, which speaks English on every phone.
-    // Requiring on-device for a model that is not there is what returned silence.
-    const onDevice = await englishInstalledOnDevice();
-    if (!mounted.current) return give();
-
-    setListening(true);
-    try {
-      ExpoSpeechRecognitionModule.start({
-        // Recognition is English-only — the surface each speaker reads is still
-        // localised, but the mic listens in English (device region where it can,
-        // else en-IN), so there is one locale to get right and no chip to miss.
-        lang: englishSpeechLocale(locale),
-        interimResults: true,
-        maxAlternatives: 1,
-        // One sentence, then it settles — the same shape a note dictation uses.
-        continuous: false,
-        requiresOnDeviceRecognition: onDevice,
-        addsPunctuation: onDevice,
-        // Meter the input so the waveform can ride real loudness (~10 Hz is
-        // plenty for a smooth wave and cheap to ease over).
-        volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
-        contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
-        iosTaskHint: 'dictation',
-        // People start with a greeting and a beat of thought — "hello… uh… add
-        // 500 to Goa". Android's default endpointing finalises on that first
-        // pause, ending the session on the greeting alone. Give it room: keep
-        // listening for at least a few seconds, and do not treat a two-second
-        // pause as the end of speech. (Android-only extras; iOS endpointing is
-        // already more forgiving and ignores these.)
-        androidIntentOptions: {
-          EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
-          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
-          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
-        },
-      });
-      speechMic.opened(session);
-      starting.current = false;
-      // Nothing has come back yet; if nothing ever does, the recogniser was
-      // torn down under us and the panel must say so rather than pretend.
+  const start = useCallback(
+    async (forceNetwork = false): Promise<void> => {
+      // One start at a time from this panel, and one capture at a time in the app.
+      if (starting.current) return;
+      starting.current = true;
+      // A fresh user-initiated start re-arms the one-time network fallback; a
+      // fallback re-entry keeps it spent. Either way, drop the old attempt's
+      // watchdogs before opening the next.
+      if (!forceNetwork) retried.current = false;
       clearStall();
-      stall.current = setTimeout(() => {
-        stall.current = null;
-        if (!mounted.current || !speechMic.owns(session)) return;
-        setListening(false);
-        level.set(withTiming(0, { duration: 150 }));
+      clearMaxListen();
+      clearProgress();
+      // Still holding the mic from a session the panel has already given up on —
+      // an error whose `end` never arrived, say. The tap is a deliberate retry, so
+      // let go of the old session here; the claim below then waits for its
+      // teardown rather than opening a second recogniser on top of it.
+      if (speechMic.owns(session)) speechMic.release(session);
+      setError(null);
+      // Speaking again is the retry: clear both miss states as the mic opens, and
+      // let the screen drop any parsed miss it is still holding.
+      setEmptyMiss(false);
+      onListen?.();
+      latest.current = '';
+      setLive('');
+      level.set(0);
+      gotResult.current = false;
+
+      // Claim the recogniser first, and wait here for any previous session's
+      // teardown to land. Everything below must give it back — a claimed mic that
+      // is never released is one nothing can reopen.
+      const claimed = await speechMic.acquire(session);
+      if (!mounted.current) {
+        starting.current = false;
+        if (claimed) speechMic.release(session);
+        return;
+      }
+      if (!claimed) {
+        starting.current = false;
         setError(t.misc.dictationFailed);
+        return;
+      }
+
+      const give = (): void => {
+        starting.current = false;
         speechMic.release(session);
-      }, STALL_MS);
+      };
+
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!mounted.current) return give();
+      if (!permission.granted) {
+        setError(permission.canAskAgain ? t.misc.micPermission : t.misc.micBlocked);
+        return give();
+      }
+
+      // On-device only when an English model is actually installed; otherwise the
+      // recogniser is left to use the network, which speaks English on every phone.
+      // Requiring on-device for a model that is not there is what returned silence.
+      const onDevice = forceNetwork ? false : await englishInstalledOnDevice();
+      if (!mounted.current) return give();
+      usedOnDevice.current = onDevice;
+      setEngine(onDevice ? 'on-device' : 'network');
+
+      setListening(true);
+      try {
+        ExpoSpeechRecognitionModule.start({
+          // Recognition is English-only — the surface each speaker reads is still
+          // localised, but the mic listens in English (device region where it can,
+          // else en-IN), so there is one locale to get right and no chip to miss.
+          lang: englishSpeechLocale(locale),
+          interimResults: true,
+          maxAlternatives: 1,
+          // One sentence, then it settles — the same shape a note dictation uses.
+          continuous: false,
+          requiresOnDeviceRecognition: onDevice,
+          addsPunctuation: onDevice,
+          // Meter the input so the waveform can ride real loudness (~10 Hz is
+          // plenty for a smooth wave and cheap to ease over).
+          volumeChangeEventOptions: { enabled: true, intervalMillis: 100 },
+          contextualStrings: hints && hints.length > 0 ? [...hints] : undefined,
+          iosTaskHint: 'dictation',
+          // People start with a greeting and a beat of thought — "hello… uh… add
+          // 500 to Goa". Android's default endpointing finalises on that first
+          // pause, ending the session on the greeting alone. Give it room: keep
+          // listening for at least a few seconds, and do not treat a two-second
+          // pause as the end of speech. (Android-only extras; iOS endpointing is
+          // already more forgiving and ignores these.)
+          androidIntentOptions: {
+            EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 4000,
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 2000,
+          },
+        });
+        speechMic.opened(session);
+        starting.current = false;
+
+        // No transcript yet; if none arrives by PROGRESS_MS this engine is not
+        // transcribing. An on-device attempt falls back once to the network engine
+        // (the field's silent on-device model); a network attempt that is already
+        // mute is left to STALL / the hard cap to resolve.
+        clearProgress();
+        progress.current = setTimeout(() => {
+          progress.current = null;
+          if (!mounted.current || !speechMic.owns(session) || gotResult.current) return;
+          if (usedOnDevice.current && !retried.current) {
+            retried.current = true;
+            startRef.current(true);
+          }
+        }, PROGRESS_MS);
+
+        // Nothing has come back yet; if nothing ever does, the recogniser was
+        // torn down under us and the panel must say so rather than pretend.
+        clearStall();
+        stall.current = setTimeout(() => {
+          stall.current = null;
+          if (!mounted.current || !speechMic.owns(session)) return;
+          clearMaxListen();
+          clearProgress();
+          setListening(false);
+          level.set(withTiming(0, { duration: 150 }));
+          setError(t.misc.dictationFailed);
+          speechMic.release(session);
+        }, STALL_MS);
+
+        // The hard cap: a recogniser that meters audio but never finalises would
+        // otherwise sit on "listening" forever (STALL is cleared by those volume
+        // events). At the cap, stop() to squeeze out any partial as a final; if it
+        // is still holding on after HARD_STOP_MS, release() aborts it and the
+        // capture lands on the calm miss with a diagnostic.
+        clearMaxListen();
+        maxListen.current = setTimeout(() => {
+          maxListen.current = null;
+          if (!mounted.current || !speechMic.owns(session)) return;
+          speechMic.stop(session);
+          setTimeout(() => {
+            if (!mounted.current || !speechMic.owns(session)) return;
+            setListening(false);
+            level.set(withTiming(0, { duration: 150 }));
+            const said = latest.current.trim();
+            if (said) onDone(said);
+            else setEmptyMiss(true);
+            speechMic.release(session);
+          }, HARD_STOP_MS);
+        }, MAX_LISTEN_MS);
+      } catch {
+        setListening(false);
+        setError(t.misc.dictationFailed);
+        give();
+      }
+    },
+    [clearMaxListen, clearProgress, clearStall, hints, level, locale, onDone, onListen, session, t],
+  );
+
+  // Point the recursion handle at the current start on every change.
+  useEffect(() => {
+    startRef.current = start;
+  }, [start]);
+
+  const setupOffline = useCallback(async (): Promise<void> => {
+    if (downloading) return;
+    setDownloading(true);
+    setDownloadMsg(t.voice.offlineDownloading);
+    try {
+      const { status } = await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+        locale: englishSpeechLocale(locale),
+      });
+      if (!mounted.current) return;
+      if (status === 'download_success') {
+        // The model is on the device now: latch it so the next capture asks for
+        // on-device recognition (see englishInstalledOnDevice), and open the mic.
+        englishOnDeviceConfirmed = true;
+        setOfflineEligible(false);
+        setDownloadMsg(t.voice.offlineReady);
+        void start();
+      } else {
+        // Android 13 opens a system download dialog; 14+ may schedule for Wi-Fi.
+        // Either way it is not ready this instant — invite a retry shortly.
+        setDownloadMsg(t.voice.offlineDownloading);
+      }
     } catch {
-      setListening(false);
-      setError(t.misc.dictationFailed);
-      give();
+      if (mounted.current) setDownloadMsg(t.voice.offlineFailed);
+    } finally {
+      if (mounted.current) setDownloading(false);
     }
-  }, [clearStall, hints, level, locale, onListen, session, t]);
+  }, [downloading, locale, start, t]);
 
   const stop = useCallback((): void => {
     // Ask the recogniser to finish, but keep the session: `stop()` (unlike
@@ -609,6 +766,33 @@ export function VoiceCapture({
     // would make the handler above drop the words spoken before the tap.
     speechMic.stop(session);
   }, [session]);
+
+  // Probe once: is on-device supported but not yet installed? If so, the offline
+  // model is worth offering up front — on some devices the network engine hears
+  // audio but returns nothing, and the on-device model is the only path that
+  // works. A pure read; never triggers a download on its own.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        if (!recognitionAvailable()) return;
+        let supports = false;
+        try {
+          supports = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+        } catch {
+          supports = false;
+        }
+        if (!supports) return;
+        const installed = await englishInstalledOnDevice();
+        if (alive && !installed) setOfflineEligible(true);
+      } catch {
+        // A failing probe just means no proactive offer — the on-miss one remains.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Open the mic as the screen appears — the reader tapped a mic to get here, so
   // making them tap a second one to start would be a step too many. Suppressed
@@ -635,10 +819,12 @@ export function VoiceCapture({
     return () => {
       mounted.current = false;
       clearStall();
+      clearMaxListen();
+      clearProgress();
       starting.current = false;
       speechMic.release(session);
     };
-  }, [clearStall, session]);
+  }, [clearMaxListen, clearProgress, clearStall, session]);
 
   if (!available) {
     return (
@@ -723,9 +909,24 @@ export function VoiceCapture({
         {listening && !reduceMotion ? (
           <Waveform active={listening} level={level} />
         ) : !listening && !showMiss && !live ? (
-          <Text variant="caption" tone="faint" align="center">
-            {t.voice.example}
-          </Text>
+          <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+            <Text variant="caption" tone="faint" align="center">
+              {t.voice.example}
+            </Text>
+            {offlineEligible ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={downloading}
+                onPress={() => void setupOffline()}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: downloading ? 0.5 : pressed ? 0.6 : 1 })}
+              >
+                <Text variant="caption" tone="brand" style={{ fontWeight: '600' }}>
+                  {t.voice.setupOffline}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
 
@@ -735,6 +936,33 @@ export function VoiceCapture({
             {error}
           </Text>
         </Pressable>
+      ) : null}
+
+      {/* A one-line failure diagnostic, shown only on a miss — which engine ran,
+          whether audio reached it, whether any words returned. Lets a device
+          where voice silently does nothing be told apart from a cable. */}
+      {/* When the network engine heard audio but returned nothing, its recogniser
+          is broken on this device — offer the on-device model, which recognises
+          without the network path at all. */}
+      {showMiss && (engine === 'network' || offlineEligible) ? (
+        <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={downloading}
+            onPress={() => void setupOffline()}
+            hitSlop={8}
+            style={({ pressed }) => ({ opacity: downloading ? 0.5 : pressed ? 0.6 : 1 })}
+          >
+            <Text tone="brand" style={{ fontWeight: '600' }}>
+              {t.voice.setupOffline}
+            </Text>
+          </Pressable>
+          {downloadMsg ? (
+            <Text variant="caption" tone="muted" align="center">
+              {downloadMsg}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
