@@ -381,9 +381,8 @@ export default function HomeScreen() {
             />
           )}
 
-          {/* The add actions: one white "add expense" pill and two translucent
-                circles — scan and the inbox. Starting a group moved up to the
-                header cluster. */}
+          {/* The add actions: one white "add expense" pill and the inbox
+                circle. Starting a group moved up to the header cluster. */}
           {/* Buttons and the pager travel together as one block, so the pager
                 sits just under the buttons rather than a full hero-gap away. */}
           <View style={{ gap: theme.spacing.md }}>
@@ -397,14 +396,6 @@ export default function HomeScreen() {
                 />
               </TourTarget>
               <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                {/* A fresh nonce each tap so the capture screen's consumed-once
-                      scan guard survives Android recreating it. */}
-                <HeroCircle
-                  icon="camera-outline"
-                  label={t.scanBill}
-                  onPress={() => router.push(`/capture?scan=${Date.now()}`)}
-                  onLongPress={() => setQuickAddOpen(true)}
-                />
                 <HeroCircle
                   icon="file-tray-outline"
                   label={t.captures.title}
@@ -1178,8 +1169,8 @@ const HERO_GREEN = SLIDE_GRADIENTS[0];
  * holds if both sites read the same numbers, hence the constants.
  */
 const HERO_LABEL_LINE = 18;
-const HERO_AMOUNT_SIZE = 40;
-const HERO_AMOUNT_LINE = 46;
+const HERO_AMOUNT_SIZE = 24;
+const HERO_AMOUNT_LINE = 30;
 const HERO_AMOUNT_STYLE = {
   fontSize: HERO_AMOUNT_SIZE,
   lineHeight: HERO_AMOUNT_LINE,
@@ -1234,7 +1225,7 @@ function HeroBalance({
   // (no total across currencies, ADR-004).
   const monthAmount = monthSpent.find((entry) => entry.currency === primary.currency)?.amount ?? 0n;
   // The net slide is the only one whose sign is information, so it shows that
-  // sign on the figure itself — a signed 40pt number is what gets read at a
+  // sign on the figure itself — a signed headline number is what gets read at a
   // glance, where an 11pt caption does not. The heading still names the verdict
   // in words (a Title-case phrase matching the other slides' headings); the two
   // agree, and either one alone would answer "which way do I stand".

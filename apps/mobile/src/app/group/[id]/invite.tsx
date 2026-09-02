@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import QRCodeStyled from 'react-native-qrcode-styled';
+import { Rect } from 'react-native-svg';
 
 import {
   Button,
@@ -256,6 +257,14 @@ export default function InviteScreen() {
                   size={200}
                   padding={16}
                   style={{ backgroundColor: '#ffffff' }}
+                  // The RN `backgroundColor` style is not rasterised by
+                  // `toDataURL`, so a captured/shared PNG would come out with a
+                  // transparent ground — the dark pieces then vanish on a dark
+                  // chat bubble (WhatsApp). Paint the white quiet zone as an SVG
+                  // layer behind the code instead, so it is part of the export.
+                  renderBackground={() => (
+                    <Rect x={-40} y={-40} width={320} height={320} fill="#ffffff" />
+                  )}
                   color="#0A0A1A"
                   errorCorrectionLevel="H"
                   pieceBorderRadius="50%"
@@ -281,20 +290,36 @@ export default function InviteScreen() {
               </Text>
             </Card>
 
-            {/* The quick channels — the share-row every reference app uses. */}
+            {/* The quick channels — WhatsApp, SMS, Email and the OS share sheet,
+                all on one straight row, each in its own brand colour. */}
             <Row style={{ gap: theme.spacing.sm }}>
               {(
                 [
-                  { channel: 'whatsapp', label: t.people.whatsapp, icon: 'logo-whatsapp' },
-                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble' },
-                  { channel: 'email', label: t.extras.email, icon: 'mail' },
+                  {
+                    channel: 'whatsapp',
+                    label: t.people.whatsapp,
+                    icon: 'logo-whatsapp',
+                    color: '#25D366',
+                  },
+                  { channel: 'sms', label: t.extras.sms, icon: 'chatbubble', color: '#1E88E5' },
+                  { channel: 'email', label: t.extras.email, icon: 'mail', color: '#EA4335' },
+                  {
+                    channel: 'share',
+                    label: t.common.share,
+                    icon: 'share-social',
+                    color: '#7C4DFF',
+                  },
                 ] as const
               ).map((option) => (
                 <Pressable
                   key={option.channel}
                   accessibilityRole="button"
                   accessibilityLabel={option.label}
-                  onPress={() => void shareQr(() => shareVia(option.channel))}
+                  onPress={() =>
+                    void shareQr(
+                      option.channel === 'share' ? share : () => shareVia(option.channel),
+                    )
+                  }
                   style={({ pressed }) => ({
                     flex: 1,
                     alignItems: 'center',
@@ -309,10 +334,10 @@ export default function InviteScreen() {
                       borderRadius: 28,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: theme.color.buttonPrimary,
+                      backgroundColor: option.color,
                     }}
                   >
-                    <Ionicons name={option.icon} size={iconSize.lg} color={theme.color.onBrand} />
+                    <Ionicons name={option.icon} size={iconSize.lg} color="#ffffff" />
                   </View>
                   <Text variant="caption" tone="muted">
                     {option.label}
@@ -321,22 +346,13 @@ export default function InviteScreen() {
               ))}
             </Row>
 
-            <Row style={{ gap: theme.spacing.md }}>
-              <Button
-                label={t.people.shareAnotherWay}
-                size="lg"
-                onPress={() => void shareQr(share)}
-                icon={
-                  <Ionicons name="share-outline" size={iconSize.md} color={theme.color.onBrand} />
-                }
-              />
-              <Button
-                label={copied ? t.people.linkCopied : t.people.copyLink}
-                variant="secondary"
-                size="lg"
-                onPress={() => void copy()}
-              />
-            </Row>
+            <Button
+              label={copied ? t.people.linkCopied : t.people.copyLink}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              onPress={() => void copy()}
+            />
 
             {/* Rotating the link is an admin's lever, for when a link has spread
                 too far. It kills the current QR and every shared copy. */}
