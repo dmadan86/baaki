@@ -51,13 +51,44 @@ function googleServicesFile(): string | undefined {
   return existsSync(local) ? local : undefined;
 }
 
+/**
+ * The native Google Maps SDK key for a platform, or nothing when unset.
+ *
+ * `react-native-maps` with the Google provider needs an API key baked into the
+ * native manifest (Android) / Info.plist (iOS) — this is Google's sanctioned
+ * path for a mobile Maps key and MUST be locked down in the Cloud Console before
+ * release (Android package + SHA-1, iOS bundle id; and the Maps SDK APIs only).
+ * The key is not committed — this repo is public — so it is read at config time,
+ * a platform-specific var winning over the shared one. With none set the app
+ * still builds; the Google map just renders blank until a key is supplied.
+ */
+function googleMapsKey(platform: 'android' | 'ios'): string | undefined {
+  const perPlatform =
+    platform === 'android' ? process.env.GOOGLE_MAPS_ANDROID_KEY : process.env.GOOGLE_MAPS_IOS_KEY;
+  return perPlatform || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || undefined;
+}
+
 export default (): ExpoConfig => {
   const config = appJson.expo as ExpoConfig;
 
   const services = googleServicesFile();
-  const withPush: ExpoConfig = services
-    ? { ...config, android: { ...config.android, googleServicesFile: services } }
-    : config;
+  const androidBase = services
+    ? { ...config.android, googleServicesFile: services }
+    : config.android;
+
+  // Fold the native Maps SDK key into each platform's `config` block when one is
+  // set, so `expo prebuild` writes it into the manifest / Info.plist.
+  const androidKey = googleMapsKey('android');
+  const iosKey = googleMapsKey('ios');
+  const withPush: ExpoConfig = {
+    ...config,
+    android: androidKey
+      ? { ...androidBase, config: { ...androidBase?.config, googleMaps: { apiKey: androidKey } } }
+      : androidBase,
+    ios: iosKey
+      ? { ...config.ios, config: { ...config.ios?.config, googleMapsApiKey: iosKey } }
+      : config.ios,
+  };
 
   const organization = process.env.SENTRY_ORG;
   const project = process.env.SENTRY_PROJECT;

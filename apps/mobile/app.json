@@ -85,6 +85,7 @@
         }
       ],
       "./plugins/withShortNativeBuildPath",
+      "./plugins/withGradleMemory",
       "./plugins/withSideBySideDebug",
       "./plugins/withWavesWidgets",
       "./plugins/withWavesWear",
