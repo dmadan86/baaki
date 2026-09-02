@@ -339,6 +339,13 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
             <SyncStatusIcon onBrand />
+            {/* EXPERIMENT (fold-activity-into-home): Activity left the bottom bar
+                  and lives here as a header shortcut. Remove this to revert. */}
+            <HeroIconButton
+              icon="pulse"
+              label={t.activity}
+              onPress={() => router.navigate('/activity')}
+            />
             {/* Start a group — moved up here from the action row, so it sits
                   just before the menu. Still the tour's "add a group" anchor. */}
             <TourTarget id="addGroup">

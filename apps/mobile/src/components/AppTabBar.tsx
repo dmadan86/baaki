@@ -54,18 +54,15 @@ export function AppTabBar() {
         label: t.friends,
         icon: (color) => <Ionicons name="people" size={iconSize.lg} color={color} />,
       },
-      {
-        key: 'activity',
-        label: t.activity,
-        icon: (color) => <Ionicons name="pulse" size={iconSize.lg} color={color} />,
-      },
+      // EXPERIMENT (fold-activity-into-home): Activity dropped from the bar and
+      // moved to a header shortcut on Home. Restore this entry to revert.
       {
         key: 'me',
         label: t.personal.tab,
         icon: (color) => <Ionicons name="wallet-outline" size={iconSize.lg} color={color} />,
       },
     ],
-    [t.activity, t.friends, t.home, t.personal.tab],
+    [t.friends, t.home, t.personal.tab],
   );
 
   // All bar destinations are tabs now. `navigate` switches to the existing tab
