@@ -899,6 +899,12 @@ export interface UiStrings {
     missedNothing: string;
     /** The status line under the mic on a miss: the mic itself is the retry. */
     tapToRetry: string;
+    /** Offer to install the on-device model when the network engine hears audio
+     *  but returns nothing (its recogniser is broken on this device). */
+    setupOffline: string;
+    offlineDownloading: string;
+    offlineReady: string;
+    offlineFailed: string;
     tryAgain: string;
     chooseGroup: string;
     /** '{note}' is the spoken description. */
@@ -3117,6 +3123,10 @@ const en: UiStrings = {
     tapToSpeak: 'Tap to speak',
     noAmount: 'Didn’t catch an amount',
     missedNothing: 'Didn’t catch that',
+    setupOffline: 'Set up offline voice',
+    offlineDownloading: 'Downloading the offline voice model… try again in a moment.',
+    offlineReady: 'Offline voice is ready — tap the mic and speak.',
+    offlineFailed: 'Couldn’t set up offline voice on this device.',
     tapToRetry: 'Tap to try again',
     tryAgain: 'Try again',
     chooseGroup: 'Which group?',
@@ -5259,6 +5269,11 @@ const ta: UiStrings = {
     tapToSpeak: 'பேச தட்டு',
     noAmount: 'தொகை புரியவில்லை',
     missedNothing: 'புரியவில்லை',
+    setupOffline: 'ஆஃப்லைன் குரலை அமை',
+    offlineDownloading:
+      'ஆஃப்லைன் குரல் மாதிரி பதிவிறங்குகிறது… சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
+    offlineReady: 'ஆஃப்லைன் குரல் தயார் — மைக்கைத் தட்டிப் பேசுங்கள்.',
+    offlineFailed: 'இந்தச் சாதனத்தில் ஆஃப்லைன் குரலை அமைக்க முடியவில்லை.',
     tapToRetry: 'மீண்டும் முயற்சிக்க தட்டு',
     tryAgain: 'மீண்டும் முயற்சி செய்',
     chooseGroup: 'எந்த குழு?',
@@ -7464,6 +7479,10 @@ const hi: UiStrings = {
     tapToSpeak: 'बोलने के लिए टैप करें',
     noAmount: 'रकम समझ नहीं आई',
     missedNothing: 'समझ नहीं आया',
+    setupOffline: 'ऑफ़लाइन आवाज़ सेट करें',
+    offlineDownloading: 'ऑफ़लाइन आवाज़ मॉडल डाउनलोड हो रहा है… थोड़ी देर में फिर कोशिश करें।',
+    offlineReady: 'ऑफ़लाइन आवाज़ तैयार — माइक दबाकर बोलें।',
+    offlineFailed: 'इस डिवाइस पर ऑफ़लाइन आवाज़ सेट नहीं हो सकी।',
     tapToRetry: 'दोबारा कोशिश के लिए टैप करें',
     tryAgain: 'फिर कोशिश करें',
     chooseGroup: 'कौन सा ग्रुप?',
@@ -9638,6 +9657,10 @@ const ar: UiStrings = {
     tapToSpeak: 'انقر للتحدث',
     noAmount: 'لم أفهم المبلغ',
     missedNothing: 'لم أفهم ذلك',
+    setupOffline: 'إعداد الصوت دون اتصال',
+    offlineDownloading: 'يجري تنزيل نموذج الصوت دون اتصال… أعد المحاولة بعد قليل.',
+    offlineReady: 'الصوت دون اتصال جاهز — انقر الميكروفون وتحدّث.',
+    offlineFailed: 'تعذّر إعداد الصوت دون اتصال على هذا الجهاز.',
     tapToRetry: 'انقر لإعادة المحاولة',
     tryAgain: 'أعد المحاولة',
     chooseGroup: 'أي مجموعة؟',

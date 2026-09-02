@@ -521,6 +521,11 @@ export function VoiceCapture({
   // voice silently does nothing: one screenshot mid-listen says where it breaks.
   const [engine, setEngine] = useState<'on-device' | 'network' | null>(null);
   const [volCount, setVolCount] = useState(0);
+  // A one-off setup for a device whose network recogniser hears audio but returns
+  // no words: pull the on-device English model down, then recognition runs
+  // on-device and skips the broken network path. A status line for the download.
+  const [downloading, setDownloading] = useState(false);
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
 
   useSpeechRecognitionEvent('start', () => {
     if (!speechMic.owns(session)) return;
@@ -754,6 +759,33 @@ export function VoiceCapture({
     startRef.current = start;
   }, [start]);
 
+  const setupOffline = useCallback(async (): Promise<void> => {
+    if (downloading) return;
+    setDownloading(true);
+    setDownloadMsg(t.voice.offlineDownloading);
+    try {
+      const { status } = await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+        locale: englishSpeechLocale(locale),
+      });
+      if (!mounted.current) return;
+      if (status === 'download_success') {
+        // The model is on the device now: latch it so the next capture asks for
+        // on-device recognition (see englishInstalledOnDevice), and open the mic.
+        englishOnDeviceConfirmed = true;
+        setDownloadMsg(t.voice.offlineReady);
+        void start();
+      } else {
+        // Android 13 opens a system download dialog; 14+ may schedule for Wi-Fi.
+        // Either way it is not ready this instant — invite a retry shortly.
+        setDownloadMsg(t.voice.offlineDownloading);
+      }
+    } catch {
+      if (mounted.current) setDownloadMsg(t.voice.offlineFailed);
+    } finally {
+      if (mounted.current) setDownloading(false);
+    }
+  }, [downloading, locale, start, t]);
+
   const stop = useCallback((): void => {
     // Ask the recogniser to finish, but keep the session: `stop()` (unlike
     // `abort()`) still delivers one last `result`, and giving the mic up here
@@ -902,6 +934,30 @@ export function VoiceCapture({
         <Text variant="caption" tone="faint" align="center">
           {diag}
         </Text>
+      ) : null}
+
+      {/* When the network engine heard audio but returned nothing, its recogniser
+          is broken on this device — offer the on-device model, which recognises
+          without the network path at all. */}
+      {showMiss && engine === 'network' ? (
+        <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={downloading}
+            onPress={() => void setupOffline()}
+            hitSlop={8}
+            style={({ pressed }) => ({ opacity: downloading ? 0.5 : pressed ? 0.6 : 1 })}
+          >
+            <Text tone="brand" style={{ fontWeight: '600' }}>
+              {t.voice.setupOffline}
+            </Text>
+          </Pressable>
+          {downloadMsg ? (
+            <Text variant="caption" tone="muted" align="center">
+              {downloadMsg}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
