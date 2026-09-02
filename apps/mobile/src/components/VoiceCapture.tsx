@@ -58,6 +58,22 @@ speechMic.attach({
 const STALL_MS = 8000;
 
 /**
+ * The hard cap on one listening session, armed the moment the recogniser is
+ * opened and — unlike {@link STALL_MS} — never cleared by an incoming event.
+ *
+ * STALL only catches a recogniser that says *nothing at all*. This catches the
+ * other dead end the field hit: one that meters audio (volume events keep the
+ * wave alive) yet never returns a transcript and never ends, leaving the screen
+ * on "listening" until the person gives up. At the cap we `stop()` (which
+ * delivers any partial as a final result), and if even that is ignored we
+ * `release()` — an abort — so the session always lands on a transcript or the
+ * calm miss, never an endless spinner. Set a beat above STALL so the no-event
+ * path reports first.
+ */
+const MAX_LISTEN_MS = 9500;
+const HARD_STOP_MS = 1800;
+
+/**
  * A soft halo that breathes behind the mic while it listens — a slow, low-opacity
  * swell that makes the button read as a live orb rather than a flat disc. It is
  * the calm base layer under the sharper expanding rings; the two together are the
@@ -387,6 +403,22 @@ async function englishInstalledOnDevice(): Promise<boolean> {
   }
 }
 
+/**
+ * A compact, single-line summary of why a capture failed, shown under the calm
+ * miss copy. Not for the everyday user so much as for pinning a device-only
+ * silent-mic bug from a screenshot: it says which engine ran, whether any audio
+ * reached it (volume packets), and whether any words came back.
+ *
+ *   `voice: on-device · heard audio · no words`  → the engine is broken/absent
+ *   `voice: network · no audio · no words`        → mic/permission/routing
+ */
+function buildDiag(onDevice: boolean, volume: number, words: boolean): string {
+  const engine = onDevice ? 'on-device' : 'network';
+  const audio = volume > 0 ? 'heard audio' : 'no audio';
+  const said = words ? 'got words' : 'no words';
+  return `voice: ${engine} · ${audio} · ${said}`;
+}
+
 export function VoiceCapture({
   onDone,
   hints,
@@ -444,6 +476,25 @@ export function VoiceCapture({
     stall.current = null;
   }, []);
 
+  // The hard listening cap (see MAX_LISTEN_MS) — armed at open, cleared only by a
+  // terminal event or unmount, never by a mid-session event.
+  const maxListen = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearMaxListen = useCallback((): void => {
+    if (maxListen.current === null) return;
+    clearTimeout(maxListen.current);
+    maxListen.current = null;
+  }, []);
+
+  // Lifecycle facts for the failure diagnostic: whether any transcript came back,
+  // how many volume packets arrived (did audio reach the recogniser at all), and
+  // which engine this attempt used. Surfaced only when a capture fails, so a
+  // device where voice silently does nothing can be told apart — audio-but-no-
+  // words (engine broken) from no-audio (mic/permission) — without a cable.
+  const gotResult = useRef(false);
+  const volumeSeen = useRef(0);
+  const usedOnDevice = useRef(false);
+  const [diag, setDiag] = useState<string | null>(null);
+
   useSpeechRecognitionEvent('start', () => {
     if (!speechMic.owns(session)) return;
     clearStall();
@@ -452,6 +503,7 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('result', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    gotResult.current = true;
     const transcript = event.results[0]?.transcript ?? '';
     latest.current = transcript;
     setLive(transcript);
@@ -463,6 +515,7 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('volumechange', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    volumeSeen.current += 1;
     const norm = Math.max(0, Math.min(1, event.value / 10));
     // `.set()`, not `.value =`: Reanimated 4's method API, the one the React
     // compiler allows off the UI thread (see PressableScale in lib/anim).
@@ -472,6 +525,7 @@ export function VoiceCapture({
   useSpeechRecognitionEvent('error', (event) => {
     if (!speechMic.owns(session)) return;
     clearStall();
+    clearMaxListen();
     const message = dictationError(event.error, t.misc.dictationErrors);
     if (message) setError(message);
     setListening(false);
@@ -492,14 +546,18 @@ export function VoiceCapture({
     // barely started.
     if (!speechMic.ended(session)) return;
     clearStall();
+    clearMaxListen();
     setListening(false);
     level.set(withTiming(0, { duration: 150 }));
     const said = latest.current.trim();
     if (said) onDone(said);
     // Heard nothing usable — surface the same calm recovery a parsed miss shows,
     // rather than silently dropping back to the opening prompt as if nothing had
-    // been tried.
-    else setEmptyMiss(true);
+    // been tried, and record why so a silent-mic device can be diagnosed.
+    else {
+      setEmptyMiss(true);
+      setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
+    }
   });
 
   const start = useCallback(async (): Promise<void> => {
@@ -519,6 +577,9 @@ export function VoiceCapture({
     latest.current = '';
     setLive('');
     level.set(0);
+    gotResult.current = false;
+    volumeSeen.current = 0;
+    setDiag(null);
 
     // Claim the recogniser first, and wait here for any previous session's
     // teardown to land. Everything below must give it back — a claimed mic that
@@ -552,6 +613,7 @@ export function VoiceCapture({
     // Requiring on-device for a model that is not there is what returned silence.
     const onDevice = await englishInstalledOnDevice();
     if (!mounted.current) return give();
+    usedOnDevice.current = onDevice;
 
     setListening(true);
     try {
@@ -591,17 +653,42 @@ export function VoiceCapture({
       stall.current = setTimeout(() => {
         stall.current = null;
         if (!mounted.current || !speechMic.owns(session)) return;
+        clearMaxListen();
         setListening(false);
         level.set(withTiming(0, { duration: 150 }));
         setError(t.misc.dictationFailed);
         speechMic.release(session);
       }, STALL_MS);
+
+      // The hard cap: a recogniser that meters audio but never finalises would
+      // otherwise sit on "listening" forever (STALL is cleared by those volume
+      // events). At the cap, stop() to squeeze out any partial as a final; if it
+      // is still holding on after HARD_STOP_MS, release() aborts it and the
+      // capture lands on the calm miss with a diagnostic.
+      clearMaxListen();
+      maxListen.current = setTimeout(() => {
+        maxListen.current = null;
+        if (!mounted.current || !speechMic.owns(session)) return;
+        speechMic.stop(session);
+        setTimeout(() => {
+          if (!mounted.current || !speechMic.owns(session)) return;
+          setListening(false);
+          level.set(withTiming(0, { duration: 150 }));
+          const said = latest.current.trim();
+          if (said) onDone(said);
+          else {
+            setEmptyMiss(true);
+            setDiag(buildDiag(usedOnDevice.current, volumeSeen.current, gotResult.current));
+          }
+          speechMic.release(session);
+        }, HARD_STOP_MS);
+      }, MAX_LISTEN_MS);
     } catch {
       setListening(false);
       setError(t.misc.dictationFailed);
       give();
     }
-  }, [clearStall, hints, level, locale, onListen, session, t]);
+  }, [clearMaxListen, clearStall, hints, level, locale, onDone, onListen, session, t]);
 
   const stop = useCallback((): void => {
     // Ask the recogniser to finish, but keep the session: `stop()` (unlike
@@ -635,10 +722,11 @@ export function VoiceCapture({
     return () => {
       mounted.current = false;
       clearStall();
+      clearMaxListen();
       starting.current = false;
       speechMic.release(session);
     };
-  }, [clearStall, session]);
+  }, [clearMaxListen, clearStall, session]);
 
   if (!available) {
     return (
@@ -735,6 +823,15 @@ export function VoiceCapture({
             {error}
           </Text>
         </Pressable>
+      ) : null}
+
+      {/* A one-line failure diagnostic, shown only on a miss — which engine ran,
+          whether audio reached it, whether any words returned. Lets a device
+          where voice silently does nothing be told apart from a cable. */}
+      {showMiss && diag ? (
+        <Text variant="caption" tone="faint" align="center">
+          {diag}
+        </Text>
       ) : null}
     </View>
   );
