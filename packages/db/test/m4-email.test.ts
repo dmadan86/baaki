@@ -129,6 +129,20 @@ async function statusOf(notificationId: string): Promise<string | null> {
   return rows[0]?.email_status ?? null;
 }
 
+/** Push's own outcome for a row — what the email fallback's gate actually reads. */
+async function pushStateOf(
+  notificationId: string,
+): Promise<{ pushStatus: string | null; pushNextRetryAt: string | null }> {
+  const { rows } = await client.query(
+    `SELECT push_status, push_next_retry_at FROM notifications WHERE id = $1`,
+    [notificationId],
+  );
+  return {
+    pushStatus: (rows[0]?.push_status as string | null) ?? null,
+    pushNextRetryAt: (rows[0]?.push_next_retry_at as string | null) ?? null,
+  };
+}
+
 describe('what gets claimed', () => {
   it('claims a settlement confirmation, with the address and the group', async () => {
     const { profileId, groupId, address } = await seedPerson();
@@ -278,6 +292,111 @@ describe('who does not get mailed', () => {
     await notify(profileId, groupId, 'settlement_confirm_request');
 
     expect(await claimFor(profileId)).toHaveLength(1);
+  });
+
+  /**
+   * `group_added` is the fallback for a push that never lands, now that there
+   * is no in-app inbox (#565) to check instead. Same rule as a nudge — mailed
+   * only where there is no live device, or where push has already given up.
+   *
+   * Unlike a nudge, that second condition is not known the moment the row is
+   * claimed — push can take several fanout runs to find out (the retry
+   * backoff), and `email_status IS NULL` never lets a row be claimed a second
+   * time. So a `group_added` row must not be claimed AT ALL until push is
+   * done, one way or another — claiming it early and deciding on a snapshot
+   * of "is there a device right now" would suppress it terminally before push
+   * had even tried once. This is the bug CodeRabbit caught on the first pass:
+   * every case below sits deliberately in `email_status IS NULL` — untouched,
+   * not yet claimed — until push's own state says otherwise.
+   */
+  describe('group_added — the fallback with nowhere else to land', () => {
+    it('leaves it untouched while push has not tried yet, even with a live device', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+
+      // Not suppressed — not claimed at all. Deciding anything here, before
+      // push has had its first attempt, is exactly the early-suppress bug.
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBeNull();
+    });
+
+    it('mails it once push (for real, via its own claim) finds no device to try', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 0 });
+      const id = await notify(profileId, groupId, 'group_added');
+
+      // The real pipeline: push's own claim runs first in every fanout call,
+      // and it is what turns "no device" into a terminal push_status —
+      // group_added's email gate reads that outcome, it does not compute its
+      // own. Skipping this step is what made the earlier version of this
+      // test pass without the fix in place: it forged a `null` push state
+      // rather than the one the no-token branch actually leaves behind.
+      //
+      // A generous limit, same reasoning as m4-push-fanout.test.ts's `claim`:
+      // this suite shares one Postgres with every other file, and the oldest
+      // unclaimed rows written by all of them sit ahead of this one.
+      await client.query(`SELECT baaki_claim_push_notifications(5000)`);
+      expect(await pushStateOf(id)).toEqual({ pushStatus: 'failed', pushNextRetryAt: null });
+
+      expect(await claimFor(profileId)).toHaveLength(1);
+    });
+
+    it('leaves it untouched while push still has a retry left, rather than deciding early', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(
+        `UPDATE notifications SET push_status = 'failed', push_attempts = 1,
+                                   push_next_retry_at = now() + interval '3 minutes'
+          WHERE id = $1`,
+        [id],
+      );
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBeNull();
+    });
+
+    it('mails it once push has exhausted all three attempts, even with a live device', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(
+        `UPDATE notifications SET push_status = 'failed', push_attempts = 3,
+                                   push_next_retry_at = NULL
+          WHERE id = $1`,
+        [id],
+      );
+
+      expect(await claimFor(profileId)).toHaveLength(1);
+    });
+
+    it('suppresses it once push actually succeeds', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(`UPDATE notifications SET push_status = 'sent' WHERE id = $1`, [id]);
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBe('suppressed');
+    });
+
+    /**
+     * The bug a second review pass caught: suppression read "is there a live
+     * device right now", not "did push already succeed" — so a push that
+     * landed and then had its token revoked before this ran (sign-out,
+     * reinstall, between the push half and email half of a later fanout run)
+     * fell through the `push_status = 'sent'` check with no token to match
+     * either, and got mailed anyway. A duplicate, after the thing it exists
+     * to prevent duplicates against had already worked.
+     */
+    it('suppresses it on a successful push even with no live device left', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(`UPDATE notifications SET push_status = 'sent' WHERE id = $1`, [id]);
+      // The device that received the push is gone by the time email claims.
+      await client.query(`UPDATE push_tokens SET revoked_at = now() WHERE profile_id = $1`, [
+        profileId,
+      ]);
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBe('suppressed');
+    });
   });
 });
 

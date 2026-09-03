@@ -220,6 +220,164 @@ describe('finishing', () => {
   });
 });
 
+describe('retry with backoff', () => {
+  const attemptsOf = async (
+    notificationId: string,
+  ): Promise<{ attempts: number; nextRetryAt: string | null }> => {
+    const { rows } = await client.query(
+      `SELECT push_attempts, push_next_retry_at FROM notifications WHERE id = $1`,
+      [notificationId],
+    );
+    return {
+      attempts: Number(rows[0]?.push_attempts ?? 0),
+      nextRetryAt: (rows[0]?.push_next_retry_at as string | null) ?? null,
+    };
+  };
+
+  const fail = async (notificationId: string): Promise<void> => {
+    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [notificationId]);
+  };
+
+  it('counts the failure and schedules a retry rather than reclaiming it right away', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await fail(id);
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(1);
+    expect(nextRetryAt).not.toBeNull();
+    // Still 'failed' with backoff pending, not yet due — a second claim right
+    // now must not hand it over again.
+    expect(mine(await claim(), id)).toBeUndefined();
+  });
+
+  /**
+   * The bug CodeRabbit caught: revoking a token mid-retry (the commonest
+   * reason a retry ever needed to exist — `DeviceNotRegistered` revokes in
+   * the same `baaki_finish_push` call as the failure it explains) used to
+   * leave `push_next_retry_at` sitting in the past forever, because the
+   * no-token branch below never reaches `baaki_finish_push` to advance
+   * anything. That made the row match the retry predicate on every single
+   * run until the two-day cutoff — reclaimed, found tokenless, sent back to
+   * `failed` with the exact same stale timestamp, forever.
+   */
+  it('does not keep re-claiming a row whose only token was revoked between attempts', async () => {
+    const person = await seedPerson({ tokens: 1 });
+    const id = await notify(person.profileId, person.groupId);
+
+    // Attempt 1: fails, and — as `DeviceNotRegistered` always does — revokes
+    // the token in the same call.
+    await claim();
+    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], ARRAY[$2]::text[])`, [
+      id,
+      person.tokens[0],
+    ]);
+    const afterFirstFailure = await attemptsOf(id);
+    expect(afterFirstFailure.attempts).toBe(1);
+    expect(afterFirstFailure.nextRetryAt).not.toBeNull();
+
+    // The backoff elapses. This is the retry claim finding no live token —
+    // the branch the fix touches.
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeUndefined();
+    expect(await statusOf(id)).toBe('failed');
+
+    // Without the fix, `push_next_retry_at` is still that same past
+    // timestamp here, and the row would match the retry predicate again on
+    // every future call. With it, retrying is over.
+    const afterRevoke = await attemptsOf(id);
+    expect(afterRevoke.nextRetryAt).toBeNull();
+    expect(mine(await claim(), id)).toBeUndefined();
+  });
+
+  it('reclaims a failed row once its backoff has elapsed', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await fail(id);
+
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeDefined();
+    expect(await statusOf(id)).toBe('queued');
+  });
+
+  it('gives up after three failures rather than retrying forever', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(mine(await claim(), id)).toBeDefined();
+      await fail(id);
+      // Jump the backoff so the next loop iteration does not have to wait on
+      // real time — but only while a next attempt is still coming. The third
+      // failure sets `push_next_retry_at` to null itself (no retry left), and
+      // overwriting that back to a past timestamp would just be testing a
+      // state the function never actually produces.
+      if (attempt < 2) {
+        await client.query(
+          `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+          [id],
+        );
+      }
+    }
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(3);
+    // The third failure schedules nothing further — this is what actually
+    // stops the claim from reclaiming it again below.
+    expect(nextRetryAt).toBeNull();
+    expect(mine(await claim(), id)).toBeUndefined();
+    expect(await statusOf(id)).toBe('failed');
+  });
+
+  it('leaves the attempt count alone on a plain delivery', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(0);
+    expect(nextRetryAt).toBeNull();
+  });
+
+  /**
+   * A second review pass caught this one: a row delivered on retry attempt 2
+   * kept `push_next_retry_at` from attempt 1's failure — nothing reads it
+   * once `push_status = 'sent'`, so it was harmless to claiming, but a
+   * `group_added` row's email suppression reads `push_status` directly (not
+   * this timestamp) so this specific bug never reached the email fallback —
+   * it was a leftover on a supposedly-terminal row regardless.
+   */
+  it('clears the scheduled retry once a retry actually delivers', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+
+    // Attempt 1 fails and schedules a retry.
+    await claim();
+    await fail(id);
+    expect((await attemptsOf(id)).nextRetryAt).not.toBeNull();
+
+    // The backoff elapses, attempt 2 is claimed and this time delivers.
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeDefined();
+    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+
+    expect(await statusOf(id)).toBe('sent');
+    expect((await attemptsOf(id)).nextRetryAt).toBeNull();
+  });
+});
+
 describe('who may run it', () => {
   it('is nobody who is merely signed in', async () => {
     // Claiming reads other people's inboxes. That is the service role's job and
