@@ -8,13 +8,14 @@
  * is identical, and two copies of a login form is exactly how one drifts from
  * the other.
  *
- * The layout is a plain white sheet — a heading, the email-and-password fields,
- * the primary action, then the providers at the foot — the shape every mainstream
- * login uses (the reference here is Quizlet's). Above the providers sit two
- * passwordless conveniences that both mail a one-time code to whatever address is
- * in the field: "Email me a code" (sign in without a password) and, on the login
- * door, "Forgot password" (recover the same way). A tapped code carries a
- * one-minute resend cool-down so a frustrated tap cannot spray the mailbox.
+ * The layout is one sheet with one hierarchy: a title and a muted line, the
+ * email-and-password card, the passwordless links as text under it ("Email me
+ * a code" on both doors, "Forgot password" on the login door — both mail a
+ * one-time code to the address in the field, with a one-minute resend cool-down
+ * so a frustrated tap cannot spray the mailbox), then the single primary button.
+ * The other ways in — Google, Apple, phone — sit at the foot as three icon
+ * tiles under a seam. Exactly one full-width button on the screen, on purpose:
+ * the previous sheet stacked six of them at the same weight and read as bloat.
  *
  * Which Supabase call each button makes is decided in @waves/core, not here. A
  * guest who taps a provider or types a password must have that way *added* to the
@@ -29,7 +30,7 @@
  * login screen a returning member sees. (ADR-006 addendum — see the PR.)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import {
@@ -40,10 +41,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 
 import { Button, Callout, directionalIcon, iconSize, Row, Screen, Text, useTheme } from '@waves/ui';
 
-import { SocialButton } from '@/components/SocialButton';
+import { SocialTile } from '@/components/SocialTile';
 import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
@@ -68,6 +70,7 @@ const RESEND_SECONDS = 60;
 export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
   const theme = useTheme();
   const { t } = useStrings();
+  const reduceMotion = useReducedMotion();
   const { withPassword, withGoogle, withApple, sendEmailOtp, verifyEmailOtp, isGuest } = useAuth();
 
   const isSignup = flow === 'signup';
@@ -154,13 +157,42 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
     })();
   };
 
-  const fieldStyle = {
-    backgroundColor: theme.color.surfaceMuted,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.lg,
+  // One grouped card for the fields: a hairline frame, a hairline between the
+  // rows, no filled slabs. The row height is fixed so the card does not breathe
+  // when the platform's text input decides on its own padding.
+  const cardStyle = {
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.color.surface,
+    overflow: 'hidden',
   } as const;
+  const rowStyle = {
+    height: 52,
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  } as const;
+  const inputStyle = {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.color.text,
+    paddingVertical: 0,
+  } as const;
+  const hairline = { height: 1, backgroundColor: theme.color.border } as const;
 
-  const title = isSignup ? t.signIn.createAccount : t.signIn.signInAction;
+  const title = isSignup ? t.signIn.createAccount : t.signIn.welcomeBack;
+  const submitLabel = isGuest
+    ? t.signIn.addToAccount
+    : isSignup
+      ? t.signIn.createAccount
+      : t.signIn.signInAction;
+  const subline = isGuest
+    ? t.signIn.guestAddWay
+    : isSignup
+      ? t.signIn.signupSubline
+      : t.signIn.loginSubline;
 
   return (
     <Screen edges={['top', 'bottom']} style={{ backgroundColor: theme.color.surface }}>
@@ -172,181 +204,150 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
             reachable from the first frame for somebody who opened the app in a
             script they cannot read. */}
         <Row style={{ paddingHorizontal: theme.spacing.md, minHeight: 44 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.common.back}
-            hitSlop={12}
+          <HeaderGlyph
+            label={t.common.back}
+            icon={directionalIcon('chevron-back')}
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))}
-            style={({ pressed }) => ({
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Ionicons
-              name={directionalIcon('chevron-back')}
-              size={iconSize.lg}
-              color={theme.color.text}
-            />
-          </Pressable>
+          />
           <View style={{ flex: 1 }} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.language}
-            hitSlop={12}
+          <HeaderGlyph
+            label={t.language}
+            icon="globe-outline"
             onPress={() => router.push('/language')}
-            style={({ pressed }) => ({
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.text} />
-          </Pressable>
+          />
         </Row>
 
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
-            paddingHorizontal: theme.spacing.xl,
+            paddingHorizontal: theme.spacing.xxl,
+            paddingTop: theme.spacing.lg,
             paddingBottom: theme.spacing.xxl,
-            gap: theme.spacing.xl,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text
-            style={{
-              fontSize: 40,
-              lineHeight: 48,
-              fontWeight: '800',
-              letterSpacing: -1,
-              color: theme.color.text,
-              marginTop: theme.spacing.sm,
-            }}
-          >
-            {title}
-          </Text>
+          {/* Title and one muted line. 28/700 rather than a 40pt display: this
+              is a form, not a poster. */}
+          <View style={{ gap: theme.spacing.xs, marginBottom: theme.spacing.xxxl }}>
+            <Text
+              style={{
+                fontSize: 28,
+                lineHeight: 34,
+                fontWeight: '700',
+                letterSpacing: -0.4,
+                color: theme.color.text,
+              }}
+            >
+              {title}
+            </Text>
+            <Text variant="body" tone="muted">
+              {subline}
+            </Text>
+          </View>
 
-          {/* The email/username field is always here; the password sits below it
-              on the form face, and gives way to the code field once a code has
-              been mailed. */}
-          <View style={{ gap: theme.spacing.md }}>
-            <View style={fieldStyle}>
-              <TextInput
-                value={identifier}
-                onChangeText={setIdentifier}
-                editable={stage === Stage.Form}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                autoComplete="username"
-                accessibilityLabel={t.signIn.identifier}
-                placeholder={t.signIn.identifier}
-                placeholderTextColor={theme.color.textFaint}
-                style={{
-                  fontSize: 17,
-                  fontWeight: '500',
-                  color: theme.color.text,
-                  paddingVertical: theme.spacing.lg,
-                }}
-              />
-            </View>
-
-            {stage === Stage.Form ? (
-              <>
-                <View style={fieldStyle}>
-                  <Row style={{ alignItems: 'center' }}>
-                    <TextInput
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!passwordShown}
-                      autoCapitalize="none"
-                      autoComplete={isSignup ? 'new-password' : 'current-password'}
-                      accessibilityLabel={t.signIn.password}
-                      placeholder={t.signIn.password}
-                      placeholderTextColor={theme.color.textFaint}
-                      style={{
-                        flex: 1,
-                        fontSize: 17,
-                        fontWeight: '500',
-                        color: theme.color.text,
-                        paddingVertical: theme.spacing.lg,
-                      }}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        passwordShown ? t.signIn.hidePassword : t.signIn.showPassword
-                      }
-                      onPress={() => setPasswordShown((shown) => !shown)}
-                      hitSlop={12}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                    >
-                      <Ionicons
-                        name={passwordShown ? 'eye-off-outline' : 'eye-outline'}
-                        size={iconSize.lg}
-                        color={theme.color.textMuted}
-                      />
-                    </Pressable>
-                  </Row>
+          {stage === Stage.Form ? (
+            <Animated.View
+              key="form"
+              entering={reduceMotion ? undefined : FadeIn.duration(160)}
+              style={{ gap: theme.spacing.lg }}
+            >
+              <View style={cardStyle}>
+                <View style={rowStyle}>
+                  <TextInput
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    autoComplete="username"
+                    accessibilityLabel={t.signIn.identifier}
+                    placeholder={t.signIn.identifier}
+                    placeholderTextColor={theme.color.textFaint}
+                    style={inputStyle}
+                  />
                 </View>
-
-                <Button
-                  testID="auth-submit"
-                  label={isGuest ? t.signIn.addToAccount : title}
-                  size="lg"
-                  fullWidth
-                  disabled={busy || !identifier.trim() || password.length < 8}
-                  onPress={submitPassword}
-                />
-
-                {/* Passwordless conveniences, hidden for a guest (a fresh code
-                    cannot upgrade their account in place). "Forgot password" is
-                    login-only; "Email me a code" is on both doors. */}
-                {!isGuest ? (
-                  <View style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
-                    {!isSignup ? (
-                      <Pressable
-                        testID="auth-forgot"
-                        accessibilityRole="button"
-                        onPress={mailCode}
-                        disabled={busy}
-                        hitSlop={8}
-                        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                      >
-                        <Text variant="subheading" style={{ color: theme.color.brand }}>
-                          {t.signIn.forgotPassword}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    <Button
-                      testID="auth-email-code"
-                      label={t.signIn.emailMeACode}
-                      variant="secondary"
-                      size="lg"
-                      fullWidth
-                      disabled={busy}
-                      icon={
-                        <Ionicons name="mail-outline" size={iconSize.md} color={theme.color.text} />
-                      }
-                      onPress={mailCode}
+                <View style={hairline} />
+                <View style={rowStyle}>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!passwordShown}
+                    autoCapitalize="none"
+                    autoComplete={isSignup ? 'new-password' : 'current-password'}
+                    accessibilityLabel={t.signIn.password}
+                    placeholder={t.signIn.password}
+                    placeholderTextColor={theme.color.textFaint}
+                    style={inputStyle}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      passwordShown ? t.signIn.hidePassword : t.signIn.showPassword
+                    }
+                    onPress={() => setPasswordShown((shown) => !shown)}
+                    hitSlop={12}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                  >
+                    <Ionicons
+                      name={passwordShown ? 'eye-off-outline' : 'eye-outline'}
+                      size={iconSize.md}
+                      color={theme.color.textMuted}
                     />
-                  </View>
-                ) : null}
-              </>
-            ) : (
-              <>
-                {/* The code face: what was mailed, where, and the way back. */}
-                <Text variant="caption" tone="muted">
-                  {t.signIn.emailCodeSentTo.replace('{value}', identifier.trim())}
-                </Text>
-                <View style={fieldStyle}>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Passwordless conveniences as text links on one row, not
+                  buttons: "Forgot password" is login-only, "Email me a code" is
+                  on both doors, neither is for a guest (a fresh code cannot
+                  upgrade their account in place). */}
+              {!isGuest ? (
+                <Row
+                  style={{
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: theme.spacing.sm,
+                  }}
+                >
+                  {!isSignup ? (
+                    <>
+                      <TextLink testID="auth-forgot" onPress={mailCode} disabled={busy}>
+                        {t.signIn.forgotPassword}
+                      </TextLink>
+                      <Text variant="caption" tone="faint">
+                        ·
+                      </Text>
+                    </>
+                  ) : null}
+                  <TextLink testID="auth-email-code" onPress={mailCode} disabled={busy}>
+                    {t.signIn.emailMeACode}
+                  </TextLink>
+                </Row>
+              ) : null}
+
+              <Button
+                testID="auth-submit"
+                label={submitLabel}
+                size="lg"
+                fullWidth
+                disabled={busy || !identifier.trim() || password.length < 8}
+                onPress={submitPassword}
+              />
+            </Animated.View>
+          ) : (
+            <Animated.View
+              key="code"
+              entering={reduceMotion ? undefined : FadeIn.duration(160)}
+              style={{ gap: theme.spacing.lg }}
+            >
+              {/* The code face: what was mailed, where, and the way back. */}
+              <Text variant="caption" tone="muted">
+                {t.signIn.emailCodeSentTo.replace('{value}', identifier.trim())}
+              </Text>
+              <View style={cardStyle}>
+                <View style={[rowStyle, { height: 64 }]}>
                   <TextInput
                     testID="auth-code"
                     value={code}
@@ -357,161 +358,229 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     placeholder="123456"
                     placeholderTextColor={theme.color.textFaint}
                     style={{
+                      flex: 1,
                       fontSize: 28,
                       fontWeight: '700',
                       letterSpacing: 8,
                       color: theme.color.text,
-                      paddingVertical: theme.spacing.md,
+                      paddingVertical: 0,
                     }}
                   />
                 </View>
-                <Button
-                  testID="auth-verify"
-                  label={t.signIn.verify}
-                  size="lg"
-                  fullWidth
-                  disabled={busy || code.trim().length < 6}
-                  onPress={() => void run(() => verifyEmailOtp(identifier, code))}
-                />
-
-                <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setStage(Stage.Form);
-                      setCode('');
-                      setError(null);
-                    }}
-                    hitSlop={8}
-                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                  >
-                    <Text variant="subheading" tone="muted">
-                      {t.signIn.usePasswordInstead}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    testID="auth-resend"
-                    accessibilityRole="button"
-                    onPress={mailCode}
-                    disabled={busy || resendLeft > 0}
-                    hitSlop={8}
-                    style={({ pressed }) => ({ opacity: pressed || resendLeft > 0 ? 0.5 : 1 })}
-                  >
-                    <Text
-                      variant="subheading"
-                      style={{
-                        color: resendLeft > 0 ? theme.color.textFaint : theme.color.brand,
-                      }}
-                    >
-                      {resendLeft > 0
-                        ? t.signIn.resendIn.replace('{s}', String(resendLeft))
-                        : t.signIn.resendCode}
-                    </Text>
-                  </Pressable>
-                </Row>
-              </>
-            )}
-
-            {error ? <Callout tone="negative">{error}</Callout> : null}
-          </View>
-
-          {/* Push the providers to the foot of the sheet the way the reference
-              does — the account-you-already-have shortcuts sit apart from the
-              form, under a seam. */}
-          <View style={{ flex: 1 }} />
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-            <Text variant="caption" tone="muted">
-              {t.signIn.or}
-            </Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
-          </View>
-
-          <View style={{ gap: theme.spacing.md }}>
-            <SocialRow
-              busy={busy}
-              wording={isGuest || isSignup ? 'continue' : 'signIn'}
-              onGoogle={() => void run(withGoogle)}
-              onApple={() => void run(withApple)}
-              t={t}
-            />
-            {/* Phone kept as a quiet way in — off the main path the reference
-                shows, but not dropped. */}
-            <Button
-              label={t.signIn.continuePhone}
-              variant="ghost"
-              size="lg"
-              fullWidth
-              disabled={busy}
-              icon={<Ionicons name="call-outline" size={iconSize.md} color={theme.color.brand} />}
-              onPress={() => router.push('/phone')}
-            />
-            {/* ADR-006 addendum: the guest way in belongs to the sign-up page. */}
-            {isSignup && !isGuest ? (
+              </View>
               <Button
-                label={t.signIn.continueGuest}
-                variant="ghost"
+                testID="auth-verify"
+                label={t.signIn.verify}
                 size="lg"
                 fullWidth
-                disabled={busy}
-                onPress={() => router.push('/guest-welcome')}
+                disabled={busy || code.trim().length < 6}
+                onPress={() => void run(() => verifyEmailOtp(identifier, code))}
               />
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <TextLink
+                  tone="muted"
+                  onPress={() => {
+                    setStage(Stage.Form);
+                    setCode('');
+                    setError(null);
+                  }}
+                >
+                  {t.signIn.usePasswordInstead}
+                </TextLink>
+                <TextLink
+                  testID="auth-resend"
+                  onPress={mailCode}
+                  disabled={busy || resendLeft > 0}
+                  tone={resendLeft > 0 ? 'faint' : 'brand'}
+                >
+                  {resendLeft > 0
+                    ? t.signIn.resendIn.replace('{s}', String(resendLeft))
+                    : t.signIn.resendCode}
+                </TextLink>
+              </Row>
+            </Animated.View>
+          )}
+
+          {error ? (
+            <View style={{ marginTop: theme.spacing.lg }}>
+              <Callout tone="negative">{error}</Callout>
+            </View>
+          ) : null}
+
+          <View style={{ flex: 1, minHeight: theme.spacing.xxxl }} />
+
+          {/* The other ways in: a seam, then three equal tiles. Small enough to
+              sit at the foot without piling up under the form. */}
+          <View style={{ gap: theme.spacing.xl }}>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <View style={[hairline, { flex: 1 }]} />
+              <Text variant="caption" tone="muted">
+                {t.signIn.orContinueWith}
+              </Text>
+              <View style={[hairline, { flex: 1 }]} />
+            </Row>
+            <SocialTiles
+              busy={busy}
+              onGoogle={() => void run(withGoogle)}
+              onApple={() => void run(withApple)}
+              onPhone={() => router.push('/phone')}
+              t={t}
+            />
+            {/* ADR-006 addendum: the guest way in belongs to the sign-up page —
+                a text link, one tap, still before any detail is asked. */}
+            {isSignup && !isGuest ? (
+              <View style={{ alignItems: 'center' }}>
+                <TextLink
+                  testID="auth-guest"
+                  onPress={() => router.push('/guest-welcome')}
+                  disabled={busy}
+                >
+                  {t.signIn.continueGuest}
+                </TextLink>
+              </View>
+            ) : null}
+            {/* The footnote belongs where a guest account is in play: the
+                sign-up door (where one can be started) and the guest upgrade. A
+                returning member has nothing to be told. */}
+            {isGuest || isSignup ? (
+              <Text variant="micro" tone="muted" align="center">
+                {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
+              </Text>
             ) : null}
           </View>
-
-          <Text variant="micro" tone="muted" align="center">
-            {isGuest ? t.signIn.guestFootnote : t.signIn.memberFootnote}
-          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
+/** A 44pt header glyph — back, language. */
+function HeaderGlyph({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={12}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.lg} color={theme.color.text} />
+    </Pressable>
+  );
+}
+
+/** An inline text action — the secondary weight on this sheet, never a button. */
+function TextLink({
+  children,
+  onPress,
+  disabled = false,
+  tone = 'brand',
+  testID,
+}: {
+  children: string;
+  onPress: () => void;
+  disabled?: boolean;
+  tone?: 'brand' | 'muted' | 'faint';
+  testID?: string;
+}) {
+  const theme = useTheme();
+  const color =
+    tone === 'brand'
+      ? theme.color.brand
+      : tone === 'muted'
+        ? theme.color.textMuted
+        : theme.color.textFaint;
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Text variant="subheading" style={{ color }}>
+        {children}
+      </Text>
+    </Pressable>
+  );
+}
+
 /**
- * The provider way in — Google and Apple.
+ * The tile row — Google, Apple, phone.
  *
  * Apple leads on iOS (its guidelines want it at least as prominent as the
  * others; App Store guideline 4.8 requires it alongside Google there); Google
- * leads elsewhere, where Apple is the browser fallback.
- *
- * "Sign in with" is reserved for the login screen, where it is true. On the
- * sign-up page — and for a guest attaching a way back into the groups already
- * on this phone — Google's own guidelines say to write "Continue with", because
- * the same button both makes an account and returns to one.
+ * leads elsewhere, where Apple is the browser fallback. Spoken labels are the
+ * full "Continue with …" — Google's own wording for a button that both makes
+ * an account and returns to one — and the visible caption is the one word.
  */
-function SocialRow({
+function SocialTiles({
   busy,
-  wording,
   onGoogle,
   onApple,
+  onPhone,
   t,
 }: {
   busy: boolean;
-  wording: 'continue' | 'signIn';
   onGoogle: () => void;
   onApple: () => void;
+  onPhone: () => void;
   t: UiStrings;
 }) {
-  const carryOn = wording === 'continue';
+  const theme = useTheme();
   const google = (
-    <SocialButton
+    <SocialTile
       key="google"
+      testID="auth-google"
       provider="google"
-      label={carryOn ? t.signIn.continueGoogle : t.signIn.signInGoogle}
+      accessibilityLabel={t.signIn.continueGoogle}
+      caption={t.signIn.providerGoogle}
       disabled={busy}
       onPress={onGoogle}
     />
   );
   const apple = (
-    <SocialButton
+    <SocialTile
       key="apple"
+      testID="auth-apple"
       provider="apple"
-      label={carryOn ? t.signIn.continueApple : t.signIn.signInApple}
+      accessibilityLabel={t.signIn.continueApple}
+      caption={t.signIn.providerApple}
       disabled={busy}
       onPress={onApple}
     />
   );
-  return <>{Platform.OS === 'ios' ? [apple, google] : [google, apple]}</>;
+  const phone = (
+    <SocialTile
+      key="phone"
+      testID="auth-phone"
+      provider="phone"
+      accessibilityLabel={t.signIn.continuePhone}
+      caption={t.signIn.providerPhone}
+      disabled={busy}
+      onPress={onPhone}
+    />
+  );
+  return (
+    <Row style={{ justifyContent: 'center', gap: theme.spacing.xxl }}>
+      {Platform.OS === 'ios' ? [apple, google, phone] : [google, apple, phone]}
+    </Row>
+  );
 }
