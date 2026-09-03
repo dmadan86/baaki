@@ -217,7 +217,18 @@ export function overlayPending(
 
   for (const mutation of [...queue].sort((a, b) => a.seq - b.seq)) {
     if (mutation.groupId !== options.groupId) continue;
-    applyPending(byId, mutation, options);
+    // Per mutation, because this runs inside a render-time useMemo and the
+    // queue is the one input nothing has validated. `pendingShares` reparses a
+    // payload written by an older build (or a truncated one), and a `MoneyError`
+    // thrown here propagates out of the component, through the error boundary,
+    // and — since the payload is on disk — again on every restart. One
+    // unmaterialisable mutation is one row missing from the list until it syncs
+    // or the user discards it; the rest of the ledger still renders.
+    try {
+      applyPending(byId, mutation, options);
+    } catch {
+      continue;
+    }
   }
 
   return [...byId.values()].sort((a, b) =>

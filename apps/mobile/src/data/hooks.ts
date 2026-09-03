@@ -365,7 +365,7 @@ export function useHomeSummary(profileId: string | null) {
 
       if (snapshots.length > 0 || settlements.length > 0) withLedger.add(group.id);
 
-      const net = computeNetBalances(snapshots, settlements.map(toSettlementSnapshot));
+      const net = computeNetBalances(snapshots, toSettlementSnapshots(settlements));
       const mine = (membersByGroup.get(group.id) ?? []).find(
         (member) => member.profile_id === profileId,
       );
@@ -542,9 +542,9 @@ export function usePeopleBalances(profileId: string | null): LocalRead<PersonBal
       const snapshots = materialiseExpenses(mirror, queue, { groupId: group.id })
         .map((expense) => toSnapshot(expense as unknown as ExpenseRow))
         .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
-      const settlementSnapshots = (
-        materialiseSettlements(mirror, queue, { groupId: group.id }) as unknown as SettlementRow[]
-      ).map(toSettlementSnapshot);
+      const settlementSnapshots = toSettlementSnapshots(
+        materialiseSettlements(mirror, queue, { groupId: group.id }) as unknown as SettlementRow[],
+      );
 
       const activity = lastActivityByMember(snapshots, settlementSnapshots);
       const edges = computePairwiseBalances(snapshots, settlementSnapshots);
@@ -849,34 +849,62 @@ export function useGroup(groupId: string) {
   };
 }
 
+/**
+ * Wire row → the shape the balance maths wants.
+ *
+ * Every one of these `BigInt(...)` calls throws a bare `SyntaxError` on a string
+ * that is not an integer — an amount from an older build, a truncated payload, a
+ * row overlaid from the offline queue. All of these run inside a render-time
+ * `useMemo`, so a throw here is not a wrong number on one line: it unmounts the
+ * screen, and because the row is on disk it does the same again on the next
+ * launch. Core's `toExpenseSnapshot` already guards exactly this; these two are
+ * the mobile copies that did not. A row that cannot be read is dropped instead —
+ * every caller filters nulls — which is one line missing from a list rather than
+ * a ledger nobody can open.
+ */
 export function toSnapshot(expense: ExpenseRow): ExpenseSnapshot | null {
   const version = expense.currentVersion;
   if (!version) return null;
-  return {
-    id: expense.id,
-    currency: version.currency,
-    amount: BigInt(version.amount),
-    payers: Object.fromEntries(version.payers.map((row) => [row.member_id, BigInt(row.amount)])),
-    shares: Object.fromEntries(version.shares.map((row) => [row.member_id, BigInt(row.amount)])),
-    date: version.expense_date,
-    deletedAt: expense.deleted_at,
-  };
+  try {
+    return {
+      id: expense.id,
+      currency: version.currency,
+      amount: BigInt(version.amount),
+      payers: Object.fromEntries(version.payers.map((row) => [row.member_id, BigInt(row.amount)])),
+      shares: Object.fromEntries(version.shares.map((row) => [row.member_id, BigInt(row.amount)])),
+      date: version.expense_date,
+      deletedAt: expense.deleted_at,
+    };
+  } catch {
+    return null;
+  }
 }
 
-export function toSettlementSnapshot(row: SettlementRow): SettlementSnapshot {
-  return {
-    id: row.id,
-    from: row.from_member_id,
-    to: row.to_member_id,
-    currency: row.currency,
-    amount: BigInt(row.amount),
-    status: row.status,
-    at: row.initiated_at,
-    allocations: row.allocations?.map((allocation) => ({
-      expenseId: allocation.expense_id,
-      amount: BigInt(allocation.amount),
-    })),
-  };
+export function toSettlementSnapshot(row: SettlementRow): SettlementSnapshot | null {
+  try {
+    return {
+      id: row.id,
+      from: row.from_member_id,
+      to: row.to_member_id,
+      currency: row.currency,
+      amount: BigInt(row.amount),
+      status: row.status,
+      at: row.initiated_at,
+      allocations: row.allocations?.map((allocation) => ({
+        expenseId: allocation.expense_id,
+        amount: BigInt(allocation.amount),
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** `toSettlementSnapshot` over a list, minus the rows that would not read. */
+export function toSettlementSnapshots(rows: readonly SettlementRow[]): SettlementSnapshot[] {
+  return rows
+    .map(toSettlementSnapshot)
+    .filter((snapshot): snapshot is SettlementSnapshot => snapshot !== null);
 }
 
 export interface GroupLedger {
@@ -905,7 +933,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
     const snapshots = expenses.rows
       .map(toSnapshot)
       .filter((snapshot): snapshot is ExpenseSnapshot => snapshot !== null);
-    const settlementSnapshots = (settlements.data ?? []).map(toSettlementSnapshot);
+    const settlementSnapshots = toSettlementSnapshots(settlements.data ?? []);
 
     const net = computeNetBalances(snapshots, settlementSnapshots);
     const withPending = computeNetBalances(snapshots, settlementSnapshots, {
