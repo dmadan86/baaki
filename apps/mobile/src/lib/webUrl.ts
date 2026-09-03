@@ -14,11 +14,27 @@
  * anything heavier along with it.
  */
 
-/** Trailing slash stripped so every consumer can assume `${WEB_URL}/path`. */
-export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL || 'https://wavs.co.in').replace(
-  /\/+$/,
-  '',
-);
+const DEFAULT_WEB_URL = 'https://wavs.co.in';
+
+/**
+ * Origin only — scheme + host, no path, query or fragment — however
+ * `EXPO_PUBLIC_WEB_URL` was typed. `INVITE_BASE` below assumes it can append
+ * `/join` and get exactly that path back; a misconfigured value carrying its
+ * own path (`https://wavs.co.in/app`, say) would otherwise produce
+ * `.../app/join`, which `tokenFromScan`'s `path !== '/join'` check — a fixed
+ * literal, not derived from this — would then reject as somebody else's QR,
+ * including the app's own freshly generated links. An unparseable value
+ * falls back to the default rather than shipping `undefined/join`.
+ */
+export const WEB_URL = (() => {
+  const configured = process.env.EXPO_PUBLIC_WEB_URL;
+  if (!configured) return DEFAULT_WEB_URL;
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return DEFAULT_WEB_URL;
+  }
+})();
 
 /** Base of a group's durable join link — see `groupJoinLink`. */
 export const INVITE_BASE = `${WEB_URL}/join`;

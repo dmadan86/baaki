@@ -121,11 +121,13 @@ export interface BuiltEmail {
 
 export interface EmailOptions {
   /**
-   * Base URL where web-lite is served — `EMAIL_WEB_URL` in the edge function,
-   * defaulting to the site's real domain. Still optional here: a fork or a
-   * self-host with nothing set falls back to the `baaki://`/`waves://` deep
-   * link, which works on the phone and does nothing in desktop webmail. A
-   * dead `https://` link would be worse — it looks like it should work.
+   * Base URL where web-lite is served — `EMAIL_WEB_URL` in the edge function
+   * (see `emailWebUrl()`), which defaults to the site's real domain when
+   * *unset* but falls back to nothing when set to an *explicit empty
+   * string*. Either `null` or `''` here falls back to the `baaki://`/
+   * `waves://` deep link, which works on the phone and does nothing in
+   * desktop webmail. A dead `https://` link would be worse — it looks like
+   * it should work.
    */
   readonly webUrl?: string | null;
   /** Signed, address-specific, and safe to POST without a session. */

@@ -69,10 +69,14 @@ export function emailFrom(): string {
 }
 
 /**
- * The button an email links to. `EMAIL_WEB_URL` overrides it per deployment —
- * a fork or a self-host pointing at their own domain, or nothing at all,
- * which turns the button off and falls back to the `baaki://`/`waves://`
- * deep link (dead in desktop webmail, exactly right on a phone).
+ * The button an email links to. Two different settings turn it off, on
+ * purpose: leaving `EMAIL_WEB_URL` **unset** defaults to the canonical
+ * deployment's own domain (`https://wavs.co.in`) — right for the cloud
+ * project, wrong for a fork or self-host that has not set its own yet.
+ * Setting it to an **explicit empty string** (`EMAIL_WEB_URL=`) opts out of
+ * that default deliberately and falls back to the `baaki://`/`waves://` deep
+ * link instead (dead in desktop webmail, exactly right on a phone) — the
+ * right choice for a self-host not yet pointing anywhere it can vouch for.
  */
 function emailWebUrl(): string | null {
   return Deno.env.get('EMAIL_WEB_URL') ?? 'https://wavs.co.in';
