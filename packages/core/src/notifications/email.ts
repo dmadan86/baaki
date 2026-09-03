@@ -43,6 +43,7 @@ export enum EmailTemplate {
   SettlementConfirm = 'settlement-confirm',
   Digest = 'digest',
   Nudge = 'nudge',
+  GroupAdded = 'group-added',
 }
 
 /**
@@ -51,6 +52,12 @@ export enum EmailTemplate {
  * Deliberately not `expense_added` and its neighbours. Routine ledger activity
  * is the inbox's job and the push's job; mailing it is the mistake that trains
  * people to filter the sender.
+ *
+ * `group_added` is the one exception worth a fallback: there is no in-app
+ * inbox any more (#565) and no retry left once a push has exhausted itself, so
+ * a push that never lands is the only way anybody learns they were put in a
+ * group at all. Everything else on this list still degrades gracefully to
+ * "check the app later"; this one does not.
  */
 export const TEMPLATE_FOR_KIND: Readonly<Record<string, EmailTemplate>> = Object.assign(
   // Prototype-less: `kind` comes from a database row, and a value such as
@@ -66,6 +73,12 @@ export const TEMPLATE_FOR_KIND: Readonly<Record<string, EmailTemplate>> = Object
      * condition is not checked here; it is checked in SQL, where the tokens are.
      */
     nudge: EmailTemplate.Nudge,
+    /**
+     * Same rule as a nudge — mailed only when there is no live device to push
+     * to, or the push has exhausted its retries — checked in SQL alongside the
+     * other one, not here.
+     */
+    group_added: EmailTemplate.GroupAdded,
   },
 );
 

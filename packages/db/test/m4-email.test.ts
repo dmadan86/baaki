@@ -279,6 +279,55 @@ describe('who does not get mailed', () => {
 
     expect(await claimFor(profileId)).toHaveLength(1);
   });
+
+  /**
+   * `group_added` is the fallback for a push that never lands, now that there
+   * is no in-app inbox (#565) to check instead. Same rule as a nudge — mailed
+   * only where there is no live device, or where push has already given up.
+   */
+  describe('group_added — the fallback with nowhere else to land', () => {
+    it('does not mail it to somebody holding a live device whose push has not tried yet', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBe('suppressed');
+    });
+
+    it('mails it to somebody with no device at all', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 0 });
+      await notify(profileId, groupId, 'group_added');
+
+      expect(await claimFor(profileId)).toHaveLength(1);
+    });
+
+    it('does not mail it while push still has a retry left', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(
+        `UPDATE notifications SET push_status = 'failed', push_attempts = 1,
+                                   push_next_retry_at = now() + interval '3 minutes'
+          WHERE id = $1`,
+        [id],
+      );
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBe('suppressed');
+    });
+
+    it('mails it once push has exhausted all three attempts, even with a live device', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(
+        `UPDATE notifications SET push_status = 'failed', push_attempts = 3,
+                                   push_next_retry_at = NULL
+          WHERE id = $1`,
+        [id],
+      );
+
+      expect(await claimFor(profileId)).toHaveLength(1);
+    });
+  });
 });
 
 describe('two runs at once', () => {

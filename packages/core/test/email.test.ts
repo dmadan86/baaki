@@ -30,11 +30,14 @@ const ROW = {
 };
 
 describe('what may be mailed at all', () => {
-  it('mails the four kinds TDR §7.3 allows', () => {
+  it('mails the four kinds TDR §7.3 allows, plus the no-inbox fallback', () => {
     expect(templateForKind('settlement_confirm_request')).toBe('settlement-confirm');
     expect(templateForKind('settlement_initiated')).toBe('settlement-confirm');
     expect(templateForKind('digest_daily')).toBe('digest');
     expect(templateForKind('nudge')).toBe('nudge');
+    // Not in TDR §7.3 — added because there is no in-app inbox any more (#565)
+    // to fall back on when the push for it fails.
+    expect(templateForKind('group_added')).toBe('group-added');
   });
 
   /**

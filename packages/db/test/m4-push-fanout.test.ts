@@ -220,6 +220,93 @@ describe('finishing', () => {
   });
 });
 
+describe('retry with backoff', () => {
+  const attemptsOf = async (
+    notificationId: string,
+  ): Promise<{ attempts: number; nextRetryAt: string | null }> => {
+    const { rows } = await client.query(
+      `SELECT push_attempts, push_next_retry_at FROM notifications WHERE id = $1`,
+      [notificationId],
+    );
+    return {
+      attempts: Number(rows[0]?.push_attempts ?? 0),
+      nextRetryAt: (rows[0]?.push_next_retry_at as string | null) ?? null,
+    };
+  };
+
+  const fail = async (notificationId: string): Promise<void> => {
+    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [notificationId]);
+  };
+
+  it('counts the failure and schedules a retry rather than reclaiming it right away', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await fail(id);
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(1);
+    expect(nextRetryAt).not.toBeNull();
+    // Still 'failed' with backoff pending, not yet due — a second claim right
+    // now must not hand it over again.
+    expect(mine(await claim(), id)).toBeUndefined();
+  });
+
+  it('reclaims a failed row once its backoff has elapsed', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await fail(id);
+
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeDefined();
+    expect(await statusOf(id)).toBe('queued');
+  });
+
+  it('gives up after three failures rather than retrying forever', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(mine(await claim(), id)).toBeDefined();
+      await fail(id);
+      // Jump the backoff so the next loop iteration does not have to wait on
+      // real time — but only while a next attempt is still coming. The third
+      // failure sets `push_next_retry_at` to null itself (no retry left), and
+      // overwriting that back to a past timestamp would just be testing a
+      // state the function never actually produces.
+      if (attempt < 2) {
+        await client.query(
+          `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+          [id],
+        );
+      }
+    }
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(3);
+    // The third failure schedules nothing further — this is what actually
+    // stops the claim from reclaiming it again below.
+    expect(nextRetryAt).toBeNull();
+    expect(mine(await claim(), id)).toBeUndefined();
+    expect(await statusOf(id)).toBe('failed');
+  });
+
+  it('leaves the attempt count alone on a plain delivery', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+    await claim();
+    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+
+    const { attempts, nextRetryAt } = await attemptsOf(id);
+    expect(attempts).toBe(0);
+    expect(nextRetryAt).toBeNull();
+  });
+});
+
 describe('who may run it', () => {
   it('is nobody who is merely signed in', async () => {
     // Claiming reads other people's inboxes. That is the service role's job and
