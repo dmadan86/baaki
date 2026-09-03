@@ -533,6 +533,8 @@ export interface UiStrings {
     /** The app's name — a wordmark, the same in every locale (not translated). */
     appName: string;
     back: string;
+    /** The way past the door without an account — the Skip pill on the gateway. */
+    skip: string;
     /** Generic 'Loading…' — the spoken label a skeleton screen carries. */
     loading: string;
     close: string;
@@ -1166,6 +1168,7 @@ export interface UiStrings {
     providerGoogle: string;
     providerApple: string;
     providerPhone: string;
+    providerEmail: string;
     /** Carries {value} — the address the code was mailed to. */
     emailCodeSentTo: string;
     resendCode: string;
@@ -2805,6 +2808,7 @@ const en: UiStrings = {
   common: {
     appName: 'Waves',
     back: 'Back',
+    skip: 'Skip',
     loading: 'Loading…',
     close: 'Close',
     cancel: 'Cancel',
@@ -3376,6 +3380,7 @@ const en: UiStrings = {
     providerGoogle: 'Google',
     providerApple: 'Apple',
     providerPhone: 'Phone',
+    providerEmail: 'Email',
     emailCodeSentTo: 'We emailed a code to {value}',
     resendCode: 'Resend code',
     resendIn: 'Resend in {s}s',
@@ -4964,6 +4969,7 @@ const ta: UiStrings = {
   common: {
     appName: 'Waves',
     back: 'பின்',
+    skip: 'தவிர்',
     loading: 'ஏற்றுகிறது…',
     close: 'மூடு',
     cancel: 'ரத்து',
@@ -5554,6 +5560,7 @@ const ta: UiStrings = {
     providerGoogle: 'Google',
     providerApple: 'Apple',
     providerPhone: 'தொலைபேசி',
+    providerEmail: 'மின்னஞ்சல்',
     emailCodeSentTo: '{value} க்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பினோம்',
     resendCode: 'குறியீட்டை மீண்டும் அனுப்பு',
     resendIn: '{s}வி இல் மீண்டும் அனுப்பு',
@@ -7202,6 +7209,7 @@ const hi: UiStrings = {
   common: {
     appName: 'Waves',
     back: 'वापस',
+    skip: 'छोड़ें',
     loading: 'लोड हो रहा है…',
     close: 'बंद करें',
     cancel: 'रद्द करें',
@@ -7773,6 +7781,7 @@ const hi: UiStrings = {
     providerGoogle: 'Google',
     providerApple: 'Apple',
     providerPhone: 'फ़ोन',
+    providerEmail: 'ईमेल',
     emailCodeSentTo: 'हमने {value} पर एक कोड ईमेल किया है',
     resendCode: 'कोड फिर से भेजें',
     resendIn: '{s}से में फिर भेजें',
@@ -9380,6 +9389,7 @@ const ar: UiStrings = {
   common: {
     appName: 'Waves',
     back: 'رجوع',
+    skip: 'تخطي',
     loading: 'جارٍ التحميل…',
     close: 'إغلاق',
     cancel: 'إلغاء',
@@ -9973,6 +9983,7 @@ const ar: UiStrings = {
     providerGoogle: 'Google',
     providerApple: 'Apple',
     providerPhone: 'الهاتف',
+    providerEmail: 'البريد',
     emailCodeSentTo: 'أرسلنا رمزًا إلى {value}',
     resendCode: 'إعادة إرسال الرمز',
     resendIn: 'إعادة الإرسال خلال {s} ث',
