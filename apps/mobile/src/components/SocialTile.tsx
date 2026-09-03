@@ -201,7 +201,7 @@ export function SocialTile({
         style={{
           width: SOCIAL_TILE_SIZE,
           height: SOCIAL_TILE_SIZE,
-          borderRadius: theme.radius.md,
+          borderRadius: SOCIAL_TILE_SIZE / 2,
           borderWidth: 1,
           alignItems: 'center',
           justifyContent: 'center',
