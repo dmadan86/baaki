@@ -2,12 +2,13 @@
  * Rewrite incoming native deep links before expo-router tries to match them.
  *
  * The one link that needs rewriting is the OAuth callback. Google and Apple
- * sign-in redirect to `baaki://auth#access_token=…` — see
+ * sign-in redirect to `baaki://auth?code=…` — see
  * `makeRedirectUri({ scheme: 'baaki', path: 'auth' })` in `lib/auth.tsx`. The
- * token exchange is already done in-process: `WebBrowser.openAuthSessionAsync`
- * hands that URL straight back to the caller, which calls `setSession`. So by
- * the time the OS *also* delivers the link as an app intent, it carries nothing
- * left to do — and there is no `/auth` screen, so letting the router match it
+ * code exchange is already done in-process: `WebBrowser.openAuthSessionAsync`
+ * hands that URL straight back to the caller, which calls
+ * `exchangeCodeForSession` (a one-time code; a second delivery is worthless). So
+ * by the time the OS *also* delivers the link as an app intent, it carries
+ * nothing left to do — and there is no `/auth` screen, so letting the router match it
  * lands on "Unmatched Route — page could not be found" right after a successful
  * Google login. Send it to the root instead, where the session (now set)
  * decides between the tabs and the sign-in screen.

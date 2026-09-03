@@ -44,7 +44,7 @@ type BackendAuth = Pick<
   | 'signInWithOAuth'
   | 'linkIdentity'
   | 'signInWithIdToken'
-  | 'setSession'
+  | 'exchangeCodeForSession'
   | 'signOut'
   | 'resend'
 >;

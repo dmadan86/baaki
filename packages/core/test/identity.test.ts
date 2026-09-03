@@ -21,6 +21,7 @@ import {
   normalisePhoneInRegion,
   planAuth,
   readIdentifier,
+  readOAuthCallback,
   AuthMethod,
   type Viewer,
 } from '../src/index';
@@ -292,5 +293,48 @@ describe('one field for either', () => {
     // Asking "email or phone?" and then asking them to type it is a question
     // the text already answers — but the error still has to be the useful one.
     expect(() => readIdentifier('9876543210')).toThrow(/country code/);
+  });
+});
+
+describe('what the browser brings back from a provider', () => {
+  it('reads the one-time code out of the query string', () => {
+    expect(readOAuthCallback('baaki://auth?code=abc-123')).toEqual({
+      kind: 'code',
+      code: 'abc-123',
+    });
+  });
+
+  it('reads the code from the triple-slash form as well', () => {
+    expect(readOAuthCallback('baaki:///auth?code=abc-123')).toEqual({
+      kind: 'code',
+      code: 'abc-123',
+    });
+  });
+
+  it('never mistakes a token in the fragment for a session', () => {
+    // The implicit flow put the refresh token here. Under PKCE nothing reads
+    // the fragment: a redirect shaped like the old one is simply "nothing".
+    expect(readOAuthCallback('baaki://auth#access_token=a&refresh_token=b')).toEqual({
+      kind: 'none',
+    });
+  });
+
+  it('prefers the readable description of a provider error', () => {
+    expect(
+      readOAuthCallback(
+        'baaki://auth?error=access_denied&error_description=User+cancelled+the+request',
+      ),
+    ).toEqual({ kind: 'error', message: 'User cancelled the request' });
+  });
+
+  it('falls back to the bare error code', () => {
+    expect(readOAuthCallback('baaki://auth?error=server_error')).toEqual({
+      kind: 'error',
+      message: 'server_error',
+    });
+  });
+
+  it('treats an unparseable url as nothing rather than throwing', () => {
+    expect(readOAuthCallback('::not a url')).toEqual({ kind: 'none' });
   });
 });
