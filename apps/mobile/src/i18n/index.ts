@@ -1603,27 +1603,20 @@ export interface UiStrings {
     upiForGroup: string;
     upiForGroupNote: string;
     inviteTitle: string;
+    /** The whole explanation the join link gets — one plain sentence. */
     anyoneWithLink: string;
-    anyoneWithLinkBody: string;
     inviteLink: string;
     /** Caption over the invite QR code. */
     scanToJoin: string;
     whatsapp: string;
     shareAnotherWay: string;
+    /** The clipboard item on the invite screen's share row. */
     copyLink: string;
     createLink: string;
-    /** Body under "anyone with the link" — the durable-link explainer. */
-    durableLinkBody: string;
-    /** Admin action to rotate the durable link. */
-    resetLink: string;
-    /** Confirm body before rotating. */
-    resetLinkBody: string;
-    linkCopied: string;
     expires: string;
     usesBadge: string;
     shareMessage: string;
     emailSubject: string;
-    mintMistakeNote: string;
     hideContacts: string;
     browseContacts: string;
     /** Short label for the phone-contacts entry point. */
@@ -3760,28 +3753,18 @@ const en: UiStrings = {
     upiForGroupNote:
       'Overrides your account UPI ID here only — useful when one group settles to a different account.',
     inviteTitle: 'Invite people',
-    anyoneWithLink: 'Anyone with the link can join',
-    anyoneWithLinkBody:
-      'They do not need to install anything or make an account to see the group and add expenses.',
+    anyoneWithLink: 'Anyone with this link can join.',
     inviteLink: 'Invite link',
     scanToJoin: 'Scan to join',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'Share another way',
     copyLink: 'Copy link',
     createLink: 'Create an invite link',
-    durableLinkBody:
-      'Anyone with this link or QR can join. It stays the same every time — reset it if it spreads too far.',
-    resetLink: 'Reset link',
-    resetLinkBody:
-      'The current link and QR stop working. Everyone you already invited is unaffected.',
-    linkCopied: 'Link copied',
     expires: 'expires {when}',
     usesBadge: '{count} uses',
     shareMessage:
       'Join {group} on Waves to split expenses — no app or account needed to start: {link}',
     emailSubject: 'Join {group} on Waves',
-    mintMistakeNote:
-      'Made a link by mistake? Mint a new one — the old link keeps working until it expires, so only share links you mean to.',
     hideContacts: 'Hide contacts',
     browseContacts: 'Browse my contacts',
     contacts: 'Contacts',
@@ -5964,28 +5947,18 @@ const ta: UiStrings = {
     upiForGroupNote:
       'இங்கே மட்டும் உங்கள் கணக்கின் UPI ID ஐ மேலெழுதும் — ஒரு குழு வேறு கணக்குக்குத் தீர்க்கும்போது பயனுள்ளது.',
     inviteTitle: 'ஆட்களை அழை',
-    anyoneWithLink: 'இணைப்பு உள்ள யாரும் சேரலாம்',
-    anyoneWithLinkBody:
-      'குழுவைப் பார்க்கவும் செலவுகளைச் சேர்க்கவும் அவர்கள் எதையும் நிறுவவோ கணக்கு உருவாக்கவோ தேவையில்லை.',
+    anyoneWithLink: 'இந்த இணைப்பு உள்ள யாரும் சேரலாம்.',
     inviteLink: 'அழைப்பு இணைப்பு',
     scanToJoin: 'ஸ்கேன் செய்து சேரவும்',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'வேறு வழியில் பகிர்',
     copyLink: 'இணைப்பை நகலெடு',
     createLink: 'அழைப்பு இணைப்பை உருவாக்கு',
-    durableLinkBody:
-      'இந்த இணைப்பு அல்லது QR உள்ள யாரும் சேரலாம். இது எப்போதும் ஒரே மாதிரியாக இருக்கும் — அதிகம் பரவினால் மீட்டமை.',
-    resetLink: 'இணைப்பை மீட்டமை',
-    resetLinkBody:
-      'தற்போதைய இணைப்பும் QR-ம் வேலை செய்யாது. நீங்கள் ஏற்கனவே அழைத்தவர்கள் பாதிக்கப்பட மாட்டார்கள்.',
-    linkCopied: 'இணைப்பு நகலெடுக்கப்பட்டது',
     expires: '{when} க்கு காலாவதி',
     usesBadge: '{count} பயன்பாடுகள்',
     shareMessage:
       'செலவுகளைப் பிரிக்க Waves-ல் {group} குழுவில் சேரவும் — தொடங்க ஆப் அல்லது கணக்கு தேவையில்லை: {link}',
     emailSubject: 'Waves-ல் {group} குழுவில் சேரவும்',
-    mintMistakeNote:
-      'தவறுதலாக இணைப்பு உருவாக்கினீர்களா? புதிதாக ஒன்றை உருவாக்கவும் — பழைய இணைப்பு காலாவதியாகும் வரை வேலை செய்யும், எனவே நீங்கள் நினைத்த இணைப்புகளை மட்டும் பகிரவும்.',
     hideContacts: 'தொடர்புகளை மறை',
     browseContacts: 'என் தொடர்புகளைப் பார்',
     contacts: 'தொடர்புகள்',
@@ -8165,28 +8138,18 @@ const hi: UiStrings = {
     upiForGroupNote:
       'सिर्फ़ यहाँ आपके खाते की UPI ID की जगह लेता है — जब कोई समूह किसी दूसरे खाते में निपटता हो तो काम आता है।',
     inviteTitle: 'लोगों को बुलाएँ',
-    anyoneWithLink: 'जिसके पास लिंक हो वह जुड़ सकता है',
-    anyoneWithLinkBody:
-      'समूह देखने और खर्च जोड़ने के लिए उन्हें कुछ इंस्टॉल करने या खाता बनाने की ज़रूरत नहीं।',
+    anyoneWithLink: 'इस लिंक वाला कोई भी जुड़ सकता है।',
     inviteLink: 'निमंत्रण लिंक',
     scanToJoin: 'स्कैन करके जुड़ें',
     whatsapp: 'WhatsApp',
     shareAnotherWay: 'किसी और तरीके से साझा करें',
     copyLink: 'लिंक कॉपी करें',
     createLink: 'निमंत्रण लिंक बनाएँ',
-    durableLinkBody:
-      'इस लिंक या QR वाला कोई भी जुड़ सकता है। यह हर बार एक जैसा रहता है — ज़्यादा फैल जाए तो रीसेट करें।',
-    resetLink: 'लिंक रीसेट करें',
-    resetLinkBody:
-      'मौजूदा लिंक और QR काम करना बंद कर देंगे। जिन्हें आपने पहले बुलाया है वे प्रभावित नहीं होंगे।',
-    linkCopied: 'लिंक कॉपी हो गया',
     expires: '{when} को खत्म',
     usesBadge: '{count} उपयोग',
     shareMessage:
       'खर्च बाँटने के लिए Waves पर {group} में शामिल हों — शुरू करने के लिए कोई ऐप या खाता ज़रूरी नहीं: {link}',
     emailSubject: 'Waves पर {group} में शामिल हों',
-    mintMistakeNote:
-      'गलती से लिंक बना लिया? नया बनाएँ — पुराना लिंक खत्म होने तक चलता रहेगा, इसलिए वही लिंक साझा करें जो आप चाहते हैं।',
     hideContacts: 'संपर्क छिपाएँ',
     browseContacts: 'मेरे संपर्क देखें',
     contacts: 'संपर्क',
@@ -10408,26 +10371,18 @@ const ar: UiStrings = {
     upiForGroup: 'معرّف الدفع لهذه المجموعة',
     upiForGroupNote: 'يتجاوز معرّف حسابك هنا فقط — مفيد حين تُسوّى مجموعة إلى حساب مختلف.',
     inviteTitle: 'ادعُ أشخاصًا',
-    anyoneWithLink: 'يستطيع أي شخص لديه الرابط الانضمام',
-    anyoneWithLinkBody: 'لا يحتاجون إلى تثبيت شيء أو إنشاء حساب لرؤية المجموعة وإضافة المصروفات.',
+    anyoneWithLink: 'يمكن لأي شخص لديه هذا الرابط الانضمام.',
     inviteLink: 'رابط الدعوة',
     scanToJoin: 'امسح للانضمام',
     whatsapp: 'واتساب',
     shareAnotherWay: 'شارك بطريقة أخرى',
     copyLink: 'نسخ الرابط',
     createLink: 'أنشئ رابط دعوة',
-    durableLinkBody:
-      'يمكن لأي شخص لديه هذا الرابط أو رمز QR الانضمام. يبقى كما هو في كل مرة — أعِد تعيينه إذا انتشر كثيرًا.',
-    resetLink: 'إعادة تعيين الرابط',
-    resetLinkBody: 'يتوقف الرابط ورمز QR الحاليان عن العمل. لن يتأثر من دعوتهم من قبل.',
-    linkCopied: 'تم نسخ الرابط',
     expires: 'ينتهي {when}',
     usesBadge: '{count} استخدامات',
     shareMessage:
       'انضم إلى {group} على Waves لتقسيم المصروفات — لا حاجة إلى تطبيق أو حساب للبدء: {link}',
     emailSubject: 'انضم إلى {group} على Waves',
-    mintMistakeNote:
-      'أنشأت رابطًا بالخطأ؟ أنشئ رابطًا جديدًا — يظل الرابط القديم صالحًا حتى ينتهي، لذا شارك فقط الروابط التي تقصدها.',
     hideContacts: 'إخفاء جهات الاتصال',
     browseContacts: 'تصفّح جهات اتصالي',
     contacts: 'جهات الاتصال',

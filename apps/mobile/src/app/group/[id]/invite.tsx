@@ -7,7 +7,6 @@ import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -31,7 +30,7 @@ import {
   useScreenClearance,
 } from '@waves/ui';
 
-import { ensureGroupJoinToken, groupJoinLink, resetGroupJoinToken } from '@/data/api';
+import { ensureGroupJoinToken, groupJoinLink } from '@/data/api';
 import { friendlyError } from '@/lib/errors';
 import { useGroup } from '@/data/hooks';
 import { useSync } from '@/sync';
@@ -45,9 +44,10 @@ import { useStrings } from '@/i18n';
  * The link is one stable, re-showable token per group — the same one every open
  * and on every device — so the QR paints straight from the mirror with no server
  * round-trip once it exists. The first time a group is ever shared, the token is
- * minted on open (a brief spinner). An admin can Reset it, which rotates the
- * token and kills every copy of the old QR. Sharing and copying are separate
- * buttons that hand out the same link.
+ * minted on open (a brief spinner). Sharing and copying are peers on one row —
+ * WhatsApp, SMS, Email, the OS sheet and the clipboard all hand out the same
+ * link, so none of them is the "real" one. Rotating the token (an admin's lever
+ * against a link that has spread too far) is not reachable from here.
  */
 export default function InviteScreen() {
   const theme = useTheme();
@@ -72,10 +72,6 @@ export default function InviteScreen() {
 
   const joinToken = group.data?.join_token ?? ensured;
   const link = joinToken ? groupJoinLink(joinToken) : null;
-
-  const iAmAdmin =
-    (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.role ===
-    'admin';
 
   const ensure = async (): Promise<void> => {
     setBusy(true);
@@ -108,31 +104,6 @@ export default function InviteScreen() {
 
   const label = groupLabel(group.data, members.data ?? [], profile?.id);
   const message = t.people.shareMessage.replace('{group}', label).replace('{link}', link ?? '');
-
-  const reset = (): void => {
-    Alert.alert(t.people.resetLink, t.people.resetLinkBody, [
-      { text: t.common.cancel, style: 'cancel' },
-      {
-        text: t.people.resetLink,
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setBusy(true);
-            setError(null);
-            try {
-              const token = await resetGroupJoinToken(groupId);
-              setEnsured(token);
-              void flush();
-            } catch (caught) {
-              setError(friendlyError(caught, t.couldNotSave, 'invite.reset'));
-            } finally {
-              setBusy(false);
-            }
-          })();
-        },
-      },
-    ]);
-  };
 
   const share = async (): Promise<void> => {
     if (!link) return;
@@ -207,11 +178,12 @@ export default function InviteScreen() {
         <IconButton label={t.common.close} onPress={() => router.back()}>
           <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
         </IconButton>
+        {/* Title only. The group's name was a second line here, but the screen
+            is opened from inside that group — it said what the user already
+            knew, and a long name pushed the header out of shape. The name is
+            still in the invite the recipient gets. */}
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text variant="heading">{t.people.inviteTitle}</Text>
-          <Text variant="micro" tone="muted">
-            {label}
-          </Text>
         </View>
         <View style={{ width: 44 }} />
       </Row>
@@ -226,12 +198,10 @@ export default function InviteScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Card style={{ gap: theme.spacing.md }}>
-          <Text variant="subheading">{t.people.anyoneWithLink}</Text>
-          <Text variant="caption" tone="muted">
-            {t.people.durableLinkBody}
-          </Text>
-        </Card>
+        {/* One sentence is the whole explanation the link needs. */}
+        <Text variant="caption" tone="muted" align="center">
+          {t.people.anyoneWithLink}
+        </Text>
 
         {link ? (
           <>
@@ -290,8 +260,10 @@ export default function InviteScreen() {
               </Text>
             </Card>
 
-            {/* The quick channels — WhatsApp, SMS, Email and the OS share sheet,
-                all on one straight row, each in its own brand colour. */}
+            {/* The quick channels — WhatsApp, SMS, Email, the OS share sheet and
+                the clipboard, all on one straight row, each in its own colour.
+                Copying is a peer here, not a button of its own: every item on
+                the row hands out the same link, only by a different road. */}
             <Row style={{ gap: theme.spacing.sm }}>
               {(
                 [
@@ -303,11 +275,21 @@ export default function InviteScreen() {
                   },
                   { channel: 'sms', label: t.extras.sms, icon: 'chatbubble', color: '#1E88E5' },
                   { channel: 'email', label: t.extras.email, icon: 'mail', color: '#EA4335' },
+                  // The last two are ours, not a third party's, so they wear the
+                  // app's own colour rather than a borrowed one — a pair at the
+                  // end of the row, and the only two that follow the theme into
+                  // dark mode.
                   {
                     channel: 'share',
                     label: t.common.share,
                     icon: 'share-social',
-                    color: '#7C4DFF',
+                    color: theme.color.brand,
+                  },
+                  {
+                    channel: 'copy',
+                    label: copied ? t.misc.copied : t.people.copyLink,
+                    icon: copied ? 'checkmark' : 'copy-outline',
+                    color: theme.color.brand,
                   },
                 ] as const
               ).map((option) => (
@@ -323,7 +305,11 @@ export default function InviteScreen() {
                   // matters. `shareVia` falls back to that sheet if the app is
                   // not installed.
                   onPress={() =>
-                    void (option.channel === 'share' ? shareQr(share) : shareVia(option.channel))
+                    void (option.channel === 'copy'
+                      ? copy()
+                      : option.channel === 'share'
+                        ? shareQr(share)
+                        : shareVia(option.channel))
                   }
                   style={({ pressed }) => ({
                     flex: 1,
@@ -332,11 +318,14 @@ export default function InviteScreen() {
                     opacity: pressed ? 0.6 : 1,
                   })}
                 >
+                  {/* Sized off the column rather than a fixed 56, so five items
+                      still fit — and stay round — on a narrow phone. */}
                   <View
                     style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
+                      width: '100%',
+                      maxWidth: 56,
+                      aspectRatio: 1,
+                      borderRadius: 999,
                       alignItems: 'center',
                       justifyContent: 'center',
                       backgroundColor: option.color,
@@ -344,44 +333,22 @@ export default function InviteScreen() {
                   >
                     <Ionicons name={option.icon} size={iconSize.lg} color="#ffffff" />
                   </View>
-                  <Text variant="caption" tone="muted">
+                  <Text variant="caption" tone="muted" align="center" numberOfLines={2}>
                     {option.label}
                   </Text>
                 </Pressable>
               ))}
             </Row>
-
-            <Button
-              label={copied ? t.people.linkCopied : t.people.copyLink}
-              variant="secondary"
-              size="lg"
-              fullWidth
-              onPress={() => void copy()}
-            />
-
-            {/* Rotating the link is an admin's lever, for when a link has spread
-                too far. It kills the current QR and every shared copy. */}
-            {iAmAdmin ? (
-              <Button
-                label={t.people.resetLink}
-                variant="ghost"
-                size="lg"
-                fullWidth
-                disabled={busy}
-                onPress={reset}
-                icon={
-                  <Ionicons name="refresh-outline" size={iconSize.md} color={theme.color.brand} />
-                }
-              />
-            ) : null}
-
-            <Text variant="micro" tone="muted" align="center">
-              {t.people.mintMistakeNote}
-            </Text>
           </>
         ) : error ? (
           // Minting failed — a retry, not a first step.
-          <Button label={t.people.createLink} size="lg" fullWidth onPress={() => void ensure()} />
+          <Button
+            label={t.people.createLink}
+            size="lg"
+            fullWidth
+            disabled={busy}
+            onPress={() => void ensure()}
+          />
         ) : (
           // First-ever share (or still loading): the durable link is being made.
           // Hold the QR's place so the screen reads as "your code is coming".
