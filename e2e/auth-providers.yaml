@@ -1,11 +1,12 @@
-# The login sheet offers both providers and the passwordless code path.
+# The login sheet offers the provider tiles and the passwordless code path.
 #
-# On the white login sheet, Google and Apple sit at the foot under an "or" seam,
-# and the email one-time-code conveniences sit above them: "Email me a code" on
-# both doors and "Forgot password" on the login door. This asserts all four
-# render with their own wording — it does not tap through a provider (completing
-# either needs a real IdP round-trip, which belongs to a manual/device pass) and
-# it does not send a code (that hits the mail provider — see login-email-code).
+# The other ways in — Google, Apple, phone — are three icon tiles under an
+# "or continue with" seam at the foot of the sheet, each with a one-word
+# caption; the passwordless text links ("Forgot password" on the login door,
+# "Email me a code" on both) sit under the fields. This asserts they all render
+# — it does not tap through a provider (completing either needs a real IdP
+# round-trip, which belongs to a manual/device pass) and it does not send a code
+# (that hits the mail provider — see login-email-code).
 appId: app.waves.mobile
 ---
 - launchApp:
@@ -13,8 +14,12 @@ appId: app.waves.mobile
 
 # /welcome → /sign-in, the white sheet.
 - tapOn: 'Sign in'
-- assertVisible: 'Sign in with Google'
-- assertVisible: 'Sign in with Apple'
 - assertVisible: 'Email me a code'
 - assertVisible: 'Forgot password'
-- assertVisible: 'Continue with phone'
+- assertVisible: 'or continue with'
+- assertVisible:
+    id: 'auth-google'
+- assertVisible:
+    id: 'auth-apple'
+- assertVisible:
+    id: 'auth-phone'

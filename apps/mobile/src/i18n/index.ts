@@ -1157,6 +1157,15 @@ export interface UiStrings {
         password field. */
     forgotPassword: string;
     emailMeACode: string;
+    /** The seam above the icon tiles (Google, Apple, phone). */
+    orContinueWith: string;
+    /** The one muted line under each door's title. */
+    loginSubline: string;
+    signupSubline: string;
+    /** One-word captions under the icon tiles; the spoken label is the full sentence. */
+    providerGoogle: string;
+    providerApple: string;
+    providerPhone: string;
     /** Carries {value} — the address the code was mailed to. */
     emailCodeSentTo: string;
     resendCode: string;
@@ -3361,6 +3370,12 @@ const en: UiStrings = {
       'A guest account keeps everything on this device until you add a way to sign in. Your ledger is never held hostage.',
     forgotPassword: 'Forgot password',
     emailMeACode: 'Email me a code',
+    orContinueWith: 'or continue with',
+    loginSubline: 'Pick up your groups where you left them.',
+    signupSubline: 'Split your first bill in under a minute.',
+    providerGoogle: 'Google',
+    providerApple: 'Apple',
+    providerPhone: 'Phone',
     emailCodeSentTo: 'We emailed a code to {value}',
     resendCode: 'Resend code',
     resendIn: 'Resend in {s}s',
@@ -5533,6 +5548,12 @@ const ta: UiStrings = {
       'உள்நுழைய ஒரு வழியைச் சேர்க்கும் வரை விருந்தினர் கணக்கு அனைத்தையும் இந்தச் சாதனத்திலேயே வைத்திருக்கும். உங்கள் கணக்கு எப்போதும் பணயம் வைக்கப்படுவதில்லை.',
     forgotPassword: 'கடவுச்சொல் மறந்துவிட்டதா',
     emailMeACode: 'எனக்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பு',
+    orContinueWith: 'அல்லது இதன் மூலம் தொடர்க',
+    loginSubline: 'விட்ட இடத்திலிருந்து உங்கள் குழுக்களைத் தொடருங்கள்.',
+    signupSubline: 'ஒரு நிமிடத்திற்குள் முதல் பில்லைப் பிரியுங்கள்.',
+    providerGoogle: 'Google',
+    providerApple: 'Apple',
+    providerPhone: 'தொலைபேசி',
     emailCodeSentTo: '{value} க்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பினோம்',
     resendCode: 'குறியீட்டை மீண்டும் அனுப்பு',
     resendIn: '{s}வி இல் மீண்டும் அனுப்பு',
@@ -7746,6 +7767,12 @@ const hi: UiStrings = {
       'जब तक आप साइन इन का कोई तरीका न जोड़ें, मेहमान खाता सब कुछ इसी डिवाइस पर रखता है। आपका हिसाब कभी बंधक नहीं बनाया जाता।',
     forgotPassword: 'पासवर्ड भूल गए',
     emailMeACode: 'मुझे एक कोड ईमेल करें',
+    orContinueWith: 'या इससे जारी रखें',
+    loginSubline: 'अपने ग्रुप वहीं से आगे बढ़ाएँ जहाँ छोड़ा था।',
+    signupSubline: 'एक मिनट से कम में पहला बिल बाँटें।',
+    providerGoogle: 'Google',
+    providerApple: 'Apple',
+    providerPhone: 'फ़ोन',
     emailCodeSentTo: 'हमने {value} पर एक कोड ईमेल किया है',
     resendCode: 'कोड फिर से भेजें',
     resendIn: '{s}से में फिर भेजें',
@@ -9940,6 +9967,12 @@ const ar: UiStrings = {
       'يحتفظ حساب الضيف بكل شيء على هذا الجهاز حتى تضيف طريقة لتسجيل الدخول. دفترك ليس رهينة أبدًا.',
     forgotPassword: 'نسيت كلمة المرور',
     emailMeACode: 'أرسل لي رمزًا بالبريد',
+    orContinueWith: 'أو تابع عبر',
+    loginSubline: 'تابع مجموعاتك من حيث توقفت.',
+    signupSubline: 'قسّم أول فاتورة في أقل من دقيقة.',
+    providerGoogle: 'Google',
+    providerApple: 'Apple',
+    providerPhone: 'الهاتف',
     emailCodeSentTo: 'أرسلنا رمزًا إلى {value}',
     resendCode: 'إعادة إرسال الرمز',
     resendIn: 'إعادة الإرسال خلال {s} ث',
