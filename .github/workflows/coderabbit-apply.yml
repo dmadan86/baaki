@@ -49,6 +49,10 @@ jobs:
   apply:
     # Run for: a manual dispatch; a CodeRabbit review that is not a plain
     # approval; or a maintainer comment carrying the command. Never for forks.
+    #
+    # "Maintainer" is enforced, not assumed: the repository is public, so
+    # without the author_association gate any GitHub account could type the
+    # command on any open PR and run a billed agent with push rights.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request_review' &&
@@ -57,34 +61,50 @@ jobs:
         github.event.pull_request.head.repo.fork == false) ||
       (github.event_name == 'issue_comment' &&
         github.event.issue.pull_request != null &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
         contains(github.event.comment.body, '/coderabbit-apply'))
     runs-on: ubuntu-latest
     steps:
+      # The dispatch input is free text, so it reaches the shell through the
+      # environment (never expanded into the script) and must be a plain PR
+      # number before any step uses it.
       - name: Resolve PR number
         id: pr
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}
         run: |
-          NUM="${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr }}"
-          echo "number=$NUM" >> "$GITHUB_OUTPUT"
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::PR number must be decimal digits, got: $PR_NUMBER"
+            exit 1
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
+      # Before anything is checked out: the token cannot push to a fork, and
+      # a fork's code should never reach the agent step below.
+      - name: Refuse to run on a fork branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          IS_FORK=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository)
+          if [ "$IS_FORK" = "true" ]; then
+            echo "::error::PR is from a fork; the apply token cannot push to it."
+            exit 1
+          fi
+
+      # persist-credentials is off so the push token never lands in
+      # .git/config, where the agent — which runs with Bash — could read it.
+      # The push step below supplies the token itself, after the agent is done.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Check out the PR branch
         env:
-          GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
-        run: gh pr checkout ${{ steps.pr.outputs.number }}
-
-      - name: Refuse to run on a fork branch
-        env:
-          GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          IS_FORK=$(gh pr view ${{ steps.pr.outputs.number }} --json isCrossRepository --jq .isCrossRepository)
-          if [ "$IS_FORK" = "true" ]; then
-            echo "PR is from a fork; the token cannot push to it. Skipping."
-            exit 78
-          fi
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr checkout "$PR_NUMBER"
 
       # Secrets cannot be read in an `if:` directly, so map the key to an env var
       # and record whether it is set. Without it there is nothing to run — the job
@@ -106,7 +126,8 @@ jobs:
         if: steps.key.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
-        run: bash .github/scripts/gather-coderabbit.sh ${{ steps.pr.outputs.number }} > coderabbit-comments.md
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: bash .github/scripts/gather-coderabbit.sh "$PR_NUMBER" > coderabbit-comments.md
 
       - name: Anything to do?
         id: check
@@ -141,18 +162,45 @@ jobs:
             --allowedTools "Read,Edit,Write,Grep,Glob,Bash" \
             --dangerously-skip-permissions
 
-      - name: Commit and push what was applied
+      # The agent ran with Bash, so nothing it could have left behind in the
+      # checkout — a hook, a core.hooksPath, a url.insteadOf rewrite — may run
+      # or redirect once the token is in play. Hooks are off for the commit and
+      # the push, and the token exists only in the push step.
+      - name: Commit what was applied
+        id: commit
         if: steps.check.outputs.has_comments == 'true'
         run: |
           # Never let the agent hand us a workflow or secret change.
           git checkout -- .github/workflows .github/scripts 2>/dev/null || true
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes — every comment was already addressed or judged invalid."
+            echo "made=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "coderabbit-apply[bot]"
           git config user.email "coderabbit-apply[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore: apply valid CodeRabbit review comments" \
+          git -c core.hooksPath=/dev/null commit --no-verify \
+            -m "chore: apply valid CodeRabbit review comments" \
             -m "Applied by the CodeRabbit auto-apply agent (.github/workflows/coderabbit-apply.yml). Invalid or stale suggestions were skipped; see the run log for the reasoning."
-          git push
+          echo "made=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push the commit
+        if: steps.commit.outputs.made == 'true'
+        env:
+          PUSH_TOKEN: ${{ secrets.APPLY_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # The token is handed to git through askpass, not the remote URL, and
+          # only for GitHub's own password prompt: a rewritten host gets nothing.
+          ASKPASS="$RUNNER_TEMP/askpass.sh"
+          cat > "$ASKPASS" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *"'https://x-access-token@github.com'"*) printf '%s\n' "$PUSH_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 700 "$ASKPASS"
+          GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0 \
+            git -c core.hooksPath=/dev/null -c credential.helper= \
+              push --no-verify "https://x-access-token@github.com/${GITHUB_REPOSITORY}.git" HEAD

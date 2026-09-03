@@ -323,9 +323,7 @@ export default function InviteScreen() {
                   // matters. `shareVia` falls back to that sheet if the app is
                   // not installed.
                   onPress={() =>
-                    void (option.channel === 'share'
-                      ? shareQr(share)
-                      : shareVia(option.channel))
+                    void (option.channel === 'share' ? shareQr(share) : shareVia(option.channel))
                   }
                   style={({ pressed }) => ({
                     flex: 1,
