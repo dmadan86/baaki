@@ -252,6 +252,48 @@ describe('retry with backoff', () => {
     expect(mine(await claim(), id)).toBeUndefined();
   });
 
+  /**
+   * The bug CodeRabbit caught: revoking a token mid-retry (the commonest
+   * reason a retry ever needed to exist — `DeviceNotRegistered` revokes in
+   * the same `baaki_finish_push` call as the failure it explains) used to
+   * leave `push_next_retry_at` sitting in the past forever, because the
+   * no-token branch below never reaches `baaki_finish_push` to advance
+   * anything. That made the row match the retry predicate on every single
+   * run until the two-day cutoff — reclaimed, found tokenless, sent back to
+   * `failed` with the exact same stale timestamp, forever.
+   */
+  it('does not keep re-claiming a row whose only token was revoked between attempts', async () => {
+    const person = await seedPerson({ tokens: 1 });
+    const id = await notify(person.profileId, person.groupId);
+
+    // Attempt 1: fails, and — as `DeviceNotRegistered` always does — revokes
+    // the token in the same call.
+    await claim();
+    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], ARRAY[$2]::text[])`, [
+      id,
+      person.tokens[0],
+    ]);
+    const afterFirstFailure = await attemptsOf(id);
+    expect(afterFirstFailure.attempts).toBe(1);
+    expect(afterFirstFailure.nextRetryAt).not.toBeNull();
+
+    // The backoff elapses. This is the retry claim finding no live token —
+    // the branch the fix touches.
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeUndefined();
+    expect(await statusOf(id)).toBe('failed');
+
+    // Without the fix, `push_next_retry_at` is still that same past
+    // timestamp here, and the row would match the retry predicate again on
+    // every future call. With it, retrying is over.
+    const afterRevoke = await attemptsOf(id);
+    expect(afterRevoke.nextRetryAt).toBeNull();
+    expect(mine(await claim(), id)).toBeUndefined();
+  });
+
   it('reclaims a failed row once its backoff has elapsed', async () => {
     const person = await seedPerson();
     const id = await notify(person.profileId, person.groupId);

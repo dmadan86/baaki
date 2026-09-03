@@ -71,11 +71,20 @@ BEGIN
   --
   -- Somebody with no device is not a failure to retry. Plenty of people only
   -- ever read the inbox, and leaving their rows unsent grows the queue forever.
-  -- Attempts and backoff are left untouched here on purpose — a new token
-  -- showing up later is a different signal than time passing, and this branch
-  -- is not the backoff's business.
+  -- `push_attempts` is left untouched — a new token showing up later is a
+  -- different signal than time passing, not the backoff's business — but
+  -- `push_next_retry_at` MUST be cleared: a row already mid-retry (attempt 1
+  -- failed with `DeviceNotRegistered`, which revokes the token in the same
+  -- call) would otherwise keep a past-due retry time forever, since it is
+  -- `failed` with no unrevoked token and so never reaches `RETURN QUERY` to
+  -- have `baaki_finish_push` push its attempt count past 3. Left set, that
+  -- timestamp makes the claim above match it again on every single run until
+  -- the two-day cutoff, ahead of fresh notifications (`ORDER BY created_at`).
+  -- Clearing it here is what makes "no device" terminal the moment it is
+  -- discovered, on a first attempt or a retry alike.
   UPDATE public.notifications n
-     SET push_status = 'failed'
+     SET push_status = 'failed',
+         push_next_retry_at = NULL
    WHERE n.id = ANY(v_ids)
      AND NOT EXISTS (
        SELECT 1 FROM public.push_tokens t
@@ -158,6 +167,23 @@ BEGIN
       -- `group_added` joins the list here as a fallback, not routine mail —
       -- see the suppression clause below, which is what keeps it rare.
       AND n.kind IN ('settlement_initiated', 'settlement_confirm_request', 'digest_daily', 'nudge', 'group_added')
+      -- `group_added`'s fallback depends on how push turns out, and push can
+      -- now take several fanout runs to find that out (the retry backoff
+      -- above). Every other kind on this list is decided the moment it is
+      -- claimed — a nudge only ever asks "is there a device", never "did the
+      -- push succeed" — so only `group_added` needs to wait. Without this,
+      -- the very first run would claim and terminally suppress a
+      -- `group_added` row for anyone with a live device (the suppression
+      -- clause below reads as "has a device, and push hasn't yet failed
+      -- three times" — true on attempt zero), before push had tried even
+      -- once, let alone exhausted its three tries. `email_status IS NULL`
+      -- above never lets a row be claimed a second time, so a row claimed
+      -- that early is claimed once, wrongly, forever.
+      AND (
+        n.kind <> 'group_added'
+        OR n.push_status = 'sent'
+        OR (n.push_status = 'failed' AND n.push_next_retry_at IS NULL)
+      )
     ORDER BY n.created_at
     LIMIT p_limit
     FOR UPDATE SKIP LOCKED
@@ -235,3 +261,20 @@ BEGIN
   WHERE n.id = ANY(v_ids) AND n.email_status = 'queued';
 END
 $$;
+
+-- All three are SECURITY DEFINER (they read every profile's notifications and
+-- push tokens across the whole table) and are re-created above, which mints a
+-- fresh grant set. `REVOKE ... FROM PUBLIC` alone does not stop `anon` —
+-- Supabase's default privileges grant EXECUTE directly to `anon` (and
+-- `authenticated`) as each function is created, bypassing PUBLIC entirely
+-- (the trap [[baaki-anon-surface-hardening]] found live on five other
+-- functions). House pattern: revoke from PUBLIC, anon AND authenticated —
+-- only the fanout's own service-role caller may run any of these.
+REVOKE ALL ON FUNCTION public.baaki_claim_push_notifications(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.baaki_claim_push_notifications(integer) TO service_role;
+
+REVOKE ALL ON FUNCTION public.baaki_finish_push(uuid[], uuid[], text[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.baaki_finish_push(uuid[], uuid[], text[]) TO service_role;
+
+REVOKE ALL ON FUNCTION public.baaki_claim_email_notifications(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.baaki_claim_email_notifications(integer) TO service_role;
