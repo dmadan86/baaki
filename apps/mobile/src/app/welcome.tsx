@@ -155,6 +155,8 @@ export default function WelcomeScreen() {
               testID="welcome-skip"
               accessibilityRole="button"
               accessibilityLabel={t.common.skip}
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
               onPress={() => router.push('/guest-welcome')}
               hitSlop={8}
               style={({ pressed }) => ({
@@ -164,7 +166,7 @@ export default function WelcomeScreen() {
                 backgroundColor: SKIP_FACE,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1,
+                opacity: busy ? 0.45 : pressed ? 0.7 : 1,
               })}
             >
               <Text variant="subheading" style={{ color: theme.color.onBrand, fontWeight: '700' }}>
