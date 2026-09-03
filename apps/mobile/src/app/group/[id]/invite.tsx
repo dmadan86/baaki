@@ -178,11 +178,12 @@ export default function InviteScreen() {
         <IconButton label={t.common.close} onPress={() => router.back()}>
           <Ionicons name="close" size={iconSize.lg} color={theme.color.text} />
         </IconButton>
+        {/* Title only. The group's name was a second line here, but the screen
+            is opened from inside that group — it said what the user already
+            knew, and a long name pushed the header out of shape. The name is
+            still in the invite the recipient gets. */}
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text variant="heading">{t.people.inviteTitle}</Text>
-          <Text variant="micro" tone="muted">
-            {label}
-          </Text>
         </View>
         <View style={{ width: 44 }} />
       </Row>
@@ -274,17 +275,21 @@ export default function InviteScreen() {
                   },
                   { channel: 'sms', label: t.extras.sms, icon: 'chatbubble', color: '#1E88E5' },
                   { channel: 'email', label: t.extras.email, icon: 'mail', color: '#EA4335' },
+                  // The last two are ours, not a third party's, so they wear the
+                  // app's own colour rather than a borrowed one — a pair at the
+                  // end of the row, and the only two that follow the theme into
+                  // dark mode.
                   {
                     channel: 'share',
                     label: t.common.share,
                     icon: 'share-social',
-                    color: '#7C4DFF',
+                    color: theme.color.brand,
                   },
                   {
                     channel: 'copy',
                     label: copied ? t.misc.copied : t.people.copyLink,
                     icon: copied ? 'checkmark' : 'copy-outline',
-                    color: '#546E7A',
+                    color: theme.color.brand,
                   },
                 ] as const
               ).map((option) => (
