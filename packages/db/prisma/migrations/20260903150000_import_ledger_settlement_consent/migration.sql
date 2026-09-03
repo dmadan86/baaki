@@ -261,3 +261,8 @@ BEGIN
   );
 END
 $$;
+
+-- CREATE OR REPLACE keeps the existing grants; restated so the caller model
+-- is explicit in the migration that (re)defines the function.
+REVOKE ALL ON FUNCTION public.baaki_import_ledger(uuid, jsonb, jsonb, jsonb, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.baaki_import_ledger(uuid, jsonb, jsonb, jsonb, text) TO authenticated, service_role;
