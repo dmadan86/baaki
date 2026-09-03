@@ -367,6 +367,22 @@ describe('who does not get mailed', () => {
       expect(await claimFor(profileId)).toHaveLength(1);
     });
 
+    it('mails it once push has exhausted all attempts and the device is gone', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(
+        `UPDATE notifications SET push_status = 'failed', push_attempts = 3,
+                                   push_next_retry_at = NULL
+          WHERE id = $1`,
+        [id],
+      );
+      await client.query(`UPDATE push_tokens SET revoked_at = now() WHERE profile_id = $1`, [
+        profileId,
+      ]);
+
+      expect(await claimFor(profileId)).toHaveLength(1);
+    });
+
     it('suppresses it once push actually succeeds', async () => {
       const { profileId, groupId } = await seedPerson({ tokens: 1 });
       const id = await notify(profileId, groupId, 'group_added');
