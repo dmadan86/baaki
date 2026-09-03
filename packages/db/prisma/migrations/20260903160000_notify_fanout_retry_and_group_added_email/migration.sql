@@ -116,8 +116,16 @@ BEGIN
   -- 'sent' rather than 'delivered': Expo accepting a message is as much as this
   -- layer can know. The phone may be off. Recording more than actually happened
   -- is a lie the UI would go on to repeat.
+  --
+  -- `push_next_retry_at` is cleared here too, not just left inert. A row that
+  -- succeeded on attempt 2 has no attempt 3 coming, but until this clears it,
+  -- the timestamp from attempt 1's failure is still sitting there — nothing
+  -- reads it once `push_status = 'sent'`, but `group_added`'s email
+  -- suppression below reads `push_status`, and a terminal row should not
+  -- still be carrying scheduling metadata for a retry that will never run.
   UPDATE public.notifications
-     SET push_status = 'sent'
+     SET push_status = 'sent',
+         push_next_retry_at = NULL
    WHERE id = ANY(p_delivered);
 
   -- A failure counts itself and, under 3 attempts, schedules the next one —
@@ -235,20 +243,37 @@ BEGIN
        WHERE t.profile_id = n.profile_id AND t.revoked_at IS NULL
      );
 
-  -- The same rule for `group_added`, plus one more way in: a live device that
-  -- push has already given up on (3 failed attempts, no retry left). A device
-  -- existing is not the same as a push reaching it, and this is the one kind
-  -- with nowhere else to land if that push never does.
+  -- The same rule for `group_added`, plus two more ways in. A push that
+  -- already succeeded suppresses unconditionally — a device existing right
+  -- now (or not) at the moment this claim happens says nothing about whether
+  -- push already landed; `push_status = 'sent'` is the one fact that can never
+  -- change again, so it is checked directly rather than through the token
+  -- table. A live device that push has already given up on (3 failed
+  -- attempts, no retry left) is the actual fallback case — a device existing
+  -- is not the same as a push reaching it, and this is the one kind with
+  -- nowhere else to land if that push never does.
+  --
+  -- Reading `EXISTS (active token)` alone here — as the first version of this
+  -- migration did — suppressed on device presence rather than push outcome,
+  -- which meant a push that succeeded and then had its token revoked before
+  -- this ran (sign-out, reinstall) fell through the `push_status = 'sent'`
+  -- case entirely and got mailed anyway: a duplicate, after the push had
+  -- already worked.
   UPDATE public.notifications n
      SET email_status = 'suppressed'
    WHERE n.id = ANY(v_ids)
      AND n.email_status = 'queued'
      AND n.kind = 'group_added'
-     AND EXISTS (
-       SELECT 1 FROM public.push_tokens t
-       WHERE t.profile_id = n.profile_id AND t.revoked_at IS NULL
-     )
-     AND NOT (n.push_status = 'failed' AND n.push_attempts >= 3);
+     AND (
+       n.push_status = 'sent'
+       OR (
+         EXISTS (
+           SELECT 1 FROM public.push_tokens t
+           WHERE t.profile_id = n.profile_id AND t.revoked_at IS NULL
+         )
+         AND NOT (n.push_status = 'failed' AND n.push_attempts >= 3)
+       )
+     );
 
   RETURN QUERY
   SELECT n.id, n.kind, n.title, n.body, n.deep_link, n.payload,

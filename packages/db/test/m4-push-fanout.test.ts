@@ -347,6 +347,35 @@ describe('retry with backoff', () => {
     expect(attempts).toBe(0);
     expect(nextRetryAt).toBeNull();
   });
+
+  /**
+   * A second review pass caught this one: a row delivered on retry attempt 2
+   * kept `push_next_retry_at` from attempt 1's failure — nothing reads it
+   * once `push_status = 'sent'`, so it was harmless to claiming, but a
+   * `group_added` row's email suppression reads `push_status` directly (not
+   * this timestamp) so this specific bug never reached the email fallback —
+   * it was a leftover on a supposedly-terminal row regardless.
+   */
+  it('clears the scheduled retry once a retry actually delivers', async () => {
+    const person = await seedPerson();
+    const id = await notify(person.profileId, person.groupId);
+
+    // Attempt 1 fails and schedules a retry.
+    await claim();
+    await fail(id);
+    expect((await attemptsOf(id)).nextRetryAt).not.toBeNull();
+
+    // The backoff elapses, attempt 2 is claimed and this time delivers.
+    await client.query(
+      `UPDATE notifications SET push_next_retry_at = now() - interval '1 second' WHERE id = $1`,
+      [id],
+    );
+    expect(mine(await claim(), id)).toBeDefined();
+    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+
+    expect(await statusOf(id)).toBe('sent');
+    expect((await attemptsOf(id)).nextRetryAt).toBeNull();
+  });
 });
 
 describe('who may run it', () => {

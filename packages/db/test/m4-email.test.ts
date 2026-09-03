@@ -375,6 +375,28 @@ describe('who does not get mailed', () => {
       expect(await claimFor(profileId)).toHaveLength(0);
       expect(await statusOf(id)).toBe('suppressed');
     });
+
+    /**
+     * The bug a second review pass caught: suppression read "is there a live
+     * device right now", not "did push already succeed" — so a push that
+     * landed and then had its token revoked before this ran (sign-out,
+     * reinstall, between the push half and email half of a later fanout run)
+     * fell through the `push_status = 'sent'` check with no token to match
+     * either, and got mailed anyway. A duplicate, after the thing it exists
+     * to prevent duplicates against had already worked.
+     */
+    it('suppresses it on a successful push even with no live device left', async () => {
+      const { profileId, groupId } = await seedPerson({ tokens: 1 });
+      const id = await notify(profileId, groupId, 'group_added');
+      await client.query(`UPDATE notifications SET push_status = 'sent' WHERE id = $1`, [id]);
+      // The device that received the push is gone by the time email claims.
+      await client.query(`UPDATE push_tokens SET revoked_at = now() WHERE profile_id = $1`, [
+        profileId,
+      ]);
+
+      expect(await claimFor(profileId)).toHaveLength(0);
+      expect(await statusOf(id)).toBe('suppressed');
+    });
   });
 });
 
