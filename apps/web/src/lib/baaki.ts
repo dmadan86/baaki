@@ -28,6 +28,11 @@ export const supabase = createClient(url, anonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
+    // PKCE: Google sends back a one-time `code` that `auth/callback` redeems
+    // with the verifier held in this browser — never a refresh token in the
+    // URL. The callback page always expected a code; the implicit default
+    // meant it never arrived.
+    flowType: 'pkce',
   },
 });
 

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Platform } from 'react-native';
 import type { Session } from '@/lib/backend';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 
 import {
@@ -11,6 +12,7 @@ import {
   OAuthMethod,
   planAuth,
   readIdentifier,
+  readOAuthCallback,
   type Viewer,
 } from '@waves/core';
 
@@ -64,22 +66,22 @@ async function oauthThroughBrowser(
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== 'success') return undefined;
 
-  // The tokens come back in the URL fragment; nothing else reads them.
-  const fragment = result.url.split('#')[1] ?? '';
-  const params = new URLSearchParams(fragment);
-  const access_token = params.get('access_token');
-  const refresh_token = params.get('refresh_token');
-  if (!access_token || !refresh_token) {
-    // A link, rather than a sign-in, returns no tokens — the session it just
-    // added an identity to is the one already held.
+  // PKCE (`flowType` in lib/supabase.ts): the redirect carries a one-time
+  // code, and only this client holds the verifier that redeems it. The refresh
+  // token never travels through the URL, so another app that claims the same
+  // scheme and catches the redirect gets nothing it can use.
+  const callback = readOAuthCallback(result.url);
+  if (callback.kind === 'error') throw new Error(callback.message);
+  if (callback.kind === 'none') {
+    // A redirect that added nothing: the session it just linked an identity
+    // to is the one already held.
     const { data: current } = await backend.auth.getSession();
     return current.session;
   }
 
-  const { data: signedIn, error: sessionError } = await backend.auth.setSession({
-    access_token,
-    refresh_token,
-  });
+  const { data: signedIn, error: sessionError } = await backend.auth.exchangeCodeForSession(
+    callback.code,
+  );
   if (sessionError) throw sessionError;
   return signedIn.session;
 }
@@ -107,10 +109,16 @@ function loadAppleAuth(): AppleAuthModule | null {
  * Present Apple's native sheet and hand back the identity token plus, only on
  * the very first authorization, the person's name — Apple returns it once and
  * never again. `undefined` means they dismissed the sheet.
+ *
+ * The token is bound to this one request with a nonce: Apple is given its
+ * SHA-256 and stamps that into the identity token, Supabase is given the raw
+ * value and checks the hash matches. Without it, an identity token captured
+ * anywhere — another app, a log, an old device — is a valid sign-in here.
  */
 async function appleNativeCredential(apple: AppleAuthModule): Promise<
   | {
       identityToken: string;
+      nonce: string;
       fullName: {
         givenName: string | null;
         middleName: string | null;
@@ -119,17 +127,20 @@ async function appleNativeCredential(apple: AppleAuthModule): Promise<
     }
   | undefined
 > {
+  const nonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, nonce);
   try {
     const credential = await apple.signInAsync({
       requestedScopes: [
         apple.AppleAuthenticationScope.FULL_NAME,
         apple.AppleAuthenticationScope.EMAIL,
       ],
+      nonce: hashedNonce,
     });
     if (!credential.identityToken) {
       throw new Error('Apple sign-in returned no identity token');
     }
-    return { identityToken: credential.identityToken, fullName: credential.fullName };
+    return { identityToken: credential.identityToken, nonce, fullName: credential.fullName };
   } catch (error) {
     if ((error as { code?: string }).code === 'ERR_REQUEST_CANCELED') return undefined;
     throw error;
@@ -410,6 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { data, error } = await backend.auth.signInWithIdToken({
               provider: 'apple',
               token: credential.identityToken,
+              nonce: credential.nonce,
             });
             if (error) throw error;
             // Apple hands over the name only on the first authorization; seed

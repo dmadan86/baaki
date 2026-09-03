@@ -53,6 +53,12 @@ export const supabase = createClient(
       persistSession: !isServer,
       // No URL-based session handoff on native; deep links are handled explicitly.
       detectSessionInUrl: !isServer && Platform.OS === 'web',
+      // PKCE: the provider redirect carries a one-time code, not the session.
+      // The verifier that redeems it lives in this client's storage, so another
+      // app on the device that claims `baaki://` and catches the redirect holds
+      // nothing it can use. The implicit default put the refresh token itself in
+      // the URL fragment. The exchange happens in `lib/auth.tsx`.
+      flowType: 'pkce',
     },
   },
 );

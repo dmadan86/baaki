@@ -289,3 +289,40 @@ export function readIdentifier(raw: string): { kind: 'email' | 'phone'; value: s
   if (trimmed.includes('@')) return { kind: 'email', value: normaliseEmail(trimmed) };
   return { kind: 'phone', value: normalisePhone(trimmed) };
 }
+
+/**
+ * What the browser brought back from a provider sign-in.
+ *
+ * Under the PKCE flow the redirect carries a one-time `code` in the query
+ * string — not the session. Only the client that started the sign-in holds the
+ * verifier that turns it into a session, so a second app on the device that
+ * claims the same URL scheme and catches the redirect gets nothing it can use.
+ * The implicit flow this replaced put the refresh token itself in the URL
+ * fragment, which is exactly the thing such an app would want.
+ *
+ * The provider can also come back empty-handed with an `error` (and, from
+ * Supabase, an `error_description` worth showing). Anything else — no code, no
+ * error — is a redirect that did not add a session, which is what an identity
+ * *link* looks like.
+ */
+export type OAuthCallback =
+  { kind: 'code'; code: string } | { kind: 'error'; message: string } | { kind: 'none' };
+
+export function readOAuthCallback(url: string): OAuthCallback {
+  let params: URLSearchParams;
+  try {
+    // The custom scheme parses on its own (`baaki://auth?code=…`), but the
+    // triple-slash form puts `auth` in the pathname and needs a base.
+    params = new URL(url, 'waves://app').searchParams;
+  } catch {
+    return { kind: 'none' };
+  }
+  const code = params.get('code');
+  if (code) return { kind: 'code', code };
+  const error = params.get('error');
+  if (error) {
+    const description = params.get('error_description');
+    return { kind: 'error', message: description?.trim() || error };
+  }
+  return { kind: 'none' };
+}
