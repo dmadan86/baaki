@@ -2084,6 +2084,7 @@ export interface UiStrings {
     importedCount: PluralForms;
     expenseCount: PluralForms;
     settlementCount: PluralForms;
+    settlementsPending: PluralForms;
     peopleCount: PluralForms;
     peopleAdded: PluralForms;
     rowsSkipped: PluralForms;
@@ -4218,6 +4219,10 @@ const en: UiStrings = {
     },
     expenseCount: { one: '{n} expense', other: '{n} expenses' },
     settlementCount: { one: '{n} settlement', other: '{n} settlements' },
+    settlementsPending: {
+      one: '{n} awaits confirmation from the person paid',
+      other: '{n} await confirmation from the people paid',
+    },
     peopleCount: { one: '{n} person', other: '{n} people' },
     peopleAdded: {
       one: '{n} person added, waiting to be claimed',
@@ -6433,6 +6438,10 @@ const ta: UiStrings = {
     },
     expenseCount: { one: '{n} செலவு', other: '{n} செலவுகள்' },
     settlementCount: { one: '{n} தீர்வு', other: '{n} தீர்வுகள்' },
+    settlementsPending: {
+      one: '{n} பணம் பெற்றவரின் உறுதிப்படுத்தலுக்காக காத்திருக்கிறது',
+      other: '{n} பணம் பெற்றவர்களின் உறுதிப்படுத்தலுக்காக காத்திருக்கின்றன',
+    },
     peopleCount: { one: '{n} நபர்', other: '{n} நபர்கள்' },
     peopleAdded: {
       one: '{n} நபர் சேர்க்கப்பட்டார், கோரப்படக் காத்திருக்கிறார்',
@@ -8596,6 +8605,10 @@ const hi: UiStrings = {
     },
     expenseCount: { one: '{n} खर्च', other: '{n} खर्च' },
     settlementCount: { one: '{n} निपटान', other: '{n} निपटान' },
+    settlementsPending: {
+      one: '{n} को भुगतान पाने वाले की पुष्टि का इंतज़ार है',
+      other: '{n} को भुगतान पाने वालों की पुष्टि का इंतज़ार है',
+    },
     peopleCount: { one: '{n} व्यक्ति', other: '{n} लोग' },
     peopleAdded: {
       one: '{n} व्यक्ति जोड़ा गया, दावे का इंतज़ार',
@@ -10923,6 +10936,14 @@ const ar: UiStrings = {
       few: '{n} تسويات',
       many: '{n} تسوية',
       other: '{n} تسوية',
+    },
+    settlementsPending: {
+      zero: 'لا شيء بانتظار التأكيد',
+      one: 'تسوية واحدة بانتظار تأكيد من استلم المبلغ',
+      two: 'تسويتان بانتظار تأكيد من استلم المبلغ',
+      few: '{n} تسويات بانتظار تأكيد من استلموا المبلغ',
+      many: '{n} تسوية بانتظار تأكيد من استلموا المبلغ',
+      other: '{n} تسوية بانتظار تأكيد من استلموا المبلغ',
     },
     peopleCount: {
       zero: 'لا أشخاص',
