@@ -120,6 +120,15 @@ class FakeDatabase {
         return;
       }
       if (statement === 'DELETE FROM pending_mutations') {
+        // The store holds back rows it could not decrypt (`clearQueueRows`), so
+        // this has to honour the NOT IN clause rather than always clearing.
+        if (source.includes('NOT IN')) {
+          const held = new Set(params as string[]);
+          for (const id of [...this.pendingMutations.keys()]) {
+            if (!held.has(id)) this.pendingMutations.delete(id);
+          }
+          return;
+        }
         this.pendingMutations.clear();
         return;
       }
@@ -252,6 +261,18 @@ vi.mock('expo-crypto', () => ({
   },
 }));
 
+// The store reports a quarantined row through the app's Sentry wrapper, which
+// statically imports @sentry/react-native (and through it react-native itself —
+// Flow syntax vitest cannot parse). Only the call matters here, so the module is
+// replaced by a spy and the reports are asserted below.
+const reports = vi.hoisted(() => [] as { error: unknown; where: string }[]);
+
+vi.mock('@/lib/observability', () => ({
+  reportHandled: (error: unknown, where: string) => {
+    reports.push({ error, where });
+  },
+}));
+
 vi.mock('expo-sqlite', () => ({
   openDatabaseAsync: async () => {
     openCalls += 1;
@@ -287,6 +308,7 @@ beforeEach(() => {
   secure.keystore.clear();
   secure.deletes = [];
   secure.gets = 0;
+  reports.length = 0;
 });
 
 describe('two callers, one connection', () => {
@@ -536,29 +558,135 @@ describe('at-rest encryption', () => {
     expect(await store.readDraft('d1')).toEqual({ note: 'legacy' });
   });
 
-  it('wipes unreadable encrypted local data and returns empty state', async () => {
+  /**
+   * The scenario this whole section exists for.
+   *
+   * An Android backup/restore carries the app's SQLite file but not its Keystore
+   * entry, so the new device mints a fresh DEK and every sealed row fails its
+   * AEAD tag. This used to wipe the database — including `pending_mutations`,
+   * where an expense entered on a plane is the only copy in the world. Nothing
+   * is deleted for a read failure now.
+   */
+  describe('a key the database no longer has', () => {
     const DEK = 'waves.mirror.dek.v1';
+
+    const seed = async (store: ReturnType<typeof createLocalStore>) => {
+      await store.putRows([
+        { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+      ] as never);
+      await store.writeCursors({ g1: 1 });
+      await store.writeQueue([mutation('a'), mutation('b')]);
+      await store.writeDraft('d1', { secret: 'draft' });
+    };
+
+    it('reads what it can and destroys nothing', async () => {
+      const store = createLocalStore();
+      await seed(store);
+
+      // The DB traveled; the device-only DEK did not.
+      await destroyKey();
+      const deletesBefore = secure.deletes.filter((key) => key === DEK).length;
+
+      // Unreadable, so absent from the read...
+      expect(await store.readRows()).toEqual([]);
+      expect(await store.readQueue()).toEqual([]);
+      expect(await store.readDraft('d1')).toBeNull();
+      expect(await store.listDrafts()).toEqual([]);
+      // ...but every byte is still on disk, and the key was not thrown away.
+      expect(database.mirrorRows.size).toBe(1);
+      expect(database.pendingMutations.size).toBe(2);
+      expect(database.drafts.size).toBe(1);
+      expect(secure.deletes.filter((key) => key === DEK).length).toBe(deletesBefore);
+      // Cursors are not encrypted, so they were never at risk either way.
+      expect(await store.readCursors()).toEqual({ g1: 1 });
+
+      // Reported once per table, not once per row: a cold start walks the whole
+      // mirror and a lost key would otherwise be thousands of identical events.
+      // This is the first failing read in the file, so these are all of them.
+      expect(reports.map((entry) => entry.where.replace(/\[.*$/, '')).sort()).toEqual([
+        'sync.quarantine.drafts',
+        'sync.quarantine.mirror_rows',
+        'sync.quarantine.pending_mutations',
+      ]);
+      const seen = reports.length;
+      await store.readRows();
+      await store.readQueue();
+      await store.listDrafts();
+      expect(reports).toHaveLength(seen);
+    });
+
+    it('keeps the unreadable queue rows through the next queue write', async () => {
+      const store = createLocalStore();
+      await seed(store);
+      await destroyKey();
+
+      // Hydration reads the queue (finding nothing it can open), then the app
+      // carries on and queues something new. The rewrite must not finish what
+      // the old wipe started.
+      expect(await store.readQueue()).toEqual([]);
+      await store.writeQueue([mutation('c')]);
+
+      expect([...database.pendingMutations.keys()].sort()).toEqual(['a', 'b', 'c']);
+      expect((await store.readQueue()).map((entry) => entry.clientMutationId)).toEqual(['c']);
+    });
+
+    it('keeps them through forgetGroup too', async () => {
+      const store = createLocalStore();
+      await seed(store);
+      await destroyKey();
+      await store.readQueue();
+
+      await store.forgetGroup('g1', []);
+
+      expect([...database.pendingMutations.keys()].sort()).toEqual(['a', 'b']);
+    });
+
+    it('still wipes everything on sign-out', async () => {
+      const store = createLocalStore();
+      await seed(store);
+      await destroyKey();
+      await store.readQueue();
+      const deletesBefore = secure.deletes.filter((key) => key === DEK).length;
+
+      // Quarantine protects a lost key, not a departing account: an unreadable
+      // row is still this person's data on a phone somebody else is about to use.
+      await store.reset();
+
+      expect(database.pendingMutations.size).toBe(0);
+      expect(database.mirrorRows.size).toBe(0);
+      expect(database.drafts.size).toBe(0);
+      expect(secure.deletes.filter((key) => key === DEK).length).toBe(deletesBefore + 1);
+    });
+  });
+
+  it('drops only the row it cannot open, not its neighbours', async () => {
     const store = createLocalStore();
     await store.putRows([
-      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1' } },
+      { table: 'expenses', id: 'e1', groupId: 'g1', seq: 1, row: { id: 'e1', amount: '100' } },
+      { table: 'expenses', id: 'e2', groupId: 'g1', seq: 2, row: { id: 'e2', amount: '200' } },
     ] as never);
-    await store.writeCursors({ g1: 1 });
-    await store.writeQueue([mutation('a')]);
-    await store.writeDraft('d1', { secret: 'draft' });
+    await store.writeQueue([mutation('a'), mutation('b')]);
+    await store.writeDraft('good', { amount: 1 });
+    await store.writeDraft('bad', { amount: 2 });
 
-    // Simulate restore/key loss: the DB traveled, but the device-only DEK did not.
-    await destroyKey();
-    const deletesBefore = secure.deletes.filter((key) => key === DEK).length;
+    // Corrupt exactly one row of each encrypted table — a truncated ciphertext
+    // fails the AEAD tag the same way a wrong key does.
+    const corrupt = (value: string) => `${value.slice(0, value.length - 8)}AAAAAAAA`;
+    const row = database.mirrorRows.get('expenses:e2');
+    if (row) row.json = corrupt(row.json);
+    const queued = database.pendingMutations.get('a');
+    if (queued) queued.json = corrupt(queued.json);
+    const draft = database.drafts.get('bad');
+    if (draft) draft.json = corrupt(draft.json);
 
-    expect(await store.readRows()).toEqual([]);
-    expect(await store.readCursors()).toEqual({});
-    expect(await store.readQueue()).toEqual([]);
-    expect(await store.readDraft('d1')).toBeNull();
-    expect(database.mirrorRows.size).toBe(0);
-    expect(database.pendingMutations.size).toBe(0);
-    expect(database.cursors.size).toBe(0);
-    expect(database.drafts.size).toBe(0);
-    expect(secure.deletes.filter((key) => key === DEK).length).toBe(deletesBefore + 1);
+    expect((await store.readRows()).map((entry) => entry.id)).toEqual(['e1']);
+    expect((await store.readQueue()).map((entry) => entry.clientMutationId)).toEqual(['b']);
+    expect((await store.listDrafts()).map((entry) => entry.key)).toEqual(['good']);
+    expect(await store.readDraft('good')).toEqual({ amount: 1 });
+    expect(await store.readDraft('bad')).toBeNull();
+    // And the corrupt queue row is still there, not swept up by the rewrite.
+    await store.writeQueue([mutation('b')]);
+    expect([...database.pendingMutations.keys()].sort()).toEqual(['a', 'b']);
   });
 
   it('destroys the key on reset (crypto-erase)', async () => {

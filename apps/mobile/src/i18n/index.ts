@@ -733,6 +733,12 @@ export interface UiStrings {
     waitingWifi: string;
     /** Banner while holding the queue for mobile data. */
     waitingCellular: string;
+    /** Banner heading when a change has given up retrying (see MAX_ATTEMPTS in
+     *  @waves/core). It blocks everything queued behind it in the same group,
+     *  so it needs a person to retry it or let it go. */
+    stuckCount: PluralForms;
+    /** The line under that heading: still saved, just not sent. */
+    stuckExplain: string;
   };
   /** The app lock, the delay before it asks again, and the way out. */
   lock: {
@@ -2970,6 +2976,12 @@ const en: UiStrings = {
     selected: 'selected',
     waitingWifi: 'Saved — waiting for Wi‑Fi to sync.',
     waitingCellular: 'Saved — waiting for mobile data to sync.',
+    stuckCount: {
+      one: '{n} change is stuck',
+      other: '{n} changes are stuck',
+    },
+    stuckExplain:
+      'Still saved on this phone — it just keeps failing to send. Try again, or let it go.',
   },
   lock: {
     title: 'Security',
@@ -5114,6 +5126,12 @@ const ta: UiStrings = {
     selected: 'தேர்ந்தெடுக்கப்பட்டது',
     waitingWifi: 'சேமிக்கப்பட்டது — ஒத்திசைக்க வைஃபைக்காகக் காத்திருக்கிறது.',
     waitingCellular: 'சேமிக்கப்பட்டது — ஒத்திசைக்க மொபைல் டேட்டாவுக்காகக் காத்திருக்கிறது.',
+    stuckCount: {
+      one: '{n} மாற்றம் சிக்கிக்கொண்டது',
+      other: '{n} மாற்றங்கள் சிக்கிக்கொண்டன',
+    },
+    stuckExplain:
+      'இந்த ஃபோனில் இன்னும் சேமிக்கப்பட்டுள்ளது — அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும், அல்லது நீக்கிவிடவும்.',
   },
   lock: {
     title: 'பாதுகாப்பு',
@@ -7335,6 +7353,12 @@ const hi: UiStrings = {
     selected: 'चुना गया',
     waitingWifi: 'सहेजा गया — सिंक के लिए वाई‑फ़ाई की प्रतीक्षा है।',
     waitingCellular: 'सहेजा गया — सिंक के लिए मोबाइल डेटा की प्रतीक्षा है।',
+    stuckCount: {
+      one: '{n} बदलाव अटका है',
+      other: '{n} बदलाव अटके हैं',
+    },
+    stuckExplain:
+      'इस फ़ोन पर अब भी सहेजा है — बस भेजा नहीं जा पा रहा। दोबारा कोशिश करें, या हटा दें।',
   },
   lock: {
     title: 'सुरक्षा',
@@ -9495,6 +9519,15 @@ const ar: UiStrings = {
     selected: 'محدَّد',
     waitingWifi: 'محفوظ — بانتظار واي‑فاي للمزامنة.',
     waitingCellular: 'محفوظ — بانتظار بيانات الجوال للمزامنة.',
+    stuckCount: {
+      zero: 'لا تغييرات عالقة',
+      one: 'تغيير واحد عالق',
+      two: 'تغييران عالقان',
+      few: '{n} تغييرات عالقة',
+      many: '{n} تغييرًا عالقًا',
+      other: '{n} تغيير عالق',
+    },
+    stuckExplain: 'ما زال محفوظًا على هذا الهاتف — لكنه لا يُرسَل. أعد المحاولة، أو تجاهله.',
   },
   lock: {
     title: 'الأمان',

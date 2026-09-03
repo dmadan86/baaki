@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
+import { deadLettered } from '@waves/core';
 import { Card, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { plural, useStrings } from '@/i18n';
@@ -47,6 +48,13 @@ export function SyncStatusIcon({
   // global, since the network is not per-group.
   const refused = groupId ? rejected.filter((item) => item.groupId === groupId) : rejected;
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
+  // A mutation that has exhausted its retries is not "syncing" — it has stopped,
+  // and it blocks everything queued behind it in its group. Under the old
+  // glyph it still counted as pending, so the header said "sending 1 change…"
+  // forever while nothing was being sent. It needs the same decision a refusal
+  // does, so it gets the same red.
+  const stuck = deadLettered(pending);
+  const stopped = refused.length + stuck.length;
 
   const spin = useState(() => new Animated.Value(0))[0];
   const spinning = status === SyncStatus.Syncing && !reduceMotion;
@@ -77,11 +85,14 @@ export function SyncStatusIcon({
   // as an alert whatever it sits on.
   const neutral = onBrand ? theme.color.onBrand : theme.color.text;
   const state =
-    refused.length > 0
+    stopped > 0
       ? {
           icon: 'alert-circle' as const,
           color: theme.color.negative,
-          label: t.extras.oneChangeFailed,
+          label:
+            refused.length > 0
+              ? t.extras.oneChangeFailed
+              : plural(locale, stuck.length, t.sync.stuckCount),
         }
       : status === SyncStatus.Offline
         ? { icon: 'cloud-offline-outline' as const, color: neutral, label: t.misc.offlineSaved }
@@ -137,6 +148,7 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
 
   const pending = groupId ? queue.filter((item) => item.groupId === groupId) : queue;
   const refused = groupId ? rejected.filter((item) => item.groupId === groupId) : rejected;
+  const stuck = deadLettered(pending);
 
   if (refused.length > 0) {
     const first = refused[0];
@@ -181,6 +193,66 @@ export function SyncBanner({ groupId }: { groupId?: string }) {
           </Pressable>
           <Pressable
             onPress={() => first && void discard(first.clientMutationId)}
+            accessibilityRole="button"
+            accessibilityLabel={t.extras.discardIt}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Text variant="caption" tone="muted">
+              {t.extras.discardIt}
+            </Text>
+          </Pressable>
+        </Row>
+      </Card>
+    );
+  }
+
+  // Nothing refused, but something has stopped trying.
+  //
+  // `MAX_ATTEMPTS` backoffs is roughly eight and a half minutes of a transport
+  // that will not take this mutation — a payload an older server rejects at the
+  // edge, a body too large, a bug. `nextBatch` then skips the whole group, so
+  // everything entered after it in that group waits behind it with nothing on
+  // screen to say why. `deadLettered` has existed since the queue was written
+  // and was called from nowhere; this is the surface it was waiting for.
+  if (stuck.length > 0) {
+    // The head of the queue is what blocks the group — order is preserved
+    // within a group, so retrying or dropping the oldest is what actually gets
+    // the rest moving. `deadLettered` preserves queue order, so this is it.
+    const head = stuck[0];
+    return (
+      <Card style={{ backgroundColor: theme.color.negativeSoft, gap: theme.spacing.md }}>
+        <Row style={{ gap: theme.spacing.sm }}>
+          <Ionicons name="alert-circle" size={iconSize.md} color={theme.color.negative} />
+          <Text variant="subheading" tone="negative">
+            {plural(locale, stuck.length, t.sync.stuckCount)}
+          </Text>
+        </Row>
+        <Text variant="caption" tone="muted">
+          {t.sync.stuckExplain}
+        </Text>
+        <Row style={{ gap: theme.spacing.lg }}>
+          <Pressable
+            onPress={() => head && void retry(head.clientMutationId)}
+            accessibilityRole="button"
+            accessibilityLabel={t.extras.tryAgain}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Text variant="caption" tone="brand">
+              {t.extras.tryAgain}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => head && void discard(head.clientMutationId)}
             accessibilityRole="button"
             accessibilityLabel={t.extras.discardIt}
             hitSlop={8}

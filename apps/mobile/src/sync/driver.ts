@@ -13,6 +13,8 @@ import * as SQLite from 'expo-sqlite';
 
 import type { MirrorRow, QueuedMutation, SyncTable } from '@waves/core';
 
+import { reportHandled } from '@/lib/observability';
+
 import { mapYielding } from './hydrateChunk';
 import { decryptWith, destroyKey, encryptWith, isSealed, loadKey } from './rowCipher';
 import { Serial } from './serial';
@@ -33,6 +35,36 @@ const mirrorAad = (table: string, id: string, groupId: string, seq: number): str
 const queueAad = (clientMutationId: string, seq: number): string =>
   ['pending_mutations', clientMutationId, seq].join(AAD_SEP);
 const draftAad = (key: string): string => ['drafts', key].join(AAD_SEP);
+
+/**
+ * A row whose ciphertext will not open is skipped, not fatal.
+ *
+ * This used to wipe the whole database — every mirror row, every cursor, every
+ * autosaved draft, the unsent mutation queue and the key itself — on the first
+ * value that failed to decrypt. The realistic trigger is not corruption but an
+ * Android backup/restore: `SharedPreferences` travels to the new device and the
+ * Keystore entry does not, so `loadKey` mints a fresh DEK, the first AEAD tag
+ * fails, and every expense entered offline is destroyed before anyone sees it.
+ * A single truncated row did the same.
+ *
+ * So the reads below open row by row and drop only what will not open. An
+ * unreadable row was already unreadable; deleting its neighbours turns a partial
+ * loss into a total one. `pending_mutations` in particular is never deleted for
+ * a read failure — see `writeQueue`, which preserves the rows it could not read
+ * rather than replacing the table wholesale.
+ *
+ * Reported once per table per process: a cold start walks thousands of rows and
+ * one lost key would otherwise be thousands of identical Sentry events.
+ */
+const quarantineReported = new Set<string>();
+function reportQuarantine(table: string, skipped: number, total: number, cause: unknown): void {
+  if (skipped === 0 || quarantineReported.has(table)) return;
+  quarantineReported.add(table);
+  reportHandled(
+    cause instanceof Error ? cause : new Error(String(cause)),
+    `sync.quarantine.${table}[${skipped}/${total}]`,
+  );
+}
 
 const SCHEMA = `
 -- Wait for a held lock instead of throwing SQLITE_BUSY the instant the file is
@@ -85,6 +117,14 @@ class SqliteStore implements LocalStore {
   private database: SQLite.SQLiteDatabase | null = null;
   private opening: Promise<SQLite.SQLiteDatabase> | null = null;
   private readonly serial = new Serial();
+  /**
+   * Queue rows the last read could not open. They are held on disk rather than
+   * swept away by the next `writeQueue`: the ciphertext is all that is left of
+   * somebody's offline work, and a key restored later (or a bug fixed in a
+   * later build) can still open it. Nothing replays them — they are simply not
+   * destroyed. See {@link reportQuarantine}.
+   */
+  private quarantinedQueueIds: readonly string[] = [];
 
   async ready(): Promise<void> {
     await this.db();
@@ -175,24 +215,6 @@ class SqliteStore implements LocalStore {
     await database.execAsync(`PRAGMA wal_checkpoint(TRUNCATE)`);
   }
 
-  private async wipeLocalData(database: SQLite.SQLiteDatabase): Promise<void> {
-    await database.withTransactionAsync(async () => {
-      await database.runAsync(`DELETE FROM mirror_rows WHERE 1 = 1`);
-      await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
-      await database.runAsync(`DELETE FROM sync_cursors WHERE 1 = 1`);
-      await database.runAsync(`DELETE FROM drafts WHERE 1 = 1`);
-    });
-    await destroyKey();
-  }
-
-  private async recoverUnreadableLocalData<T>(
-    database: SQLite.SQLiteDatabase,
-    fallback: T,
-  ): Promise<T> {
-    await this.wipeLocalData(database);
-    return fallback;
-  }
-
   async putRows(rows: readonly StoredRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.serial.run(async () => {
@@ -240,19 +262,29 @@ class SqliteStore implements LocalStore {
       // whole mirror is decrypted and `JSON.parse`d here before `hydrated` flips,
       // and doing it in one synchronous burst froze the loading skeleton and the
       // first frame. The key is loaded once above; the per-row open is sync.
-      try {
-        return await mapYielding(rows, (row) => ({
-          table: row.table_name as SyncTable,
-          id: row.id,
-          groupId: row.group_id,
-          seq: row.seq,
-          row: JSON.parse(
-            decryptWith(key, row.json, mirrorAad(row.table_name, row.id, row.group_id, row.seq)),
-          ) as MirrorRow,
-        }));
-      } catch {
-        return this.recoverUnreadableLocalData(database, []);
-      }
+      // One row that will not open is one row missing from the ledger — which
+      // the next pull refills from the server. Every other row still hydrates.
+      let firstFailure: unknown;
+      let skipped = 0;
+      const opened = await mapYielding(rows, (row): StoredRow | null => {
+        try {
+          return {
+            table: row.table_name as SyncTable,
+            id: row.id,
+            groupId: row.group_id,
+            seq: row.seq,
+            row: JSON.parse(
+              decryptWith(key, row.json, mirrorAad(row.table_name, row.id, row.group_id, row.seq)),
+            ) as MirrorRow,
+          };
+        } catch (error) {
+          skipped += 1;
+          firstFailure ??= error;
+          return null;
+        }
+      });
+      reportQuarantine('mirror_rows', skipped, rows.length, firstFailure);
+      return opened.filter((row): row is StoredRow => row !== null);
     });
   }
 
@@ -293,17 +325,53 @@ class SqliteStore implements LocalStore {
         seq: number;
         json: string;
       }>(`SELECT client_mutation_id, seq, json FROM pending_mutations ORDER BY seq ASC`);
-      try {
-        return rows.map(
-          (row) =>
+      // The queue is the one table whose rows exist nowhere else — a mutation
+      // that has not synced is only here. So a row that will not open is
+      // remembered rather than dropped: `writeQueue` keeps its bytes on disk.
+      const queue: QueuedMutation[] = [];
+      const quarantined: string[] = [];
+      let firstFailure: unknown;
+      for (const row of rows) {
+        try {
+          queue.push(
             JSON.parse(
               decryptWith(key, row.json, queueAad(row.client_mutation_id, row.seq)),
             ) as QueuedMutation,
-        );
-      } catch {
-        return this.recoverUnreadableLocalData(database, []);
+          );
+        } catch (error) {
+          quarantined.push(row.client_mutation_id);
+          firstFailure ??= error;
+        }
       }
+      this.quarantinedQueueIds = quarantined;
+      reportQuarantine('pending_mutations', quarantined.length, rows.length, firstFailure);
+      return queue;
     });
+  }
+
+  /**
+   * Empty `pending_mutations` before it is rewritten — except the rows the last
+   * read could not open.
+   *
+   * The queue is persisted by replacement, so a plain `DELETE` here would let a
+   * decrypt failure quietly finish what the old whole-DB wipe started: the row
+   * vanishes from the in-memory queue on read, and the next write removes it
+   * from disk. Holding it back costs one unreadable row's bytes and keeps the
+   * only copy of that mutation. `WHERE 1 = 1` for the same reason the server
+   * needs it: a bare DELETE is one typo away from deleting everything.
+   */
+  private async clearQueueRows(database: SQLite.SQLiteDatabase): Promise<void> {
+    const held = this.quarantinedQueueIds;
+    if (held.length === 0) {
+      await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+      return;
+    }
+    await database.runAsync(
+      `DELETE FROM pending_mutations WHERE client_mutation_id NOT IN (${held
+        .map(() => '?')
+        .join(', ')})`,
+      [...held],
+    );
   }
 
   writeQueue(queue: readonly QueuedMutation[]): Promise<void> {
@@ -311,10 +379,7 @@ class SqliteStore implements LocalStore {
       const database = await this.db();
       const key = await loadKey();
       await database.withTransactionAsync(async () => {
-        // `WHERE 1 = 1` for the same reason the server needs it: a bare DELETE
-        // is the kind of statement that is one typo away from deleting
-        // everything.
-        await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+        await this.clearQueueRows(database);
         for (const mutation of queue) {
           await database.runAsync(
             `INSERT INTO pending_mutations (client_mutation_id, seq, json) VALUES (?, ?, ?)`,
@@ -341,10 +406,14 @@ class SqliteStore implements LocalStore {
         `SELECT json FROM drafts WHERE key = ?`,
         [key],
       );
+      if (!row) return null;
       try {
-        return row ? (JSON.parse(decryptWith(dek, row.json, draftAad(key))) as T) : null;
-      } catch {
-        return this.recoverUnreadableLocalData(database, null);
+        return JSON.parse(decryptWith(dek, row.json, draftAad(key))) as T;
+      } catch (error) {
+        // A draft is a convenience — an unreadable one is a form that opens
+        // blank, which is exactly what it would do if it had never been saved.
+        reportQuarantine('drafts', 1, 1, error);
+        return null;
       }
     });
   }
@@ -375,15 +444,23 @@ class SqliteStore implements LocalStore {
       const rows = await database.getAllAsync<{ key: string; json: string; saved_at: string }>(
         `SELECT key, json, saved_at FROM drafts ORDER BY saved_at DESC`,
       );
-      try {
-        return rows.map((row) => ({
-          key: row.key,
-          value: JSON.parse(decryptWith(dek, row.json, draftAad(row.key))) as unknown,
-          savedAt: row.saved_at,
-        }));
-      } catch {
-        return this.recoverUnreadableLocalData(database, []);
+      const drafts: { key: string; value: unknown; savedAt: string }[] = [];
+      let firstFailure: unknown;
+      let skipped = 0;
+      for (const row of rows) {
+        try {
+          drafts.push({
+            key: row.key,
+            value: JSON.parse(decryptWith(dek, row.json, draftAad(row.key))) as unknown,
+            savedAt: row.saved_at,
+          });
+        } catch (error) {
+          skipped += 1;
+          firstFailure ??= error;
+        }
       }
+      reportQuarantine('drafts', skipped, rows.length, firstFailure);
+      return drafts;
     });
   }
 
@@ -397,7 +474,7 @@ class SqliteStore implements LocalStore {
       await database.withTransactionAsync(async () => {
         await database.runAsync(`DELETE FROM mirror_rows WHERE group_id = ?`, [groupId]);
         await database.runAsync(`DELETE FROM sync_cursors WHERE group_id = ?`, [groupId]);
-        await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
+        await this.clearQueueRows(database);
         for (const mutation of queue) {
           await database.runAsync(
             `INSERT INTO pending_mutations (client_mutation_id, seq, json) VALUES (?, ?, ?)`,
@@ -427,10 +504,15 @@ class SqliteStore implements LocalStore {
       // drafts. All four now commit together or not at all.
       await database.withTransactionAsync(async () => {
         await database.runAsync(`DELETE FROM mirror_rows WHERE 1 = 1`);
+        // Unconditional, unlike `clearQueueRows`: quarantined rows are held
+        // against a lost key, not against the account being signed out. Sign-out
+        // is a privacy promise, and an unreadable row is still this person's
+        // data sitting on a phone somebody else is about to use.
         await database.runAsync(`DELETE FROM pending_mutations WHERE 1 = 1`);
         await database.runAsync(`DELETE FROM sync_cursors WHERE 1 = 1`);
         await database.runAsync(`DELETE FROM drafts WHERE 1 = 1`);
       });
+      this.quarantinedQueueIds = [];
       // Crypto-erase: with the rows gone, drop the key too. Any ciphertext still
       // physically present in the WAL or free pages is now unrecoverable, and the
       // next account on this device mints a fresh key rather than inheriting this

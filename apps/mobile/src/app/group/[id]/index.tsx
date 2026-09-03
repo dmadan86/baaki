@@ -45,7 +45,7 @@ import {
 import { nudgeToSettle } from '@/data/api';
 import { expenseTitle } from '@/data/expenseTitle';
 import { GroupSkeleton } from '@/components/Skeletons';
-import { formatParts, type MemberId } from '@waves/core';
+import { deadLettered, formatParts, type MemberId } from '@waves/core';
 import { useBlockedUsers } from '@/data/blocked';
 import {
   actorName,
@@ -448,7 +448,7 @@ export default function GroupScreen() {
   // The refused-change state still needs somewhere to act (retry / discard), so
   // the header glyph is paired with the one banner that carries buttons; the
   // ambient offline / syncing states are the header glyph's job now (below).
-  const { rejected } = useSync();
+  const { queue, rejected } = useSync();
 
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, profile?.id ?? null);
@@ -714,9 +714,13 @@ export default function GroupScreen() {
   // deleted. On a group whose ledger has never lost a row it is an answer to a
   // question nobody asked.
   const hasDeleted = expenses.rows.some((expense) => Boolean(expense.deleted_at));
-  // A refused change waiting on this group — the one sync state that still earns
-  // an inline card, because it needs a decision the header glyph cannot offer.
-  const refusedHere = rejected.some((item) => item.groupId === groupId);
+  // The two sync states that still earn an inline card, because both need a
+  // decision the header glyph cannot offer: a change the server refused, and a
+  // change that has stopped retrying (which also blocks everything queued
+  // behind it in this group — see `deadLettered` / `nextBatch` in @waves/core).
+  const stalledHere =
+    rejected.some((item) => item.groupId === groupId) ||
+    deadLettered(queue.filter((item) => item.groupId === groupId)).length > 0;
   const pendingForMe = (settlements.data ?? []).filter(
     (settlement) =>
       settlement.status === 'initiated' && settlement.to_member_id === ledger.myMemberId,
@@ -1072,11 +1076,11 @@ export default function GroupScreen() {
                   items={menuItems}
                 />
 
-                {/* Only the refused-change banner survives inline — it carries the
-              retry / discard buttons the header glyph cannot. Offline, queued and
-              in-flight now read from the glyph in the header, matching the
-              dashboard. */}
-                {refusedHere ? <SyncBanner groupId={groupId} /> : null}
+                {/* Only the banners that need a decision survive inline — they
+              carry the retry / discard buttons the header glyph cannot. Offline,
+              queued and in-flight now read from the glyph in the header,
+              matching the dashboard. */}
+                {stalledHere ? <SyncBanner groupId={groupId} /> : null}
 
                 {/* If the two independent balance computations ever disagree, say so
             rather than showing a number that might be wrong (ADR-004). */}
