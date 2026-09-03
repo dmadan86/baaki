@@ -1,21 +1,24 @@
 /**
- * The other ways in — Google, Apple and phone — as a row of icon tiles.
+ * The other ways in — Google, Apple, phone and email — as marks: one full-width
+ * provider button, and a row of icon tiles.
  *
  * This has been both things. It started as icon-only tiles under "or sign in
  * with", then became full-width labelled rows because *two* tiles read as a
  * decoration nobody had asked for. What made the rows wrong in turn was the
  * count: with "Email me a code" and "Continue with phone" beside them the sheet
- * carried six same-weight buttons and no hierarchy. So: back to tiles, but
- * three of them — phone joins the providers, each with a one-word caption — and
- * the labelled rows go. Three equal tiles under a seam is the shape a row of
- * "other ways in" is expected to have; two never was.
+ * carried six same-weight buttons and no hierarchy. So: tiles, but more of them
+ * — phone and email join the providers, each with a one-word caption.
+ *
+ * `ProviderButton` is the other half of that hierarchy, for the gateway door:
+ * one provider promoted to a full-width pill, the rest left as tiles beneath
+ * it. Same marks, same brand rules, a different weight.
  *
  * Marks are the real ones, at each brand's own colours, and both brands allow
  * the logo-only button: Apple's guidelines require it be at least as prominent
  * as its neighbours (same size, same corner), Google's require the four-colour
  * G on white behind a hairline. Neither follows the theme — a brand glyph that
- * changed with the palette would no longer be the brand glyph. The phone tile
- * is ours, so it does.
+ * changed with the palette would no longer be the brand glyph. The phone and
+ * email tiles are ours, so they do.
  */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -24,9 +27,18 @@ import Svg, { Path } from 'react-native-svg';
 
 import { iconSize, Text, useTheme } from '@waves/ui';
 
-export type SocialProvider = 'google' | 'apple' | 'phone';
+export type SocialProvider = 'google' | 'apple' | 'phone' | 'email';
 
 export const SOCIAL_TILE_SIZE = 56;
+
+/**
+ * Which field the tile is standing on. `surface` is the white auth sheet, where
+ * our own tiles take the theme's muted face. `brand` is the green gateway,
+ * where the same tiles turn white so they read as one set with the Google tile
+ * beside them — a muted-grey face on a saturated green is neither legible nor
+ * the same object. The Google and Apple faces never move either way.
+ */
+export type SocialField = 'surface' | 'brand';
 
 /**
  * Apple's logo, the single-path glyph at Apple's own proportions. White on the
@@ -74,6 +86,66 @@ function GoogleMark({ size = 20 }: { size?: number }) {
 }
 
 /**
+ * The full-width way in — the one provider promoted above the tiles.
+ *
+ * Apple's black pill and Google's white one, each at its own guidelines: the
+ * mark rides on the leading edge, the label stays optically centred. A spacer
+ * the width of the mark balances it, rather than a hard `left` offset, so the
+ * row mirrors on its own in Arabic.
+ */
+export function ProviderButton({
+  provider,
+  label,
+  onPress,
+  disabled = false,
+  testID,
+}: {
+  provider: 'google' | 'apple';
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  testID?: string;
+}) {
+  const theme = useTheme();
+  const isApple = provider === 'apple';
+  const face = isApple
+    ? { backgroundColor: '#000000', borderColor: '#000000' }
+    : { backgroundColor: '#FFFFFF', borderColor: '#DADCE0' };
+  // Google's own guidance is its dark grey on the white button, not pure black.
+  const ink = isApple ? '#FFFFFF' : '#1F1F1F';
+  const markSize = 20;
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        height: 56,
+        borderRadius: theme.radius.pill,
+        borderWidth: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: theme.spacing.xl,
+        gap: theme.spacing.md,
+        opacity: disabled ? 0.5 : pressed ? 0.9 : 1,
+        ...face,
+      })}
+    >
+      {isApple ? <AppleMark size={markSize} /> : <GoogleMark size={markSize} />}
+      <Text variant="subheading" align="center" style={{ flex: 1, color: ink, fontWeight: '700' }}>
+        {label}
+      </Text>
+      {/* Balances the mark, so the label is centred in the pill and not off it. */}
+      <View style={{ width: markSize }} />
+    </Pressable>
+  );
+}
+
+/**
  * One tile: the mark centred, an optional one-word caption underneath.
  *
  * The caption is what keeps a logo from being a decoration — it names the
@@ -86,6 +158,7 @@ export function SocialTile({
   caption,
   onPress,
   disabled = false,
+  field = 'surface',
   testID,
 }: {
   provider: SocialProvider;
@@ -93,17 +166,21 @@ export function SocialTile({
   caption?: string;
   onPress: () => void;
   disabled?: boolean;
+  field?: SocialField;
   testID?: string;
 }) {
   const theme = useTheme();
+  const onBrandField = field === 'brand';
   // Each brand's guidelines pin its own palette: Google's light tile with a
-  // hairline, Apple's solid black. Phone is our own and takes the theme.
+  // hairline, Apple's solid black. Phone and email are ours and take the field.
   const face =
     provider === 'apple'
       ? { backgroundColor: '#000000', borderColor: '#000000' }
       : provider === 'google'
         ? { backgroundColor: '#FFFFFF', borderColor: '#DADCE0' }
-        : { backgroundColor: theme.color.surfaceMuted, borderColor: theme.color.border };
+        : onBrandField
+          ? { backgroundColor: '#FFFFFF', borderColor: '#DADCE0' }
+          : { backgroundColor: theme.color.surfaceMuted, borderColor: theme.color.border };
 
   return (
     <Pressable
@@ -136,11 +213,19 @@ export function SocialTile({
         ) : provider === 'google' ? (
           <GoogleMark size={24} />
         ) : (
-          <Ionicons name="call-outline" size={iconSize.md} color={theme.color.brand} />
+          <Ionicons
+            name={provider === 'email' ? 'mail-outline' : 'call-outline'}
+            size={iconSize.md}
+            color={theme.color.brand}
+          />
         )}
       </View>
       {caption ? (
-        <Text variant="caption" tone="muted">
+        <Text
+          variant="caption"
+          tone={onBrandField ? undefined : 'muted'}
+          style={onBrandField ? { color: theme.color.onBrand } : undefined}
+        >
           {caption}
         </Text>
       ) : null}

@@ -36,6 +36,7 @@ FLOWS=(
   leave-group
   widget-deeplinks
   auth-providers
+  welcome-door
   shortcut-preference
 )
 

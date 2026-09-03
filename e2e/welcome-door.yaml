@@ -1,0 +1,26 @@
+# The door itself — the signed-out gateway now carries the ways in.
+#
+# It used to be a wordmark and two buttons that both landed on a form. It is a
+# Headway-shaped door now: a headline, one primary provider button, a row of
+# tiles (the other provider, phone, email), a "Skip" pill for the guest way in
+# (ADR-006), and "Sign in" for a returning member. This asserts the door renders
+# those and that Skip reaches the guest doorway — it taps no provider, which
+# would need a real IdP round-trip and belongs to a manual device pass.
+appId: app.waves.mobile
+---
+- launchApp:
+    clearState: true
+
+# The ways in are on the door, not one screen behind it.
+- assertVisible:
+    id: 'auth-email'
+- assertVisible:
+    id: 'auth-phone'
+- assertVisible: 'Skip'
+- assertVisible: 'Sign in'
+
+# Skip is the guest way in: it navigates to the guest doorway (no session yet).
+- tapOn: 'Skip'
+- extendedWaitUntilVisible:
+    element: 'Start splitting with'
+    timeout: 10000

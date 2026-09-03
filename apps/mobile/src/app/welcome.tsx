@@ -1,19 +1,29 @@
 /**
- * The gateway — the first screen after the splash for a signed-out person.
+ * The door — the first screen after the splash for a signed-out person.
  *
- * A single brand field with a back chevron, the wordmark sitting in the upper
- * third, the legal line, and the choices anchored to the bottom: make an
- * account or sign in. It sits in front of the two auth doors (`sign-up` and
- * `sign-in`), which carry the actual ways in (Google, phone, email). This
- * screen only asks which errand you are on, the way Tinder, Bumble and Hinge
- * all open — brand first, one decision, nothing to read past the terms.
+ * It used to be a gateway: a wordmark on the green, and two buttons that only
+ * asked which errand you were on ("Create account" / "Sign in"), both of which
+ * landed you on a form. That is one screen of nothing before anything can
+ * happen. This is the Headway shape instead — a headline saying what the app
+ * is, then the ways in themselves, right here: one primary provider button
+ * (Apple on iOS, Google elsewhere), the rest as a row of tiles beneath it, and
+ * a Skip pill in the header for the guest way in (ADR-006 — nobody registers
+ * before they can split a bill; Skip is now where that lives).
+ *
+ * Tapping Google or Apple signs in from this screen. The sign-up form is not
+ * gone, it has simply moved behind the email tile, which is where a form
+ * belongs: one of several ways in, not the toll gate in front of all of them.
+ *
+ * The language globe still sits in the header whenever there is no back
+ * chevron, so somebody who opened the app in a script they cannot read can
+ * change it from the first frame.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import Animated, {
@@ -25,21 +35,86 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { directionalIcon, iconSize, Text, useTheme } from '@waves/ui';
+import { Callout, directionalIcon, iconSize, Row, Text, useTheme } from '@waves/ui';
 
 import { LegalLine } from '@/components/LegalLine';
+import { ProviderButton, SocialTile } from '@/components/SocialTile';
 import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
+import { friendlyError } from '@/lib/errors';
 
-/** The gateway's green wash — a light stop into the base green (#65B63E) into a
+/** The door's green wash — a light stop into the base green (#65B63E) into a
     darker one, top to bottom, matching the splash. A local screen colour, not a
     brand token: the app's brand is purple; this entry field is deliberately its
     own green. */
 const GATEWAY_GRADIENT = ['#7BC94E', '#65B63E', '#4F9A2E'] as const;
 
+/** The Skip pill's face: white at 12% on the green, which reads as a control
+    without becoming a third button competing with the provider below. */
+const SKIP_FACE = 'rgba(255, 255, 255, 0.12)';
+
 export default function WelcomeScreen() {
   const theme = useTheme();
   const { t } = useStrings();
+  const { withGoogle, withApple } = useAuth();
   const canGoBack = router.canGoBack();
+
+  // The same busy/error pair the auth sheet keeps: one provider round-trip at a
+  // time, and whatever comes back said in words rather than in the SDK's.
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = (action: () => Promise<unknown>): void => {
+    void (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        await action();
+      } catch (caught) {
+        setError(
+          friendlyError(
+            caught,
+            t.signIn.couldNotSignIn,
+            'auth.signIn',
+            t.misc.connectionProblem,
+            t.misc.tooManyTries,
+          ),
+        );
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  // Apple leads on iOS — its guidelines want it at least as prominent as the
+  // alternatives, and App Store guideline 4.8 requires it beside Google there.
+  // Google leads everywhere else, where Apple is only a browser fallback.
+  const appleFirst = Platform.OS === 'ios';
+
+  const googleTile = (
+    <SocialTile
+      key="google"
+      testID="auth-google"
+      provider="google"
+      field="brand"
+      accessibilityLabel={t.signIn.continueGoogle}
+      caption={t.signIn.providerGoogle}
+      disabled={busy}
+      onPress={() => run(withGoogle)}
+    />
+  );
+  const appleTile = (
+    <SocialTile
+      key="apple"
+      testID="auth-apple"
+      provider="apple"
+      field="brand"
+      accessibilityLabel={t.signIn.continueApple}
+      caption={t.signIn.providerApple}
+      disabled={busy}
+      onPress={() => run(withApple)}
+    />
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -49,109 +124,163 @@ export default function WelcomeScreen() {
         end={{ x: 0, y: 1 }}
         style={{ flex: 1 }}
       >
-        {/* Slow, soft orbs drifting on the field behind everything — depth, not
+        {/* Slow, soft waves drifting on the field behind everything — depth, not
             decoration you look at. Under the content and untouchable. */}
         <GatewayBackdrop />
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          {/* The header: a back chevron top-left (only when there is somewhere
-              to go back to) and the language picker top-right, so a person who
-              opened the app in a script they cannot read can switch it from the
-              first frame, without leaving the gateway. */}
-          <View
+          {/* The header: back when there is somewhere to go back to, otherwise
+              the language globe; and Skip, which is the guest way in. */}
+          <Row
             style={{
               minHeight: 44,
-              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingHorizontal: theme.spacing.sm,
             }}
           >
             {canGoBack ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t.common.back}
+              <HeaderGlyph
+                label={t.common.back}
+                icon={directionalIcon('chevron-back')}
                 onPress={() => router.back()}
-                hitSlop={12}
-                style={({ pressed }) => ({
-                  width: 44,
-                  height: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.6 : 1,
-                })}
-              >
-                <Ionicons
-                  name={directionalIcon('chevron-back')}
-                  size={iconSize.lg}
-                  color={theme.color.onBrand}
-                />
-              </Pressable>
+              />
             ) : (
-              <View style={{ width: 44 }} />
+              <HeaderGlyph
+                label={t.language}
+                icon="globe-outline"
+                onPress={() => router.push('/language')}
+              />
             )}
             <Pressable
+              testID="welcome-skip"
               accessibilityRole="button"
-              accessibilityLabel={t.language}
-              onPress={() => router.push('/language')}
-              hitSlop={12}
+              accessibilityLabel={t.common.skip}
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              onPress={() => router.push('/guest-welcome')}
+              hitSlop={8}
               style={({ pressed }) => ({
-                width: 44,
                 height: 44,
+                paddingHorizontal: theme.spacing.lg,
+                borderRadius: theme.radius.pill,
+                backgroundColor: SKIP_FACE,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: pressed ? 0.6 : 1,
+                opacity: busy ? 0.45 : pressed ? 0.7 : 1,
               })}
             >
-              <Ionicons name="globe-outline" size={iconSize.lg} color={theme.color.onBrand} />
+              <Text variant="subheading" style={{ color: theme.color.onBrand, fontWeight: '700' }}>
+                {t.common.skip}
+              </Text>
             </Pressable>
-          </View>
+          </Row>
 
-          {/* The wordmark sits in the upper third: a short spacer above, a
-              longer one below, so it rides high on the empty field. */}
-          <View style={{ flex: 0.7 }} />
-          <View style={{ alignItems: 'center' }}>
+          {/* The hero rides in the upper third: a small brand tag, the headline
+              that says what the app is for, and one line under it. */}
+          <View style={{ flex: 0.5 }} />
+          <View style={{ paddingHorizontal: theme.spacing.xxl, gap: theme.spacing.sm }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: theme.color.onBrand }}>
+              {t.common.appName}
+            </Text>
             <Text
               style={{
-                fontSize: 52,
+                fontSize: 38,
+                lineHeight: 44,
                 fontWeight: '800',
                 letterSpacing: -1,
                 color: theme.color.onBrand,
               }}
             >
-              {t.common.appName}
+              {t.signIn.splitAnything}
+            </Text>
+            <Text variant="body" style={{ color: theme.color.onBrand, opacity: 0.85 }}>
+              {t.signIn.welcomeBody}
             </Text>
           </View>
-          <View style={{ flex: 1.3 }} />
+          <View style={{ flex: 1 }} />
 
-          {/* The legal line and the two gateway choices are anchored to the
-              bottom, lifted off the safe-area edge. */}
+          {/* The ways in, anchored to the bottom: the legal line, one primary
+              provider, the rest as tiles, and the way back for a member. */}
           <View
             style={{
-              paddingHorizontal: theme.spacing.xl,
+              paddingHorizontal: theme.spacing.xxl,
               paddingBottom: theme.spacing.xl,
               gap: theme.spacing.md,
             }}
           >
+            {error ? <Callout tone="negative">{error}</Callout> : null}
+
             <LegalLine
               textStyle={{
                 color: theme.color.onBrand,
                 opacity: 0.95,
                 lineHeight: 20,
-                marginBottom: theme.spacing.sm,
+                marginBottom: theme.spacing.xs,
               }}
             />
 
-            <GatewayButton
-              icon="person-add-outline"
-              label={t.signIn.createAccount}
-              onPress={() => router.push('/sign-up')}
+            <ProviderButton
+              testID="welcome-provider"
+              provider={appleFirst ? 'apple' : 'google'}
+              label={appleFirst ? t.signIn.continueApple : t.signIn.continueGoogle}
+              disabled={busy}
+              onPress={() => run(appleFirst ? withApple : withGoogle)}
             />
-            <GatewayButton
-              primary
-              icon="log-in-outline"
-              label={t.signIn.signInAction}
-              onPress={() => router.push('/sign-in')}
-            />
+
+            <Row
+              style={{
+                justifyContent: 'center',
+                gap: theme.spacing.xxl,
+                marginTop: theme.spacing.sm,
+              }}
+            >
+              {appleFirst ? googleTile : appleTile}
+              <SocialTile
+                testID="auth-phone"
+                provider="phone"
+                field="brand"
+                accessibilityLabel={t.signIn.continuePhone}
+                caption={t.signIn.providerPhone}
+                disabled={busy}
+                onPress={() => router.push('/phone')}
+              />
+              <SocialTile
+                testID="auth-email"
+                provider="email"
+                field="brand"
+                accessibilityLabel={t.signIn.continueEmail}
+                caption={t.signIn.providerEmail}
+                disabled={busy}
+                onPress={() => router.push('/sign-up')}
+              />
+            </Row>
+
+            <Row
+              style={{
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                marginTop: theme.spacing.sm,
+              }}
+            >
+              <Text variant="body" style={{ color: theme.color.onBrand, opacity: 0.85 }}>
+                {t.signIn.haveAccountPrompt}
+              </Text>
+              <Pressable
+                testID="welcome-sign-in"
+                accessibilityRole="button"
+                accessibilityLabel={t.signIn.signInAction}
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                onPress={() => router.push('/sign-in')}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              >
+                <Text variant="body" style={{ color: theme.color.onBrand, fontWeight: '700' }}>
+                  {t.signIn.signInAction}
+                </Text>
+              </Pressable>
+            </Row>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -159,8 +288,38 @@ export default function WelcomeScreen() {
   );
 }
 
+/** A 44pt header glyph on the brand field — back, or the language globe. */
+function HeaderGlyph({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={12}
+      style={({ pressed }) => ({
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={iconSize.lg} color={theme.color.onBrand} />
+    </Pressable>
+  );
+}
+
 /**
- * The moving field behind the gateway: sine waves flowing across the lower
+ * The moving field behind the door: sine waves flowing across the lower
  * half of the green, stacked so they overlap into a gentle current. It is
  * depth rather than a thing to watch — low-contrast and slow.
  *
@@ -257,47 +416,5 @@ function Wave({
         <Path d={d} fill={color} />
       </Svg>
     </Animated.View>
-  );
-}
-
-/** A pill with a leading icon and a centred label — the choices on the brand
-    field. `primary` fills it with the near-black primary-button ink and white
-    label; otherwise it is a white pill with ink text. The icon sits at the
-    left, the label stays centred, the way the reference lays its buttons out. */
-function GatewayButton({
-  icon,
-  label,
-  onPress,
-  primary = false,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  primary?: boolean;
-}) {
-  const theme = useTheme();
-  const bg = primary ? theme.color.buttonPrimary : theme.color.surface;
-  const ink = primary ? theme.color.onButtonPrimary : theme.color.text;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        height: 56,
-        borderRadius: theme.radius.pill,
-        backgroundColor: bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: pressed ? 0.9 : 1,
-      })}
-    >
-      <View style={{ position: 'absolute', left: theme.spacing.xl }}>
-        <Ionicons name={icon} size={iconSize.md} color={ink} />
-      </View>
-      <Text variant="subheading" style={{ color: ink, fontWeight: '800' }}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }
