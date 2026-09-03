@@ -1243,6 +1243,8 @@ export interface ImportResult {
   expenses: number;
   ghosts: number;
   settlements?: number;
+  /** Of those, the ones that landed pending because somebody else on Waves has to confirm them. */
+  settlementsPending?: number;
   members: Record<string, string>;
 }
 

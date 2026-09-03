@@ -172,6 +172,7 @@ export default function ImportScreen() {
     expenses: number;
     ghosts: number;
     settlements: number;
+    settlementsPending: number;
   } | null>(null);
 
   /** Everyone starts as somebody new — see `load`. */
@@ -431,6 +432,7 @@ export default function ImportScreen() {
             expenses: result.expenses,
             ghosts: result.ghosts,
             settlements: result.settlements ?? 0,
+            settlementsPending: result.settlementsPending ?? 0,
           };
         } catch (caught) {
           // Keep the one precondition message as-is; wrap everything else in a
@@ -763,6 +765,11 @@ export default function ImportScreen() {
                 ? ` · ${plural(locale, done.ghosts, t.importLedger.peopleAdded)}`
                 : ''}
             </Text>
+            {done.settlementsPending > 0 ? (
+              <Text variant="caption" tone="muted">
+                {plural(locale, done.settlementsPending, t.importLedger.settlementsPending)}
+              </Text>
+            ) : null}
             <Button
               label={t.importLedger.openTheGroup}
               fullWidth

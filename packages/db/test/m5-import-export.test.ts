@@ -15,7 +15,7 @@ import type { Client } from 'pg';
 
 import { parseBaakiExport } from '@waves/core';
 
-import { addEqualSplitExpense, big, connect, seedGroup } from './helpers.js';
+import { addEqualSplitExpense, big, connect, readTruth, seedGroup } from './helpers.js';
 
 let client: Client;
 
@@ -381,3 +381,166 @@ function asStrings(values: Readonly<Record<string, bigint>>): Record<string, str
     Object.entries(values).map(([name, value]) => [name, value.toString()]),
   );
 }
+
+/**
+ * A settlement the file calls settled is only settled if somebody who can vouch
+ * for the receipt is doing the import (ADR-007). Before this rule any member
+ * could import `{from: me, to: <a member>, status: "confirmed"}` and erase a
+ * debt without the payee ever seeing it — the transition guard is BEFORE
+ * UPDATE, so a row born confirmed was never looked at.
+ */
+describe('imported settlements and consent', () => {
+  interface Row {
+    status: string;
+    confirmed_at: string | null;
+    initiated_at: string;
+  }
+
+  async function importSettlements(
+    importerProfile: string,
+    groupId: string,
+    people: { name: string; memberId: string | null }[],
+    settlements: Record<string, unknown>[],
+  ): Promise<{ settlementsPending: number; settlements: number }> {
+    return asUser(importerProfile, async () => {
+      const result = await client.query(
+        `SELECT baaki_import_ledger($1, $2::jsonb, '[]'::jsonb, $3::jsonb, 'baaki') AS r`,
+        [
+          groupId,
+          JSON.stringify(people),
+          JSON.stringify(
+            settlements.map((settlement) => ({
+              clientMutationId: randomUUID(),
+              currency: 'INR',
+              amount: '900000',
+              method: 'cash',
+              status: 'confirmed',
+              at: '2024-01-01T00:00:00Z',
+              ...settlement,
+            })),
+          ),
+        ],
+      );
+      return result.rows[0]!.r as { settlementsPending: number; settlements: number };
+    });
+  }
+
+  async function rows(groupId: string): Promise<Row[]> {
+    const result = await client.query(
+      `SELECT status, confirmed_at, initiated_at FROM settlements
+        WHERE group_id = $1 ORDER BY created_at`,
+      [groupId],
+    );
+    return result.rows as Row[];
+  }
+
+  it('does not let the payer import their own debt as already paid', async () => {
+    const seeded = await seedGroup(client, { memberCount: 2 });
+    const [me, victim] = seeded.memberIds as [string, string];
+    await addEqualSplitExpense(client, {
+      groupId: seeded.groupId,
+      amount: 900000n,
+      payers: { [victim]: 900000n },
+      participants: [me],
+    });
+    const before = await readTruth(client, seeded.groupId);
+
+    const result = await importSettlements(
+      seeded.profileIds[0]!,
+      seeded.groupId,
+      [
+        { name: 'Me', memberId: me },
+        { name: 'Victim', memberId: victim },
+      ],
+      [{ from: 'Me', to: 'Victim' }],
+    );
+
+    // Lands pending, for the payee to confirm — and dated now, not with the
+    // file's date, or the auto-confirm job would settle it on its next run.
+    expect(result).toMatchObject({ settlements: 1, settlementsPending: 1 });
+    const [row] = await rows(seeded.groupId);
+    expect(row).toMatchObject({ status: 'initiated', confirmed_at: null });
+    expect(Date.now() - new Date(row!.initiated_at).getTime()).toBeLessThan(60_000);
+    expect(await readTruth(client, seeded.groupId)).toEqual(before);
+  });
+
+  it('lets the payee vouch for a payment they received', async () => {
+    const seeded = await seedGroup(client, { memberCount: 2 });
+    const [me, payer] = seeded.memberIds as [string, string];
+
+    const result = await importSettlements(
+      seeded.profileIds[0]!,
+      seeded.groupId,
+      [
+        { name: 'Me', memberId: me },
+        { name: 'Payer', memberId: payer },
+      ],
+      [{ from: 'Payer', to: 'Me' }],
+    );
+
+    expect(result).toMatchObject({ settlements: 1, settlementsPending: 0 });
+    const [row] = await rows(seeded.groupId);
+    expect(row!.status).toBe('confirmed');
+    // The file's date survives on a settled row.
+    expect(new Date(row!.confirmed_at!).toISOString()).toBe('2024-01-01T00:00:00.000Z');
+  });
+
+  it('takes the importer at their word for ghosts, and nobody else', async () => {
+    const seeded = await seedGroup(client, { memberCount: 2 });
+    const [me, other] = seeded.memberIds as [string, string];
+
+    const result = await importSettlements(
+      seeded.profileIds[0]!,
+      seeded.groupId,
+      [
+        { name: 'Me', memberId: me },
+        { name: 'Other', memberId: other },
+        { name: 'Ghost A', memberId: null },
+        { name: 'Ghost B', memberId: null },
+      ],
+      [
+        { from: 'Ghost A', to: 'Ghost B' }, // ghosts settling among themselves
+        { from: 'Me', to: 'Ghost A' }, // the importer paid a ghost
+        { from: 'Ghost A', to: 'Me' }, // a ghost paid the importer
+        { from: 'Other', to: 'Ghost B' }, // somebody on Waves "paid" a ghost — their claim to make
+        { from: 'Ghost B', to: 'Other' }, // a ghost "paid" somebody on Waves — theirs to confirm
+        { from: 'Other', to: 'Me', status: 'auto_confirmed' }, // settled in the file, payee imports
+      ],
+    );
+
+    expect(result).toMatchObject({ settlements: 6, settlementsPending: 2 });
+    expect((await rows(seeded.groupId)).map((row) => row.status)).toEqual([
+      'confirmed',
+      'confirmed',
+      'confirmed',
+      'initiated',
+      'initiated',
+      'confirmed',
+    ]);
+  });
+
+  it('carries a pending or cancelled row across as history, and refuses a made-up status', async () => {
+    const seeded = await seedGroup(client, { memberCount: 1 });
+    const [me] = seeded.memberIds as [string];
+    const people = [
+      { name: 'Me', memberId: me },
+      { name: 'Ghost', memberId: null },
+    ];
+
+    const result = await importSettlements(seeded.profileIds[0]!, seeded.groupId, people, [
+      { from: 'Ghost', to: 'Me', status: 'initiated' },
+      { from: 'Ghost', to: 'Me', status: 'cancelled' },
+    ]);
+    expect(result).toMatchObject({ settlements: 2, settlementsPending: 1 });
+    expect((await rows(seeded.groupId)).map((row) => row.status)).toEqual([
+      'initiated',
+      'cancelled',
+    ]);
+
+    await expect(
+      importSettlements(seeded.profileIds[0]!, seeded.groupId, people, [
+        { from: 'Ghost', to: 'Me', status: 'settled' },
+      ]),
+    ).rejects.toThrow(/INVALID_STATUS/);
+  });
+});
