@@ -316,7 +316,14 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                       <TextLink testID="auth-forgot" onPress={mailCode} disabled={busy}>
                         {t.signIn.forgotPassword}
                       </TextLink>
-                      <Text variant="caption" tone="faint">
+                      {/* Decorative only: a screen reader should hear the two
+                          links, not the dot that sits between them. */}
+                      <Text
+                        variant="caption"
+                        tone="faint"
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      >
                         ·
                       </Text>
                     </>
@@ -374,7 +381,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 size="lg"
                 fullWidth
                 disabled={busy || code.trim().length < 6}
-                onPress={() => void run(() => verifyEmailOtp(identifier, code))}
+                onPress={() => void run(() => verifyEmailOtp(identifier.trim(), code.trim()))}
               />
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <TextLink
