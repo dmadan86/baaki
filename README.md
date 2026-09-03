@@ -465,7 +465,7 @@ both before it claims a row, so a half-configured deployment strands nothing.
 ```bash
 supabase secrets set RESEND_WEBHOOK_SECRET=whsec_...
 supabase secrets set EMAIL_FROM='Baaki <hello@mail.dmadan.com>'   # optional; this is the default
-supabase secrets set EMAIL_WEB_URL=https://...                    # optional; see below
+supabase secrets set EMAIL_WEB_URL=https://wavs.co.in             # optional; this is the default
 pnpm edge:deploy
 ```
 
@@ -473,10 +473,12 @@ pnpm edge:deploy
 it invalidates every unsubscribe link already sitting in somebody's mailbox, so
 it is set once and left alone.
 
-`EMAIL_WEB_URL` is where the button in an email points. Web-lite is not deployed
-anywhere yet, so with it unset the button falls back to the `baaki://` deep link
-— which works on a phone and does nothing in desktop webmail. That is deliberate:
-an `https://` URL that 404s looks like it should have worked.
+`EMAIL_WEB_URL` is where the button in an email points — defaults to the site's
+real domain, `https://wavs.co.in`. A fork or a self-host pointing at a
+different domain (or nothing at all, deliberately) should set this explicitly;
+with it unset the button falls back to the `baaki://`/`waves://` deep link,
+which works on a phone and does nothing in desktop webmail. That fallback is
+deliberate: an `https://` URL that 404s looks like it should have worked.
 
 **What can be seen without sending anything:** `email_status` on `notifications`
 tells you what happened to each one — `suppressed` means we chose not to mail it

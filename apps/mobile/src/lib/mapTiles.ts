@@ -34,6 +34,8 @@
  * provider is configured, satisfying OSM-style policies either way.
  */
 
+import { WEB_URL } from '@/lib/webUrl';
+
 /** Every raster tile is 256×256 device-independent pixels. */
 export const TILE_SIZE = 256;
 
@@ -61,10 +63,11 @@ export const TILE_ATTRIBUTION =
  * required by OpenStreetMap's tile policy and is good citizenship with any
  * provider — the default `okhttp`/blank UA a bare `<Image>` sends is exactly
  * what OSM's server refuses. Referenced by both map surfaces so the two never
- * drift.
+ * drift. The contact URL comes from `@/lib/webUrl`, the app's one configured
+ * domain, rather than a second hardcoded copy of it.
  */
 export const TILE_HEADERS: Record<string, string> = {
-  'User-Agent': 'WavesApp/1.0 (+https://waves.app; expense location map)',
+  'User-Agent': `WavesApp/1.0 (+${WEB_URL}; expense location map)`,
 };
 
 /**

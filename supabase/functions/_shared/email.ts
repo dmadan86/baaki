@@ -68,6 +68,16 @@ export function emailFrom(): string {
   return Deno.env.get('EMAIL_FROM') ?? 'Baaki <hello@mail.dmadan.com>';
 }
 
+/**
+ * The button an email links to. `EMAIL_WEB_URL` overrides it per deployment —
+ * a fork or a self-host pointing at their own domain, or nothing at all,
+ * which turns the button off and falls back to the `baaki://`/`waves://`
+ * deep link (dead in desktop webmail, exactly right on a phone).
+ */
+function emailWebUrl(): string | null {
+  return Deno.env.get('EMAIL_WEB_URL') ?? 'https://wavs.co.in';
+}
+
 /** Where an unsubscribe click lands. Same origin as every other function. */
 function functionsUrl(): string {
   return `${requiredEnv('SUPABASE_URL').replace(/\/+$/, '')}/functions/v1`;
@@ -88,7 +98,7 @@ export async function buildFor(row: EmailableRow): Promise<BuiltEmail | null> {
       groupName: row.group_name,
     },
     {
-      webUrl: Deno.env.get('EMAIL_WEB_URL') ?? null,
+      webUrl: emailWebUrl(),
       unsubscribeUrl: unsubscribeUrlFor(functionsUrl(), row.address, signature),
     },
   );
@@ -207,7 +217,7 @@ export async function buildCampaignFor(row: CampaignEmailRow): Promise<BuiltCamp
       to: row.address,
     },
     {
-      webUrl: Deno.env.get('EMAIL_WEB_URL') ?? null,
+      webUrl: emailWebUrl(),
       unsubscribeUrl: unsubscribeUrlFor(functionsUrl(), row.address, signature),
     },
   );
