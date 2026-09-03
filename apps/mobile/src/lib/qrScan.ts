@@ -12,6 +12,8 @@
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 
+import { INVITE_HOST } from '@/lib/webUrl';
+
 /** Whether this binary actually contains the camera module. False on web, and
  *  on any dev-client built before `expo-camera` was added. */
 export function cameraAvailable(): boolean {
@@ -22,14 +24,15 @@ export function cameraAvailable(): boolean {
 /**
  * The invite token out of whatever the camera read.
  *
- * A Waves invite QR encodes the join URL (`https://baaki.app/join?token=…`, or
- * the `waves://join?token=…` deep link). We only trust a value that carries a
+ * A Waves invite QR encodes the join URL (`${INVITE_HOST}/join?token=…`, or the
+ * `waves://join?token=…` deep link). We only trust a value that carries a
  * `token` query on a join URL; a random QR from a poster is not an invite, and
  * returns null so the screen can say so rather than routing nowhere.
+ *
+ * `INVITE_HOST` comes from `@/lib/webUrl` — the same constant `groupJoinLink`
+ * builds outgoing links from, so this allowlist can never point somewhere
+ * different than the app's own invites do.
  */
-/** Where a real Waves invite points: the https link's host, and the deep-link
- *  schemes the app registers. Anything else is somebody else's QR. */
-const INVITE_HOST = 'baaki.app';
 const INVITE_SCHEMES = new Set(['waves', 'baaki']);
 
 export function tokenFromScan(data: string): string | null {

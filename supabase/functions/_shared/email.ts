@@ -68,6 +68,20 @@ export function emailFrom(): string {
   return Deno.env.get('EMAIL_FROM') ?? 'Baaki <hello@mail.dmadan.com>';
 }
 
+/**
+ * The button an email links to. Two different settings turn it off, on
+ * purpose: leaving `EMAIL_WEB_URL` **unset** defaults to the canonical
+ * deployment's own domain (`https://wavs.co.in`) — right for the cloud
+ * project, wrong for a fork or self-host that has not set its own yet.
+ * Setting it to an **explicit empty string** (`EMAIL_WEB_URL=`) opts out of
+ * that default deliberately and falls back to the `baaki://`/`waves://` deep
+ * link instead (dead in desktop webmail, exactly right on a phone) — the
+ * right choice for a self-host not yet pointing anywhere it can vouch for.
+ */
+function emailWebUrl(): string | null {
+  return Deno.env.get('EMAIL_WEB_URL') ?? 'https://wavs.co.in';
+}
+
 /** Where an unsubscribe click lands. Same origin as every other function. */
 function functionsUrl(): string {
   return `${requiredEnv('SUPABASE_URL').replace(/\/+$/, '')}/functions/v1`;
@@ -88,7 +102,7 @@ export async function buildFor(row: EmailableRow): Promise<BuiltEmail | null> {
       groupName: row.group_name,
     },
     {
-      webUrl: Deno.env.get('EMAIL_WEB_URL') ?? null,
+      webUrl: emailWebUrl(),
       unsubscribeUrl: unsubscribeUrlFor(functionsUrl(), row.address, signature),
     },
   );
@@ -207,7 +221,7 @@ export async function buildCampaignFor(row: CampaignEmailRow): Promise<BuiltCamp
       to: row.address,
     },
     {
-      webUrl: Deno.env.get('EMAIL_WEB_URL') ?? null,
+      webUrl: emailWebUrl(),
       unsubscribeUrl: unsubscribeUrlFor(functionsUrl(), row.address, signature),
     },
   );

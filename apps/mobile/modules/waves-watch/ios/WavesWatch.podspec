@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.summary        = 'WatchConnectivity bridge for the Waves Apple Watch companion.'
   s.description    = 'Relays quick-add / voice / recent intents between the phone app and its watchOS companion.'
   s.author         = 'Waves'
-  s.homepage       = 'https://waves.app'
+  s.homepage       = 'https://wavs.co.in'
   s.platforms      = { :ios => '15.1', :tvos => '15.1' }
   s.source         = { git: '' }
   s.static_framework = true
