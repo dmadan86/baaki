@@ -315,10 +315,17 @@ export default function InviteScreen() {
                   key={option.channel}
                   accessibilityRole="button"
                   accessibilityLabel={option.label}
+                  // The three named channels deep-link straight into their app
+                  // with the join link as text — an invite is a link you tap to
+                  // join, which beats a QR the recipient would have to re-scan on
+                  // another device. Only the generic Share shares the QR image
+                  // itself (via the OS sheet), where the white-ground capture
+                  // matters. `shareVia` falls back to that sheet if the app is
+                  // not installed.
                   onPress={() =>
-                    void shareQr(
-                      option.channel === 'share' ? share : () => shareVia(option.channel),
-                    )
+                    void (option.channel === 'share'
+                      ? shareQr(share)
+                      : shareVia(option.channel))
                   }
                   style={({ pressed }) => ({
                     flex: 1,
