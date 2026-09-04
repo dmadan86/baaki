@@ -333,7 +333,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest: session?.user?.is_anonymous === true,
 
       async sendOtp(phone) {
-        const { error } = await backend.auth.signInWithOtp({ phone });
+        // `shouldCreateUser` is false for the same reason it is on the login
+        // door's email path below: a mistyped number would otherwise mint an
+        // empty account and send a code to a stranger, and every OTP to an
+        // unknown number is a message we pay for — the surface SMS-pumping
+        // fraud aims at. It also matches ADR-006, where a phone number is a way
+        // to keep an account and never the way to get one; `auth.sms` in
+        // config.toml refuses the signup server-side regardless.
+        const { error } = await backend.auth.signInWithOtp({
+          phone,
+          options: { shouldCreateUser: false },
+        });
         if (error) throw error;
       },
 
