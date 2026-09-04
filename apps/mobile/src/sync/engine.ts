@@ -34,7 +34,7 @@ import {
 
 import { reportHandled } from '@/lib/observability';
 import { backend } from '@/lib/backend';
-import { loadSyncNetworkPreference, SyncNetworkPreference } from '@/lib/syncNetwork';
+import { loadSyncNetworkPreference, networkAllows, SyncNetworkPreference } from '@/lib/syncNetwork';
 
 import { createLocalStore, type LocalStore, type StoredRow } from './store';
 
@@ -653,10 +653,7 @@ async function networkAllowed(): Promise<boolean> {
   if (preference === SyncNetworkPreference.Both) return true;
   try {
     const { type } = await Network.getNetworkStateAsync();
-    if (type == null) return true;
-    return preference === SyncNetworkPreference.Wifi
-      ? type === Network.NetworkStateType.WIFI
-      : type === Network.NetworkStateType.CELLULAR;
+    return networkAllows(preference, type);
   } catch {
     return true;
   }

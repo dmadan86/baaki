@@ -52,6 +52,11 @@ vi.mock('@/lib/backend', () => ({
 vi.mock('@/lib/syncNetwork', () => ({
   SyncNetworkPreference: { Wifi: 'wifi', Cellular: 'cellular', Both: 'both' },
   loadSyncNetworkPreference: h.syncPreference,
+  // The real predicate's semantics, restated against the stub enum above — the
+  // engine only asks the question, and the question is answered the same way
+  // for the cloud backup (see lib/syncNetwork.tsx).
+  networkAllows: (preference: string, type: string | null | undefined) =>
+    preference === 'both' || type == null || preference === type,
 }));
 
 // Keep Sentry out of a unit test; the engine only ever calls `reportHandled`.

@@ -24,6 +24,7 @@ import {
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NetworkStateType } from 'expo-network';
 
 import { legacyKeysMigrated } from './legacyKeys';
 
@@ -61,6 +62,28 @@ export async function loadSyncNetworkPreference(): Promise<SyncNetworkPreference
   await legacyKeysMigrated;
   const raw = await AsyncStorage.getItem(KEY).catch(() => null);
   return parse(raw);
+}
+
+/**
+ * Whether a connection of type `type` is one `preference` allows. Pure, so the
+ * two callers that gate on it — the sync engine's flush and the personal-ledger
+ * backup, which keeps its own choice but not its own *idea* of what the choices
+ * mean — agree by construction rather than by both being written carefully.
+ *
+ * `null`/`undefined` is an unknown interface type, which only happens off real
+ * phones (web, desktop) where "Wi‑Fi only" is not a meaningful gate. It fails
+ * open: better a request that should have waited than a queue silently stalled
+ * forever on a platform that cannot answer the question.
+ */
+export function networkAllows(
+  preference: SyncNetworkPreference,
+  type: NetworkStateType | null | undefined,
+): boolean {
+  if (preference === SyncNetworkPreference.Both) return true;
+  if (type == null) return true;
+  return preference === SyncNetworkPreference.Wifi
+    ? type === NetworkStateType.WIFI
+    : type === NetworkStateType.CELLULAR;
 }
 
 interface SyncNetworkValue {

@@ -943,11 +943,15 @@ export interface MirrorPersonalRecord extends MirrorRow {
  * the queue replayed on top. `ownerId` is the personal scope; every queued
  * personal mutation carries `personalScope(ownerId)` in the envelope's group
  * slot. Deleted rows are dropped — the caller sees only live records.
+ *
+ * `includeDeleted` keeps the tombstones. One caller wants them: a restore from
+ * a cloud backup, which has to know that a record it is about to bring back was
+ * deleted here on purpose. Everything that renders a list wants the default.
  */
 export function materialisePersonalRecords(
   state: MirrorState,
   queue: readonly QueuedMutation[],
-  options: { readonly ownerId: string },
+  options: { readonly ownerId: string; readonly includeDeleted?: boolean },
 ): MirrorPersonalRecord[] {
   const scope = personalScope(options.ownerId);
   const byId = new Map<string, MirrorPersonalRecord>();
@@ -987,7 +991,8 @@ export function materialisePersonalRecords(
     }
   }
 
-  return [...byId.values()].filter((record) => record.deleted_at === null);
+  const all = [...byId.values()];
+  return options.includeDeleted ? all : all.filter((record) => record.deleted_at === null);
 }
 
 /**

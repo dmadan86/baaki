@@ -42,6 +42,7 @@ import { TourOverlay } from '@/components/TourOverlay';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { UpdateBanner, UpdateGate } from '@/components/UpdateGate';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { AutoBackup } from '@/lib/backup/AutoBackup';
 import { backendConfigured } from '@/lib/backend';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
 import { useFlagEnabled } from '@/lib/flags';
@@ -233,6 +234,11 @@ function RootLayout() {
                                 while the app is locked or on a build we have
                                 stopped trusting. */}
                                         <WatchBridgeProvider />
+                                        {/* Same reasoning, one step further: an
+                                automatic backup must not run on a build we
+                                have stopped trusting, and must not decrypt a
+                                ledger while the app is still locked. */}
+                                        <AutoBackup />
                                         {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
@@ -649,6 +655,7 @@ function AuthGate() {
           <Stack.Screen name="settings/shortcut" />
           <Stack.Screen name="settings/recent" />
           <Stack.Screen name="settings/sync" />
+          <Stack.Screen name="settings/backup" />
           <Stack.Screen name="settings/theme" />
           <Stack.Screen name="settings/categories" />
           <Stack.Screen name="settings/language" />
