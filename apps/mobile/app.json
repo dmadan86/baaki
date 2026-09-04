@@ -24,7 +24,7 @@
       "package": "app.waves.mobile",
       "permissions": [],
       "adaptiveIcon": {
-        "backgroundColor": "#7A5AF8",
+        "backgroundColor": "#14162a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -44,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#5B3FD1",
+          "backgroundColor": "#14162a",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
