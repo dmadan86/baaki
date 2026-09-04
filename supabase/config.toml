@@ -52,7 +52,19 @@ site_url = "waves://"
 # settings and the Google/Apple consoles have to list `waves://auth` too — a
 # console still holding only the pre-rename scheme sends the round trip
 # somewhere the app no longer answers.
-additional_redirect_urls = ["waves://", "waves://auth", "http://localhost:3000"]
+#
+# The web client asks for `${origin}/auth/callback` (lib/auth.tsx), and Supabase
+# matches these exactly rather than by prefix — so the deployed origin has to be
+# written out. Without it, signing in on the web completes at Google and is sent
+# to `site_url`, which is a phone scheme a browser cannot open.
+additional_redirect_urls = [
+  "waves://",
+  "waves://auth",
+  "https://app.wavs.co.in",
+  "https://app.wavs.co.in/auth/callback",
+  "http://localhost:3000",
+  "http://localhost:3000/auth/callback",
+]
 jwt_expiry = 3600
 enable_signup = true
 # ADR-006. A guest opens a link and starts splitting; there is no account until
