@@ -17,7 +17,7 @@ import type { DictationErrorStrings, Language } from '@/i18n';
  * The device's own tag wins when it agrees with the language the app is showing
  * — somebody on `en-GB` should be recognised as `en-GB`, not corrected to
  * Indian English. When it disagrees, or carries no region, India is the
- * fallback: Baaki is India-first, and `ta`/`hi` with no region is a recogniser
+ * fallback: Waves is India-first, and `ta`/`hi` with no region is a recogniser
  * lottery on Android.
  */
 export function speechLocale(language: Language, deviceLocale: string): string {

@@ -3,7 +3,7 @@
  *
  * A campaign is the one thing in this app that interrupts somebody who came to
  * do something else, so it earns its place by being rare and easy to dismiss.
- * The server decides whether there is anything to show — `baaki_my_campaign()`
+ * The server decides whether there is anything to show — `waves_my_campaign()`
  * returns at most one row, already filtered by country, by date, by whether it
  * has been seen, and by the holdout. The app cannot tell whether it is in the
  * holdout or whether a campaign exists that it was not offered, and that is
@@ -36,7 +36,7 @@ interface Campaign {
 }
 
 async function fetchCampaign(): Promise<Campaign | null> {
-  const { data, error } = await backend.rpc('baaki_my_campaign');
+  const { data, error } = await backend.rpc('waves_my_campaign');
   // An announcement is never worth an error state on somebody's expense screen.
   if (error) return null;
   const rows = (data ?? []) as Campaign[];
@@ -63,7 +63,7 @@ export function CampaignPopup() {
 
   const seen = useMutation({
     mutationFn: async ({ id, acted }: { id: string; acted: boolean }) => {
-      await backend.rpc('baaki_campaign_seen', { p_campaign_id: id, p_acted: acted });
+      await backend.rpc('waves_campaign_seen', { p_campaign_id: id, p_acted: acted });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['campaign'] }),
   });

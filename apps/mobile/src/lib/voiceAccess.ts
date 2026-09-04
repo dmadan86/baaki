@@ -4,7 +4,7 @@
  *
  * The entitlement is PER PERSON: a paid person has unlimited cloud STT, a free
  * person has a monthly allowance, and a groupmate being paid changes nothing.
- * The server (`baaki_my_voice_access`) is the source of truth; the `useVoiceAccess`
+ * The server (`waves_my_voice_access`) is the source of truth; the `useVoiceAccess`
  * hook (in `@/data/hooks`) reads it, and this turns it into a mode. The actual
  * cloud STT call arrives in Phase 2 — this seam lets the UI show "X:XX free left"
  * and lets the picker decide which recogniser to use, before the provider wiring
@@ -14,7 +14,7 @@
  * unit-testable function.
  */
 
-/** The shape `baaki_my_voice_access` returns (already camelCase jsonb). */
+/** The shape `waves_my_voice_access` returns (already camelCase jsonb). */
 export interface VoiceAccess {
   paid: boolean;
   freeSeconds: number;

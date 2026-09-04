@@ -42,7 +42,7 @@ async function createGroup(
 ): Promise<string> {
   return asUser(profileId, async () => {
     const result = await client.query(
-      `SELECT baaki_create_group($1, 'trip', 'INR', NULL, true, $2, $3) AS id`,
+      `SELECT waves_create_group($1, 'trip', 'INR', NULL, true, $2, $3) AS id`,
       [args.name ?? null, args.groupId ?? null, args.photoPath ?? null],
     );
     return String(result.rows[0]?.id);
@@ -128,7 +128,7 @@ describe('group photos', () => {
 
   it('reads the group id out of a storage path', async () => {
     const groupId = randomUUID();
-    const { rows } = await client.query(`SELECT baaki_group_from_storage_path($1) AS id`, [
+    const { rows } = await client.query(`SELECT waves_group_from_storage_path($1) AS id`, [
       `${groupId}/cover.jpg`,
     ]);
     expect(rows[0]?.id).toBe(groupId);
@@ -139,7 +139,7 @@ describe('group photos', () => {
     // path has to fail the policy quietly; an exception would turn somebody
     // else's bad upload into an error on this person's read.
     for (const path of ['', 'not-a-uuid/cover.jpg', '../etc/passwd', 'cover.jpg']) {
-      const { rows } = await client.query(`SELECT baaki_group_from_storage_path($1) AS id`, [path]);
+      const { rows } = await client.query(`SELECT waves_group_from_storage_path($1) AS id`, [path]);
       expect(rows[0]?.id).toBeNull();
     }
   });
@@ -147,7 +147,7 @@ describe('group photos', () => {
 
 /**
  * A group photo is a paid feature (ADR-011 addendum, TDR A39). The client asks
- * `baaki_can_upload_group_photo` to pick the picker vs the icon, but the gate is
+ * `waves_can_upload_group_photo` to pick the picker vs the icon, but the gate is
  * enforced server-side (20260815180000) so a member cannot bypass the UI with a
  * direct write. These pin the enforcement, not the suggestion.
  */
@@ -162,12 +162,12 @@ describe('the group-photo paid gate', () => {
   }
 
   it('will not let a client read another profile’s paid status directly', async () => {
-    // baaki_profile_is_paid reads `subscriptions`, which RLS hides. It is a
+    // waves_profile_is_paid reads `subscriptions`, which RLS hides. It is a
     // SECURITY DEFINER helper for the wrapper only; a client that could call it
     // on any uuid would have an oracle for who pays.
     const profileId = await createProfile('Asha');
     const message = await asUser(profileId, () =>
-      expectDenied(client.query(`SELECT baaki_profile_is_paid($1)`, [profileId])),
+      expectDenied(client.query(`SELECT waves_profile_is_paid($1)`, [profileId])),
     );
     expect(message).toMatch(/permission denied/i);
   });
@@ -235,7 +235,7 @@ describe('the group-photo paid gate', () => {
 });
 
 async function canUpload(groupId: string | null): Promise<boolean> {
-  const { rows } = await client.query(`SELECT baaki_can_upload_group_photo($1) AS ok`, [groupId]);
+  const { rows } = await client.query(`SELECT waves_can_upload_group_photo($1) AS ok`, [groupId]);
   return rows[0]?.ok === true;
 }
 
@@ -250,7 +250,7 @@ describe('the creator membership id can be chosen by the client', () => {
 
     await asUser(profileId, () =>
       client.query(
-        `SELECT baaki_create_group($1, 'other', 'INR', NULL, true, $2, NULL, NULL, $3)`,
+        `SELECT waves_create_group($1, 'other', 'INR', NULL, true, $2, NULL, NULL, $3)`,
         ['Ravi', groupId, memberId],
       ),
     );

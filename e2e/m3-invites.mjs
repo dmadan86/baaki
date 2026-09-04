@@ -47,7 +47,7 @@ await organiser
   .update({ display_name: 'Asha' })
   .eq('id', (await organiser.auth.getUser()).data.user.id);
 
-const { data: groupId } = await organiser.rpc('baaki_create_group', {
+const { data: groupId } = await organiser.rpc('waves_create_group', {
   p_name: 'Hostel mess',
   p_type: 'home',
   p_currency: 'INR',
@@ -175,7 +175,7 @@ if (!joined?.claimId) {
 
 // The organiser is the group's admin — approve it the way the app's admin
 // screen would, through the same RPC invite-accept used to run inline.
-const { data: decision, error: decisionError } = await organiser.rpc('baaki_decide_member_claim', {
+const { data: decision, error: decisionError } = await organiser.rpc('waves_decide_member_claim', {
   p_claim_id: joined.claimId,
   p_approve: true,
 });

@@ -1,5 +1,5 @@
 /**
- * Bringing a ledger in — from Splitwise, or from Baaki itself (ADR-012).
+ * Bringing a ledger in — from Splitwise, or from Waves itself (ADR-012).
  *
  * The parsing is the easy half and lives in `packages/core`. This screen is the
  * other half: deciding which name in the file is which person here, and being
@@ -12,7 +12,7 @@
  * because somebody who later opens a row and finds they apparently paid for a
  * dinner they did not pay for deserves to have been told first.
  *
- * A **Baaki** export holds the real (paid, owed) pair and the settlements
+ * A **Waves** export holds the real (paid, owed) pair and the settlements
  * besides, so nothing is reconstructed. What still does not survive is stated
  * in ./import's own words on screen: ids, edit history and settlement
  * allocations are new, and that is what "lossless" honestly covers (M5).
@@ -28,10 +28,10 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import {
   importSplitwiseCsv,
-  isBaakiExport,
-  parseBaakiExport,
-  type BaakiImportGroup,
-  type BaakiImportSettlement,
+  isWavesExport,
+  parseWavesExport,
+  type WavesImportGroup,
+  type WavesImportSettlement,
   type ImportProblem,
 } from '@waves/core';
 import {
@@ -89,7 +89,7 @@ type Stage = 'reading' | 'parsing' | 'importing';
  * origins beats two screens that drift apart.
  */
 interface Loaded {
-  origin: 'splitwise' | 'baaki';
+  origin: 'splitwise' | 'waves';
   /** What to call the group if a new one is made. */
   suggestedName: string;
   people: readonly string[];
@@ -103,7 +103,7 @@ interface Loaded {
     payers: Readonly<Record<string, bigint>>;
     shares: Readonly<Record<string, bigint>>;
   }[];
-  settlements: readonly BaakiImportSettlement[];
+  settlements: readonly WavesImportSettlement[];
   /** Net per person in `currency`. Other currencies are counted but not shown. */
   balances: Readonly<Record<string, bigint>>;
   /** Currencies in the file beyond the main one, so the preview can say so. */
@@ -111,10 +111,10 @@ interface Loaded {
   problems: readonly ImportProblem[];
 }
 
-function fromBaaki(group: BaakiImportGroup, fallbackName: string): Loaded {
+function fromWaves(group: WavesImportGroup, fallbackName: string): Loaded {
   const currencies = [...new Set(group.expenses.map((expense) => expense.currency))];
   return {
-    origin: 'baaki',
+    origin: 'waves',
     suggestedName: group.name ?? fallbackName,
     people: group.people,
     currency: group.currency,
@@ -142,12 +142,12 @@ export default function ImportScreen() {
   const [file, setFile] = useState<string | null>(null);
   const [parsed, setParsed] = useState<Loaded | null>(null);
   /**
-   * A Baaki export can hold every group somebody is in. Importing them all in
+   * A Waves export can hold every group somebody is in. Importing them all in
    * one go would need one who-is-who mapping per group on one screen, which is
    * how somebody puts a stranger's history into the wrong ledger. One at a
    * time, chosen deliberately.
    */
-  const [fileGroups, setFileGroups] = useState<readonly BaakiImportGroup[]>([]);
+  const [fileGroups, setFileGroups] = useState<readonly WavesImportGroup[]>([]);
   const [fileGroupIndex, setFileGroupIndex] = useState(0);
   const [target, setTarget] = useState<string>(NEW_GROUP);
   // The name a new group is created with. Seeded from the file (the Splitwise
@@ -192,7 +192,7 @@ export default function ImportScreen() {
     setDone(null);
     setBusy(true);
     try {
-      // The format is decided by sniffing the file contents (isBaakiExport),
+      // The format is decided by sniffing the file contents (isWavesExport),
       // never the picker — so both sources funnel through here. The `source`
       // only narrows what the picker offers: a Splitwise export is a CSV, so
       // that option leads with CSV; "other data" (a Waves JSON, or anything
@@ -245,8 +245,8 @@ export default function ImportScreen() {
 
       // Asked of the contents, not the extension: a file saved from a browser
       // or shared through a chat app arrives named all sorts of things.
-      if (isBaakiExport(text)) {
-        const result = parseBaakiExport(text);
+      if (isWavesExport(text)) {
+        const result = parseWavesExport(text);
         if (result.problems.length > 0) {
           setError(result.problems[0]!.message);
           return;
@@ -257,7 +257,7 @@ export default function ImportScreen() {
           return;
         }
         setFileGroups(result.groups);
-        load(fromBaaki(result.groups[0], fallback));
+        load(fromWaves(result.groups[0], fallback));
         return;
       }
 
@@ -549,7 +549,7 @@ export default function ImportScreen() {
                 const chosen = fileGroups[index];
                 if (chosen) {
                   setFileGroupIndex(index);
-                  load(fromBaaki(chosen, numberedGroup(t, index)));
+                  load(fromWaves(chosen, numberedGroup(t, index)));
                 }
               }}
               options={fileGroups.map((group, index) => ({
@@ -576,8 +576,8 @@ export default function ImportScreen() {
               <Divider />
 
               <Text variant="caption" tone="muted">
-                {parsed.origin === 'baaki'
-                  ? t.importLedger.fromBaakiNote
+                {parsed.origin === 'waves'
+                  ? t.importLedger.fromWavesNote
                   : t.importLedger.fromSplitwiseNote}
               </Text>
 
@@ -812,7 +812,7 @@ export default function ImportScreen() {
             {t.importLedger.fromSplitwiseNote}
           </Text>
           <Text variant="caption" tone="muted">
-            {t.importLedger.fromBaakiNote}
+            {t.importLedger.fromWavesNote}
           </Text>
           <Divider />
           {/* Offline: parked and run on reconnect (see `@/lib/importProgress`). */}

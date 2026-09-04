@@ -119,7 +119,7 @@ describe('serveWithCors', () => {
 /**
  * A Supabase client mock is only ever asked two things by `requireMembership`:
  * who the caller is (`auth.getUser`) and the caller's member id in a group
- * (`rpc('baaki_my_member_id')`). Everything else on the real client is absent
+ * (`rpc('waves_my_member_id')`). Everything else on the real client is absent
  * on purpose — a test that needs more is testing the wrong seam.
  */
 function callerMock(options: {
@@ -150,7 +150,7 @@ describe('requireMembership', () => {
       profileId: 'user-1',
       memberId: 'member-9',
     });
-    expect(caller.rpc).toHaveBeenCalledWith('baaki_my_member_id', { p_group_id: 'group-1' });
+    expect(caller.rpc).toHaveBeenCalledWith('waves_my_member_id', { p_group_id: 'group-1' });
   });
 
   it('401s when the JWT resolves to no user', async () => {

@@ -77,9 +77,9 @@ serveWithCors(async (request) => {
     if (!address || !signature || !(await verifyUnsubscribe(address, signature, secret))) {
       // The same answer for a bad signature and an address that was never
       // mailed. Otherwise this endpoint tells anybody who asks whether a given
-      // person is on Baaki.
+      // person is on Waves.
       if (request.method === 'GET') {
-        return page('That link has expired', 'Open Baaki and turn email off in Settings.');
+        return page('That link has expired', 'Open Waves and turn email off in Settings.');
       }
       throw new HttpError(400, 'BAD_LINK', 'That unsubscribe link is not valid');
     }
@@ -94,7 +94,7 @@ serveWithCors(async (request) => {
 
     if (request.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST');
 
-    const { error } = await asService().rpc('baaki_suppress_email', {
+    const { error } = await asService().rpc('waves_suppress_email', {
       p_address: address,
       p_reason: 'unsubscribed',
       p_detail: { source: 'one-click' },

@@ -34,9 +34,9 @@ RLS and the business rules apply to the agent identically to the human.
 | `list_groups`       | read  | `groups` (RLS)                                                                     |
 | `list_members`      | read  | `group_members` (RLS)                                                              |
 | `get_balances`      | read  | `group_balances` (RLS)                                                             |
-| `create_group`      | write | `rpc('baaki_create_group')`                                                        |
-| `add_expense`       | write | `functions.invoke('expense-write')` → recomputes split, then `baaki_apply_expense` |
-| `record_settlement` | write | `rpc('baaki_record_settlement')` — records only                                    |
+| `create_group`      | write | `rpc('waves_create_group')`                                                        |
+| `add_expense`       | write | `functions.invoke('expense-write')` → recomputes split, then `waves_apply_expense` |
+| `record_settlement` | write | `rpc('waves_record_settlement')` — records only                                    |
 | `payment_link`      | pure  | builds a `upi://` or `paypal.me` link                                              |
 
 All amounts are **integer minor units** (paise/cents) as strings — money is

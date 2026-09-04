@@ -4,7 +4,7 @@
  * Found by running the feedback screen on an emulator against a project the
  * migration had not reached: the screen showed
  *
- *   Could not find the function public.baaki_submit_feedback(p_app_version,
+ *   Could not find the function public.waves_submit_feedback(p_app_version,
  *   p_kind, p_message, p_platform) in the schema cache
  *
  * to a person who was in the middle of typing a complaint. PostgREST messages

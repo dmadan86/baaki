@@ -35,7 +35,7 @@
 // flags the direct dependency for exactly this reason).
 const { withSettingsGradle } = require('expo/config-plugins');
 
-const MARKER = 'baaki:short-native-build-path';
+const MARKER = 'waves:short-native-build-path';
 
 /** Where the native build goes. Short by definition — that is the entire point. */
 const STAGING_ROOT = 'C:/cxx';

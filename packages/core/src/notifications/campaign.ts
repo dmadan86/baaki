@@ -16,12 +16,12 @@
  *     address (see `signUnsubscribe`) because RFC 8058 has the mailbox POST it
  *     unattended, with no session to prove who is asking.
  *   * **An honest reason for arriving.** A campaign has no group to point at, so
- *     the footer says the true thing instead: you use Baaki. `copy.email.why`
+ *     the footer says the true thing instead: you use Waves. `copy.email.why`
  *     would name a group that does not exist; `promoReason` is its campaign
  *     counterpart.
  *
  * What it does NOT do is decide who gets it. The audience, the holdout and the
- * suppression check are all in SQL (`baaki_claim_campaign_emails`), because a
+ * suppression check are all in SQL (`waves_claim_campaign_emails`), because a
  * holdout accidentally mailed is a control group destroyed, and that decision is
  * too important to sit in a renderer.
  */

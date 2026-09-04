@@ -52,14 +52,14 @@ const P = (i: number) => g.profileIds[i] as string;
 const ensure = (profileId: string) =>
   as(profileId, () =>
     client
-      .query(`SELECT baaki_ensure_group_join_token($1) AS token`, [g.groupId])
+      .query(`SELECT waves_ensure_group_join_token($1) AS token`, [g.groupId])
       .then((r) => r.rows[0].token as string),
   );
 
 const reset = (profileId: string) =>
   as(profileId, () =>
     client
-      .query(`SELECT baaki_reset_group_join_token($1) AS token`, [g.groupId])
+      .query(`SELECT waves_reset_group_join_token($1) AS token`, [g.groupId])
       .then((r) => r.rows[0].token as string),
   );
 
@@ -106,7 +106,7 @@ describe('durable group join link', () => {
       [outsider],
     );
     const msg = await expectDenied(
-      as(outsider, () => client.query(`SELECT baaki_ensure_group_join_token($1)`, [g.groupId])),
+      as(outsider, () => client.query(`SELECT waves_ensure_group_join_token($1)`, [g.groupId])),
     );
     expect(msg).toMatch(/NOT_A_MEMBER/);
   });
@@ -126,7 +126,7 @@ describe('durable group join link', () => {
   it('T5 a non-admin member cannot reset', async () => {
     await ensure(P(1));
     const msg = await expectDenied(
-      as(P(1), () => client.query(`SELECT baaki_reset_group_join_token($1)`, [g.groupId])),
+      as(P(1), () => client.query(`SELECT waves_reset_group_join_token($1)`, [g.groupId])),
     );
     expect(msg).toMatch(/ADMIN_ONLY/);
   });

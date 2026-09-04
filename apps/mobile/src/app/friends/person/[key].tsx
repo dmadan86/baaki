@@ -7,7 +7,7 @@
  * back out per group, each line a doorway into that group, with the per-currency
  * total restated at the top.
  *
- * It reads from `baaki_person_group_balances`, keyed on the same `person_key`
+ * It reads from `waves_person_group_balances`, keyed on the same `person_key`
  * the list uses, so a real person, a merged ghost and a plain ghost all resolve
  * exactly as they do on the list — this only un-collapses the groups.
  */

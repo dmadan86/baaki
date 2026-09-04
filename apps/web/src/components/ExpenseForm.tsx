@@ -28,7 +28,7 @@ import {
 } from '@waves/core';
 import { nameOf, type Group, type Member } from '@waves/api-client';
 
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { money as fmtMoney } from '@/lib/money';
 import { tooManyPayersForWeb } from '@/lib/editable';
 import { captureLocation, coordLabel, geolocationSupported, LocationFailure } from '@/lib/geo';
@@ -110,9 +110,9 @@ export function ExpenseForm({
     void (async () => {
       try {
         const [g, m, existing] = await Promise.all([
-          baaki.group(groupId),
-          baaki.members(groupId),
-          expenseId ? baaki.expense(expenseId) : Promise.resolve(null),
+          waves.group(groupId),
+          waves.members(groupId),
+          expenseId ? waves.expense(expenseId) : Promise.resolve(null),
         ]);
         if (!active) return;
         setGroup(g);
@@ -271,7 +271,7 @@ export function ExpenseForm({
     setError(null);
     setSaving(true);
     try {
-      await baaki.writeExpense({
+      await waves.writeExpense({
         groupId,
         expenseId: expenseId ?? undefined,
         description: description.trim() || t.add.defaultDescription,

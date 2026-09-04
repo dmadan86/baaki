@@ -140,7 +140,7 @@ await beta.signIn('Bharath');
 // of the test is the expenses, not the membership.
 const groupId = randomUUID();
 {
-  const { error } = await alpha.supabase.rpc('baaki_create_group', {
+  const { error } = await alpha.supabase.rpc('waves_create_group', {
     p_name: 'Airplane mode',
     p_type: 'trip',
     p_currency: 'INR',
@@ -153,7 +153,7 @@ const groupId = randomUUID();
 
 // Replaying the create is free — the whole point of the idempotency key.
 {
-  const { data, error } = await alpha.supabase.rpc('baaki_create_group', {
+  const { data, error } = await alpha.supabase.rpc('waves_create_group', {
     p_name: 'Airplane mode',
     p_type: 'trip',
     p_currency: 'INR',
@@ -170,7 +170,7 @@ const groupId = randomUUID();
   check('and does not add a second membership', count === 1, `members=${count}`);
 }
 
-const { data: ashaMemberId } = await alpha.supabase.rpc('baaki_my_member_id', {
+const { data: ashaMemberId } = await alpha.supabase.rpc('waves_my_member_id', {
   p_group_id: groupId,
 });
 
@@ -185,7 +185,7 @@ const { error: joinError } = await beta.supabase.functions.invoke('invite-accept
 });
 check('the second device joins', !joinError, await describe(joinError));
 
-const { data: bharathMemberId } = await beta.supabase.rpc('baaki_my_member_id', {
+const { data: bharathMemberId } = await beta.supabase.rpc('waves_my_member_id', {
   p_group_id: groupId,
 });
 

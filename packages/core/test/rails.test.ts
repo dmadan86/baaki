@@ -192,7 +192,7 @@ describe('the list itself', () => {
   });
 });
 
-describe('the markets Baaki is going to next', () => {
+describe('the markets Waves is going to next', () => {
   it('gives Australia its own instant rail', () => {
     // PayID settles over the NPP by mobile number or email. Without it an
     // Australian group fell straight through to bank and cash.

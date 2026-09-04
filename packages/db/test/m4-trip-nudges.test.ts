@@ -71,7 +71,7 @@ async function seedTrip(
 
 /** Run the job as if it were this instant. */
 const runAt = async (instant: string): Promise<number> => {
-  const { rows } = await client.query(`SELECT baaki_trip_nudges($1::timestamptz) AS n`, [instant]);
+  const { rows } = await client.query(`SELECT waves_trip_nudges($1::timestamptz) AS n`, [instant]);
   return Number(rows[0]?.n);
 };
 
@@ -291,7 +291,7 @@ describe('who may run it', () => {
     ]);
     await client.query(`SET ROLE authenticated`);
     try {
-      await expect(client.query(`SELECT baaki_trip_nudges()`)).rejects.toThrow(
+      await expect(client.query(`SELECT waves_trip_nudges()`)).rejects.toThrow(
         /permission denied/i,
       );
     } finally {

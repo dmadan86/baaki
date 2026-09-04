@@ -56,7 +56,7 @@ describe('an admin pins a trip rate', () => {
   it('writes one entry keyed by the currency paid in, as an exact rational', async () => {
     await as(group.profileIds[0] as string, () =>
       // 1 ₹ = ₫312, stored as the ratio the client already computed.
-      client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [group.groupId]),
+      client.query(`SELECT waves_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [group.groupId]),
     );
     const map = await fxRates();
     expect(map.VND).toMatchObject({ num: '312', den: '1', source: 'manual' });
@@ -65,13 +65,13 @@ describe('an admin pins a trip rate', () => {
 
   it('clears one currency with a null rate, leaving the rest', async () => {
     await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
+      await client.query(`SELECT waves_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
         group.groupId,
       ]);
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'THB', 42, 100, 'manual')`, [
+      await client.query(`SELECT waves_set_group_fx_rate($1, 'THB', 42, 100, 'manual')`, [
         group.groupId,
       ]);
-      await client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', NULL, NULL, 'manual')`, [
+      await client.query(`SELECT waves_set_group_fx_rate($1, 'VND', NULL, NULL, 'manual')`, [
         group.groupId,
       ]);
     });
@@ -85,7 +85,7 @@ describe('what the RPC refuses', () => {
   it('denies a non-admin', async () => {
     const message = await expectDenied(
       as(group.profileIds[1] as string, () =>
-        client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
+        client.query(`SELECT waves_set_group_fx_rate($1, 'VND', 312, 1, 'manual')`, [
           group.groupId,
         ]),
       ),
@@ -96,7 +96,7 @@ describe('what the RPC refuses', () => {
   it('refuses the group’s own settle currency', async () => {
     const message = await expectDenied(
       as(group.profileIds[0] as string, () =>
-        client.query(`SELECT baaki_set_group_fx_rate($1, 'INR', 1, 1, 'manual')`, [group.groupId]),
+        client.query(`SELECT waves_set_group_fx_rate($1, 'INR', 1, 1, 'manual')`, [group.groupId]),
       ),
     );
     expect(message).toContain('SAME_CURRENCY');
@@ -105,7 +105,7 @@ describe('what the RPC refuses', () => {
   it('refuses a non-positive ratio', async () => {
     const message = await expectDenied(
       as(group.profileIds[0] as string, () =>
-        client.query(`SELECT baaki_set_group_fx_rate($1, 'VND', 0, 1, 'manual')`, [group.groupId]),
+        client.query(`SELECT waves_set_group_fx_rate($1, 'VND', 0, 1, 'manual')`, [group.groupId]),
       ),
     );
     expect(message).toContain('INVALID_RATE');

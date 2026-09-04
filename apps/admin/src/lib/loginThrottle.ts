@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
  * Access is wired up) publicly reachable, that makes the login form the whole
  * attack surface, and an unlimited form is a password guessed at line speed.
  *
- * The counting is done in Postgres by `baaki_rate_limit` — the same limiter the
+ * The counting is done in Postgres by `waves_rate_limit` — the same limiter the
  * edge functions use (`supabase/functions/_shared/rateLimit.ts`) — and not in
  * memory, for the same reason it is written up there: Vercel runs the middleware
  * and server actions across many short-lived isolates, so an in-memory counter
@@ -68,7 +68,7 @@ export async function recordLoginAttempt(address: string): Promise<ThrottleDecis
   const svc = service();
   if (!svc) return { allowed: true, retryAfter: 0 };
 
-  const { data, error } = await svc.rpc('baaki_rate_limit', {
+  const { data, error } = await svc.rpc('waves_rate_limit', {
     p_subject: `ip:${address}`,
     p_bucket: BUCKET,
     p_limit: MAX_ATTEMPTS,

@@ -3,7 +3,7 @@
  *
  * The first test here is the one that matters. The app decides what to show
  * from `bucketOf` in `@waves/core`; the console counts what happened using
- * `baaki_bucket` in plpgsql. They are the same algorithm written twice, and if
+ * `waves_bucket` in plpgsql. They are the same algorithm written twice, and if
  * they ever disagree the experiment results are not missing but **wrong** —
  * every number plausible, every conclusion backwards. `BUCKET_FIXTURES` is the
  * contract between them, asserted here against the SQL and in
@@ -30,7 +30,7 @@ afterAll(async () => {
 });
 
 async function bucket(input: string): Promise<number> {
-  const { rows } = await client.query('SELECT public.baaki_bucket($1) AS b', [input]);
+  const { rows } = await client.query('SELECT public.waves_bucket($1) AS b', [input]);
   return Number(rows[0].b);
 }
 
@@ -59,7 +59,7 @@ describe('the two implementations of one hash', () => {
     // wraps shows up on some inputs and not others.
     const inputs = Array.from({ length: 200 }, () => `some_flag:${randomUUID()}`);
     const { rows } = await client.query(
-      'SELECT i AS input, public.baaki_bucket(i) AS b FROM unnest($1::text[]) AS i',
+      'SELECT i AS input, public.waves_bucket(i) AS b FROM unnest($1::text[]) AS i',
       [inputs],
     );
     const { bucketOf } = await import('@waves/core');
@@ -79,7 +79,7 @@ describe('the two implementations of one hash', () => {
 
     const profileIds = Array.from({ length: 120 }, () => randomUUID());
     const { rows } = await client.query(
-      'SELECT p AS id, public.baaki_variant($2, p::uuid) AS v FROM unnest($1::uuid[]) AS p',
+      'SELECT p AS id, public.waves_variant($2, p::uuid) AS v FROM unnest($1::uuid[]) AS p',
       [profileIds, flag.key],
     );
 
@@ -96,7 +96,7 @@ describe('the switch', () => {
   it('says nothing for a flag nobody has created', async () => {
     expect(
       (
-        await client.query('SELECT public.baaki_variant($1, $2) AS v', [
+        await client.query('SELECT public.waves_variant($1, $2) AS v', [
           'no_such_flag',
           randomUUID(),
         ])
@@ -111,7 +111,7 @@ describe('the switch', () => {
       rolloutPercent: 100,
       variants: ['control', 'treatment'],
     });
-    const { rows } = await client.query('SELECT public.baaki_variant($1, $2) AS v', [
+    const { rows } = await client.query('SELECT public.waves_variant($1, $2) AS v', [
       'off_flag',
       randomUUID(),
     ]);
@@ -186,7 +186,7 @@ describe('who may change a flag', () => {
   it('keeps the results to the console', async () => {
     for (const role of ['anon', 'authenticated']) {
       const message = await asRole(role, () =>
-        expectDenied(client.query(`SELECT * FROM public.baaki_admin_flag_results('readable')`)),
+        expectDenied(client.query(`SELECT * FROM public.waves_admin_flag_results('readable')`)),
       );
       expect(message, role).toMatch(/permission denied/i);
     }
@@ -212,7 +212,7 @@ describe('the result', () => {
     );
 
     const { rows } = await client.query(
-      `SELECT * FROM public.baaki_admin_flag_results('results_flag')`,
+      `SELECT * FROM public.waves_admin_flag_results('results_flag')`,
     );
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((row) => row.variant !== null)).toBe(true);
@@ -230,7 +230,7 @@ describe('the result', () => {
       variants: ['control', 'treatment'],
     });
     const { rows } = await client.query(
-      `SELECT * FROM public.baaki_admin_flag_results('nobody_flag')`,
+      `SELECT * FROM public.waves_admin_flag_results('nobody_flag')`,
     );
     expect(rows).toHaveLength(0);
   });

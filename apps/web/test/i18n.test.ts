@@ -102,7 +102,7 @@ describe('what every table owes the others', () => {
     for (const language of LANGUAGES) {
       if (language === 'en') continue;
       const table = leaves(STRINGS_BY_LANGUAGE[language]);
-      // Not every string can differ — 'Baaki' is a name, and a currency code is
+      // Not every string can differ — 'Waves' is a name, and a currency code is
       // a currency code — so this is a proportion, not a rule per string.
       const translated = table.filter(([path, text]) => english.get(path) !== text);
       expect(translated.length / table.length, language).toBeGreaterThan(0.9);

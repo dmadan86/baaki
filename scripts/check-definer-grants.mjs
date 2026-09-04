@@ -13,7 +13,7 @@
 // (or OR REPLACEs) a SECURITY DEFINER function must, IN THE SAME FILE, contain
 // an explicit GRANT or REVOKE on that function. That is what makes a signature
 // change — which mints a NEW function and silently re-applies the anon/PUBLIC
-// default — fail here instead of in production (the exact way baaki_consume_invite
+// default — fail here instead of in production (the exact way waves_consume_invite
 // regained anon after its revoke).
 //
 // Grandfathered: migrations dated before the cutoff (the audit migration) are

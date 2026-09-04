@@ -24,7 +24,7 @@ import {
 } from '@waves/api-client';
 import { totalsByCurrency, type CurrencyTotals } from '@waves/core';
 
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { SkeletonRows } from '@/components/Skeleton';
 import { money } from '@/lib/money';
 import { describeActivity, verbEmoji } from '@/lib/activity';
@@ -56,11 +56,11 @@ export function Overview({ profileId, query }: { profileId: string; query: strin
     void (async () => {
       try {
         const [g, b, m, a, pending] = await Promise.all([
-          baaki.myGroups(),
-          baaki.myBalances(profileId),
-          baaki.membersByGroup(),
-          baaki.recentActivity(40),
-          baaki.pendingSettlements(),
+          waves.myGroups(),
+          waves.myBalances(profileId),
+          waves.membersByGroup(),
+          waves.recentActivity(40),
+          waves.pendingSettlements(),
         ]);
         if (!active) return;
         setGroups(g);

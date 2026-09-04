@@ -8,8 +8,8 @@
  *     payment that never actually went through;
  *   * the PAYEE can dispute a claim — "that money never reached me".
  *
- * Both are party-scoped `SECURITY DEFINER` RPCs (baaki_cancel_settlement /
- * baaki_dispute_settlement), so the check for *who* may do it lives in the
+ * Both are party-scoped `SECURITY DEFINER` RPCs (waves_cancel_settlement /
+ * waves_dispute_settlement), so the check for *who* may do it lives in the
  * database, not the client (ADR-013). This proves the who, the idempotency, and
  * that disputing an auto-confirmed settlement is allowed — the recovery path
  * ADR-007 promises when the clock confirmed something the payee denies.
@@ -105,10 +105,10 @@ async function callAs<T = unknown>(
 }
 
 const cancel = (profileId: string, settlementId: string) =>
-  callAs(profileId, `SELECT baaki_cancel_settlement($1)`, [settlementId]);
+  callAs(profileId, `SELECT waves_cancel_settlement($1)`, [settlementId]);
 
 const dispute = (profileId: string, settlementId: string, reason: string | null = null) =>
-  callAs(profileId, `SELECT baaki_dispute_settlement($1, $2)`, [settlementId, reason]);
+  callAs(profileId, `SELECT waves_dispute_settlement($1, $2)`, [settlementId, reason]);
 
 describe('the payer cancels a claim they should not have made', () => {
   it('moves a pending settlement to cancelled', async () => {

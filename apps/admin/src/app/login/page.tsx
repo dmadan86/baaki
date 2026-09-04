@@ -58,7 +58,7 @@ export default async function Login({
 
   return (
     <main className="login">
-      <h1>Baaki admin</h1>
+      <h1>Waves admin</h1>
       <p className="faint">Private console. Contains personal data.</p>
       <form action={signIn}>
         <input

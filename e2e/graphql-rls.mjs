@@ -58,7 +58,7 @@ await asha.client
   .update({ display_name: 'Asha' })
   .eq('id', asha.session.user.id);
 
-const { data: groupId } = await asha.client.rpc('baaki_create_group', {
+const { data: groupId } = await asha.client.rpc('waves_create_group', {
   p_name: 'Kasol',
   p_type: 'trip',
   p_currency: 'INR',

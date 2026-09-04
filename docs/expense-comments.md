@@ -28,10 +28,10 @@ after it is flagged). The first flagger is kept; re-flagging is a no-op.
   `author_member_id` (who, from the session), `body`, `edited_at`, `flagged_at`/
   `flagged_by`, `deleted_at`/`deleted_by` (soft-delete tombstone), `updated_seq`.
   RLS SELECT `is_group_member`; `REVOKE ALL` + `GRANT SELECT`; writes RPC-only.
-- **RPCs** (SECURITY DEFINER): `baaki_add_expense_comment` (idempotent on a
-  client id, expense-in-group check), `baaki_edit_expense_comment` (author only,
-  stamps `edited_at`), `baaki_delete_expense_comment` (author or `is_group_admin`,
-  soft-delete + `deleted_by`), `baaki_flag_expense_comment(id, flag)` (set = any
+- **RPCs** (SECURITY DEFINER): `waves_add_expense_comment` (idempotent on a
+  client id, expense-in-group check), `waves_edit_expense_comment` (author only,
+  stamps `edited_at`), `waves_delete_expense_comment` (author or `is_group_admin`,
+  soft-delete + `deleted_by`), `waves_flag_expense_comment(id, flag)` (set = any
   member, clear = admin).
 - **Sync** — rides the offline mirror pull like `trip_photos`/attachments: a new
   `SyncTable.ExpenseComments`, a `materialiseExpenseComments` (oldest-first,

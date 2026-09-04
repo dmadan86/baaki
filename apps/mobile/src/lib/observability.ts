@@ -1,5 +1,5 @@
 /**
- * Crash reporting, on terms Baaki can live with.
+ * Crash reporting, on terms Waves can live with.
  *
  * TDR §11 asks for crash-free sessions above 99.5%, which needs something
  * counting sessions and crashes. The awkward part is what else that something

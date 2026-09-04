@@ -33,7 +33,7 @@ export function cameraAvailable(): boolean {
  * builds outgoing links from, so this allowlist can never point somewhere
  * different than the app's own invites do.
  */
-const INVITE_SCHEMES = new Set(['waves', 'baaki']);
+const INVITE_SCHEMES = new Set(['waves']);
 
 export function tokenFromScan(data: string): string | null {
   const text = data.trim();

@@ -65,7 +65,7 @@ const mallory = client(ANON);
 await mallory.auth.signInAnonymously();
 
 // ── 2. group creation, ghosts, membership ──────────────────────────────────
-const { data: groupId, error: groupError } = await alice.rpc('baaki_create_group', {
+const { data: groupId, error: groupError } = await alice.rpc('waves_create_group', {
   p_name: 'Goa trip',
   p_type: 'trip',
   p_currency: 'INR',
@@ -231,7 +231,7 @@ const balancesOf = async () => {
 };
 
 const beforeDelete = await balancesOf();
-await alice.rpc('baaki_delete_expense', { p_expense_id: expenseId });
+await alice.rpc('waves_delete_expense', { p_expense_id: expenseId });
 const afterDelete = await balancesOf();
 check(
   'deleting an expense changes balances',
@@ -239,7 +239,7 @@ check(
   `${beforeDelete.get(bobMember)} → ${afterDelete.get(bobMember)}`,
 );
 
-await alice.rpc('baaki_restore_expense', { p_expense_id: expenseId });
+await alice.rpc('waves_restore_expense', { p_expense_id: expenseId });
 const afterRestore = await balancesOf();
 check(
   'restoring puts the balance back exactly',
@@ -266,7 +266,7 @@ const creditorClient = clientFor(creditor);
 // Somebody in the group who is neither the payer nor the payee.
 const bystanderClient = creditor === aliceMember ? bob : alice;
 
-const { data: settlementId, error: settleError } = await alice.rpc('baaki_record_settlement', {
+const { data: settlementId, error: settleError } = await alice.rpc('waves_record_settlement', {
   p_group_id: groupId,
   p_from_member_id: debtor,
   p_to_member_id: creditor,
@@ -285,7 +285,7 @@ check(
   (pendingBalances.get(debtor) ?? 0n) === (afterRestore.get(debtor) ?? 0n),
 );
 
-const { error: wrongParty } = await bystanderClient.rpc('baaki_confirm_settlement', {
+const { error: wrongParty } = await bystanderClient.rpc('waves_confirm_settlement', {
   p_settlement_id: settlementId,
 });
 check(
@@ -294,7 +294,7 @@ check(
   wrongParty?.message?.slice(0, 60) ?? 'no error raised',
 );
 
-const { error: confirmError } = await creditorClient.rpc('baaki_confirm_settlement', {
+const { error: confirmError } = await creditorClient.rpc('waves_confirm_settlement', {
   p_settlement_id: settlementId,
 });
 check('the payee can confirm', !confirmError, confirmError?.message ?? '');

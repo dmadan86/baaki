@@ -8,7 +8,7 @@
  * claim, render, send, record — and every decision that matters lives in SQL:
  *
  *   * who is mailed, and the one rule that cannot be got wrong — the holdout is
- *     never among them — is `baaki_claim_campaign_emails`;
+ *     never among them — is `waves_claim_campaign_emails`;
  *   * the dedup that stops a second press mailing the same person twice is the
  *     UNIQUE on `campaign_email_sends`, claimed as an INSERT;
  *   * a bounce or complaint is suppressed by the existing `email-events` webhook,
@@ -113,7 +113,7 @@ async function broadcast(service: SupabaseClient, campaignId: string): Promise<B
 
   while (processed < MAX_PER_RUN) {
     const want = Math.min(EMAIL_BATCH, MAX_PER_RUN - processed);
-    const { data, error } = await service.rpc('baaki_claim_campaign_emails', {
+    const { data, error } = await service.rpc('waves_claim_campaign_emails', {
       p_campaign_id: campaignId,
       p_limit: want,
     });
@@ -131,7 +131,7 @@ async function broadcast(service: SupabaseClient, campaignId: string): Promise<B
       results.push(await sendCampaignEmail(await buildCampaignFor(row)));
     }
 
-    const { error: finishError } = await service.rpc('baaki_finish_campaign_emails', {
+    const { error: finishError } = await service.rpc('waves_finish_campaign_emails', {
       p_results: results,
     });
     // A finish that fails leaves the rows 'queued'. The claim will not re-pick

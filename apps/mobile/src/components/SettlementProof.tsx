@@ -2,7 +2,7 @@
  * The payment proof on a settlement — a screenshot the payer attaches, visible
  * to the two parties only (feature §4).
  *
- * The payer records that they paid (ADR-007: Baaki never moves the money) and
+ * The payer records that they paid (ADR-007: Waves never moves the money) and
  * can back it with an image — a bank confirmation, a UPI receipt. The payee
  * sees that image before tapping "Confirm received", so a confirmation is a
  * response to evidence rather than to a bare claim. Nobody else in the group

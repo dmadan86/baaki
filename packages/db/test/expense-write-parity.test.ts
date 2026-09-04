@@ -1,7 +1,7 @@
 /**
  * Direct-write parity (the `expense-write` edge vs the `/sync` mutation).
  *
- * Both edge paths now call `baaki_apply_expense` through one shared argument
+ * Both edge paths now call `waves_apply_expense` through one shared argument
  * builder (`buildApplyExpenseArgs` in @waves/core), so a create or edit carries
  * an identical set of fields whichever path it took. These tests exercise the
  * RPC the way both edges call it — with named arguments — to prove the two
@@ -31,7 +31,7 @@ interface ApplyResult {
   supersededVersionNo: number | null;
 }
 
-/** Call `baaki_apply_expense` with NAMED arguments — exactly the shape both
+/** Call `waves_apply_expense` with NAMED arguments — exactly the shape both
  *  edges send via `buildApplyExpenseArgs`, so field names, not positions, are
  *  what this asserts against. */
 async function applyExpense(params: {
@@ -47,7 +47,7 @@ async function applyExpense(params: {
   categoryMeta?: Record<string, unknown> | null;
 }): Promise<ApplyResult> {
   const result = await client.query(
-    `SELECT baaki_apply_expense(
+    `SELECT waves_apply_expense(
         p_group_id           := $1,
         p_expense_id         := $2,
         p_author_member_id   := $3,

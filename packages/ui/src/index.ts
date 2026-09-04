@@ -1,5 +1,5 @@
 /**
- * @waves/ui — the Baaki design system.
+ * @waves/ui — the Waves design system.
  *
  * Tokens first, components second. No business logic: the only thing this
  * package imports from @waves/core is money formatting, so a component can

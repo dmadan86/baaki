@@ -23,7 +23,7 @@
  *     without a session — hence the signature rather than a bare `?email=`,
  *     which would let anybody unsubscribe anybody.
  *
- * `baaki://` links are rewritten to the web-lite group page. A deep link is
+ * `waves://` links are rewritten to the web-lite group page. A deep link is
  * exactly right on a phone and dead in desktop webmail, and the person reading
  * a settlement mail at a laptop is the one most likely to be at a laptop.
  */
@@ -124,8 +124,8 @@ export interface EmailOptions {
    * Base URL where web-lite is served — `EMAIL_WEB_URL` in the edge function
    * (see `emailWebUrl()`), which defaults to the site's real domain when
    * *unset* but falls back to nothing when set to an *explicit empty
-   * string*. Either `null` or `''` here falls back to the `baaki://`/
-   * `waves://` deep link, which works on the phone and does nothing in
+   * string*. Either `null` or `''` here falls back to the `waves://` deep
+   * link, which works on the phone and does nothing in
    * desktop webmail. A dead `https://` link would be worse — it looks like
    * it should work.
    */
@@ -135,7 +135,7 @@ export interface EmailOptions {
 }
 
 /**
- * `baaki://group/<id>/expense/<id>` becomes `<web>/g/<id>`.
+ * `waves://group/<id>/expense/<id>` becomes `<web>/g/<id>`.
  *
  * The trailing segments are dropped rather than translated: web-lite has a
  * group page and no expense page, and landing somebody on the group they were
@@ -145,11 +145,10 @@ export interface EmailOptions {
  * neither, there is no button — an email is still worth sending for what it
  * says.
  */
-// Both app schemes are accepted: the store of notifications still holds
-// `baaki://` deep links written before the rebrand (and the DB functions still
-// emit them), while new links use `waves://`. The app registers both, so both
-// resolve; this rewriter has to recognise both too.
-const SAFE_LINK = /^(?:baaki:\/\/|waves:\/\/|https?:\/\/)/i;
+// `waves://` is the app's only scheme, and the one the DB functions write into
+// `notifications.deep_link`. Anything else is not a link this rewriter will
+// hand to a mail client.
+const SAFE_LINK = /^(?:waves:\/\/|https?:\/\/)/i;
 
 export function webLinkFor(
   deepLink: string | null | undefined,
@@ -176,7 +175,7 @@ export function webLinkFor(
   if (safeDeepLink.startsWith('http://') || safeDeepLink.startsWith('https://'))
     return safeDeepLink;
 
-  const group = /^(?:baaki|waves):\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
+  const group = /^waves:\/\/group\/([0-9a-fA-F-]{36})/.exec(safeDeepLink);
   return group ? `${base}/g/${group[1]}` : base;
 }
 

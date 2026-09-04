@@ -80,7 +80,7 @@ async function reserve(
   path: string,
   bytes: number,
 ): Promise<void> {
-  await client.query(`SELECT public.baaki_storage_reserve($1,$2,$3,$4,$5,'image/webp')`, [
+  await client.query(`SELECT public.waves_storage_reserve($1,$2,$3,$4,$5,'image/webp')`, [
     profileId,
     groupId,
     bucket,
@@ -96,7 +96,7 @@ async function record(
   path: string,
   bytes: number,
 ): Promise<void> {
-  await client.query(`SELECT public.baaki_storage_record($1,$2,$3,$4,$5,'image/webp')`, [
+  await client.query(`SELECT public.waves_storage_record($1,$2,$3,$4,$5,'image/webp')`, [
     profileId,
     groupId,
     bucket,
@@ -113,7 +113,7 @@ async function usage(profileId: string): Promise<{ used: bigint; cap: bigint }> 
     JSON.stringify({ sub: profileId, role: 'authenticated' }),
   ]);
   const { rows } = await client.query(
-    `SELECT used_bytes, cap_bytes FROM public.baaki_my_storage_usage()`,
+    `SELECT used_bytes, cap_bytes FROM public.waves_my_storage_usage()`,
   );
   await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
   return { used: big(rows[0].used_bytes), cap: big(rows[0].cap_bytes) };
@@ -231,7 +231,7 @@ describe('abandoned reservations', () => {
       [`${p}/a.webp`],
     );
 
-    const { rows } = await client.query(`SELECT public.baaki_storage_expire_pending() AS n`);
+    const { rows } = await client.query(`SELECT public.waves_storage_expire_pending() AS n`);
     expect(rows[0].n).toBe(1);
     expect(await countedSum(p)).toBe(0n); // cap freed
 
@@ -247,7 +247,7 @@ describe('reclaiming stranded R2 bytes', () => {
   it('queues an orphan when a ledger row is released', async () => {
     const p = await makeProfile();
     await record(p, null, 'avatars', `${p}/a.webp`, 1 * MB);
-    await client.query(`SELECT public.baaki_storage_release('avatars', $1)`, [`${p}/a.webp`]);
+    await client.query(`SELECT public.waves_storage_release('avatars', $1)`, [`${p}/a.webp`]);
 
     const orphan = await client.query(`SELECT 1 FROM storage_orphans WHERE path = $1`, [
       `${p}/a.webp`,
@@ -255,7 +255,7 @@ describe('reclaiming stranded R2 bytes', () => {
     expect(orphan.rowCount).toBe(1);
 
     // ...and clearing it (post R2 delete) empties the queue.
-    await client.query(`SELECT public.baaki_storage_orphan_clear('avatars', $1)`, [`${p}/a.webp`]);
+    await client.query(`SELECT public.waves_storage_orphan_clear('avatars', $1)`, [`${p}/a.webp`]);
     const after = await client.query(`SELECT 1 FROM storage_orphans WHERE path = $1`, [
       `${p}/a.webp`,
     ]);
@@ -303,7 +303,7 @@ describe('a failed replacement never destroys the committed image', () => {
 
     // A committed path: nothing removed, row survives.
     const kept = await client.query(
-      `SELECT public.baaki_storage_release_reservation('avatars', $1) AS removed`,
+      `SELECT public.waves_storage_release_reservation('avatars', $1) AS removed`,
       [`${p}/committed.webp`],
     );
     expect(kept.rows[0].removed).toBe(false);
@@ -314,7 +314,7 @@ describe('a failed replacement never destroys the committed image', () => {
 
     // A pending path: removed, returns true.
     const dropped = await client.query(
-      `SELECT public.baaki_storage_release_reservation('avatars', $1) AS removed`,
+      `SELECT public.waves_storage_release_reservation('avatars', $1) AS removed`,
       [`${p}/fresh.webp`],
     );
     expect(dropped.rows[0].removed).toBe(true);
@@ -352,7 +352,7 @@ describe('recount reconciles a size changed out of band', () => {
   it('rewrites a committed object’s size and recomputes counted', async () => {
     const p = await makeProfile();
     await record(p, null, 'avatars', `${p}/a.webp`, 5 * MB);
-    await client.query(`SELECT public.baaki_storage_recount('avatars', $1, $2, 'image/webp')`, [
+    await client.query(`SELECT public.waves_storage_recount('avatars', $1, $2, 'image/webp')`, [
       `${p}/a.webp`,
       2 * MB,
     ]);
@@ -362,7 +362,7 @@ describe('recount reconciles a size changed out of band', () => {
   it('never touches a pending reservation or an unknown path', async () => {
     const p = await makeProfile();
     await reserve(p, null, 'avatars', `${p}/pending.webp`, 3 * MB); // pending
-    await client.query(`SELECT public.baaki_storage_recount('avatars', $1, $2, 'image/webp')`, [
+    await client.query(`SELECT public.waves_storage_recount('avatars', $1, $2, 'image/webp')`, [
       `${p}/pending.webp`,
       1 * MB,
     ]);
@@ -374,7 +374,7 @@ describe('recount reconciles a size changed out of band', () => {
     // An unknown path is simply a no-op (no row updated, no error).
     await expect(
       client.query(
-        `SELECT public.baaki_storage_recount('avatars', 'nope/x.webp', 1, 'image/webp')`,
+        `SELECT public.waves_storage_recount('avatars', 'nope/x.webp', 1, 'image/webp')`,
       ),
     ).resolves.toBeTruthy();
   });
@@ -411,11 +411,11 @@ describe('two uploads racing the ceiling', () => {
         await c.query('BEGIN');
         try {
           await c.query(
-            `SELECT public.baaki_storage_reserve($1,NULL,'avatars',$2,$3,'image/webp')`,
+            `SELECT public.waves_storage_reserve($1,NULL,'avatars',$2,$3,'image/webp')`,
             [p, path, 6 * MB],
           );
           await c.query(
-            `SELECT public.baaki_storage_record($1,NULL,'avatars',$2,$3,'image/webp')`,
+            `SELECT public.waves_storage_record($1,NULL,'avatars',$2,$3,'image/webp')`,
             [p, path, 6 * MB],
           );
           await c.query('COMMIT');

@@ -98,7 +98,7 @@ export const BUCKET_FIXTURES: readonly { input: string; bucket: number }[] = [
   { input: 'a', bucket: 20 },
   { input: 'itemized_receipts:00000000-0000-0000-0000-000000000000', bucket: 22 },
   { input: 'itemized_receipts:00000000-0000-0000-0000-000000000000:variant', bucket: 17 },
-  { input: 'baaki', bucket: 47 },
+  { input: 'waves', bucket: 41 },
   // Non-ASCII, because the two implementations agree only if both hash UTF-8
   // bytes. A plpgsql `ascii()` over characters would pass every other row here
   // and fail this one.

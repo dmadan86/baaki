@@ -117,8 +117,8 @@ function memberCaller() {
   return client({
     user: { id: 'user-1' },
     rpc: {
-      baaki_my_member_id: { data: 'member-1' },
-      baaki_can_upload_group_photo: { data: true },
+      waves_my_member_id: { data: 'member-1' },
+      waves_can_upload_group_photo: { data: true },
     },
   });
 }
@@ -223,7 +223,7 @@ describe('put — reserve a presigned upload', () => {
   });
 
   it('reserves space and returns a signed PUT URL on the happy path', async () => {
-    const service = client({ rpc: { baaki_storage_reserve: { data: null, error: null } } });
+    const service = client({ rpc: { waves_storage_reserve: { data: null, error: null } } });
     const { deps, sign } = makeDeps({ caller: memberCaller(), service });
     const response = await handleR2Sign(post(body()), deps);
     expect(response.status).toBe(200);
@@ -231,7 +231,7 @@ describe('put — reserve a presigned upload', () => {
     expect(json).toMatchObject({ method: 'PUT', headers: { 'content-type': 'image/webp' } });
     expect(json.url).toContain('https://r2.example/signed');
     expect(service.rpc).toHaveBeenCalledWith(
-      'baaki_storage_reserve',
+      'waves_storage_reserve',
       expect.objectContaining({ p_bytes: 1024, p_path: 'group-1/r.webp' }),
     );
     expect(sign).toHaveBeenCalledOnce();
@@ -260,7 +260,7 @@ describe('put — reserve a presigned upload', () => {
 
   it('maps a STORAGE_CAP reservation failure to 402', async () => {
     const service = client({
-      rpc: { baaki_storage_reserve: { data: null, error: { message: 'STORAGE_CAP exceeded' } } },
+      rpc: { waves_storage_reserve: { data: null, error: { message: 'STORAGE_CAP exceeded' } } },
     });
     const { deps } = makeDeps({ caller: memberCaller(), service });
     const response = await handleR2Sign(post(body()), deps);
@@ -271,7 +271,7 @@ describe('put — reserve a presigned upload', () => {
   it('maps a STORAGE_TOO_MANY_PENDING reservation failure to 429', async () => {
     const service = client({
       rpc: {
-        baaki_storage_reserve: { data: null, error: { message: 'STORAGE_TOO_MANY_PENDING' } },
+        waves_storage_reserve: { data: null, error: { message: 'STORAGE_TOO_MANY_PENDING' } },
       },
     });
     const { deps } = makeDeps({ caller: memberCaller(), service });
@@ -282,7 +282,7 @@ describe('put — reserve a presigned upload', () => {
 
   it('does not sign anything when reservation fails', async () => {
     const service = client({
-      rpc: { baaki_storage_reserve: { data: null, error: { message: 'STORAGE_CAP' } } },
+      rpc: { waves_storage_reserve: { data: null, error: { message: 'STORAGE_CAP' } } },
     });
     const { deps, sign } = makeDeps({ caller: memberCaller(), service });
     await handleR2Sign(post(body()), deps);
@@ -300,14 +300,14 @@ describe('commit — record a landed upload', () => {
   });
 
   it('records the true HEAD size on the happy path', async () => {
-    const service = client({ rpc: { baaki_storage_record: { data: null, error: null } } });
+    const service = client({ rpc: { waves_storage_record: { data: null, error: null } } });
     const r2fetch = vi.fn().mockResolvedValue(headResponse(true, '2048'));
     const { deps } = makeDeps({ caller: memberCaller(), service, r2fetch });
     const response = await handleR2Sign(post(body()), deps);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, bytes: 2048 });
     expect(service.rpc).toHaveBeenCalledWith(
-      'baaki_storage_record',
+      'waves_storage_record',
       expect.objectContaining({ p_bytes: 2048 }),
     );
   });
@@ -333,9 +333,9 @@ describe('commit — record a landed upload', () => {
   it('releases the reservation and deletes the object when record fails (cap boundary)', async () => {
     const service = client({
       rpc: {
-        baaki_storage_record: { data: null, error: { message: 'STORAGE_CAP breached at commit' } },
+        waves_storage_record: { data: null, error: { message: 'STORAGE_CAP breached at commit' } },
         // The release removed a live pending row → the orphan must be deleted.
-        baaki_storage_release_reservation: { data: true, error: null },
+        waves_storage_release_reservation: { data: true, error: null },
       },
     });
     const r2fetch = vi.fn().mockResolvedValue(headResponse(true, '2048'));
@@ -345,7 +345,7 @@ describe('commit — record a landed upload', () => {
     expect(response.status).toBe(402);
     expect((await response.json()).code).toBe('STORAGE_CAP');
     expect(service.rpc).toHaveBeenCalledWith(
-      'baaki_storage_release_reservation',
+      'waves_storage_release_reservation',
       expect.objectContaining({ p_path: 'group-1/r.webp' }),
     );
     // First fetch is the HEAD; the second is the DELETE of the orphaned object.
@@ -356,9 +356,9 @@ describe('commit — record a landed upload', () => {
   it('leaves a committed replacement intact when the release removed no pending row', async () => {
     const service = client({
       rpc: {
-        baaki_storage_record: { data: null, error: { message: 'STORAGE_CAP' } },
+        waves_storage_record: { data: null, error: { message: 'STORAGE_CAP' } },
         // No pending row was removed → this was a replacement; keep the good copy.
-        baaki_storage_release_reservation: { data: false, error: null },
+        waves_storage_release_reservation: { data: false, error: null },
       },
     });
     const r2fetch = vi.fn().mockResolvedValue(headResponse(true, '2048'));
@@ -372,7 +372,7 @@ describe('commit — record a landed upload', () => {
 describe('release — undo a failed upload', () => {
   it('deletes the R2 object only when a pending reservation was actually removed', async () => {
     const service = client({
-      rpc: { baaki_storage_release_reservation: { data: true, error: null } },
+      rpc: { waves_storage_release_reservation: { data: true, error: null } },
     });
     const r2fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     const { deps } = makeDeps({ caller: memberCaller(), service, r2fetch });
@@ -386,7 +386,7 @@ describe('release — undo a failed upload', () => {
 
   it('does not touch R2 when there was no pending reservation to remove', async () => {
     const service = client({
-      rpc: { baaki_storage_release_reservation: { data: false, error: null } },
+      rpc: { waves_storage_release_reservation: { data: false, error: null } },
     });
     const r2fetch = vi.fn();
     const { deps } = makeDeps({ caller: memberCaller(), service, r2fetch });
@@ -403,7 +403,7 @@ describe('authorisation', () => {
   it('403s an outsider trying to write a group receipt (no member row)', async () => {
     const outsider = client({
       user: { id: 'user-1' },
-      rpc: { baaki_my_member_id: { data: null } },
+      rpc: { waves_my_member_id: { data: null } },
     });
     const { deps } = makeDeps({ caller: outsider });
     const response = await handleR2Sign(
@@ -429,8 +429,8 @@ describe('authorisation', () => {
     const caller = client({
       user: { id: 'user-1' },
       rpc: {
-        baaki_my_member_id: { data: 'member-1' },
-        baaki_can_upload_group_photo: { data: false },
+        waves_my_member_id: { data: 'member-1' },
+        waves_can_upload_group_photo: { data: false },
       },
     });
     const { deps } = makeDeps({ caller });

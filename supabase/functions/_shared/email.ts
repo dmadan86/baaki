@@ -284,13 +284,13 @@ function requiredEnv(name: string): string {
 }
 
 /**
- * `Baaki <hello@mail.dmadan.com>` unless told otherwise.
+ * `Waves <hello@mail.dmadan.com>` unless told otherwise.
  *
  * The domain has to be one verified in Resend with SPF, DKIM and DMARC. An
  * unverified sender is not a soft failure — every message is refused outright.
  */
 export function emailFrom(): string {
-  return Deno.env.get('EMAIL_FROM') ?? 'Baaki <hello@mail.dmadan.com>';
+  return Deno.env.get('EMAIL_FROM') ?? 'Waves <hello@mail.dmadan.com>';
 }
 
 /**
@@ -299,7 +299,7 @@ export function emailFrom(): string {
  * deployment's own domain (`https://wavs.co.in`) — right for the cloud
  * project, wrong for a fork or self-host that has not set its own yet.
  * Setting it to an **explicit empty string** (`EMAIL_WEB_URL=`) opts out of
- * that default deliberately and falls back to the `baaki://`/`waves://` deep
+ * that default deliberately and falls back to the `waves://` deep
  * link instead (dead in desktop webmail, exactly right on a phone) — the
  * right choice for a self-host not yet pointing anywhere it can vouch for.
  */
@@ -397,7 +397,7 @@ export function pause(ms: number): Promise<void> {
 // a notification, and the same one-click unsubscribe — a campaign is bulk mail
 // and cannot ship without it. Everything about who gets one is decided in SQL.
 
-/** A row from `baaki_claim_campaign_emails` — one person to mail, and the words. */
+/** A row from `waves_claim_campaign_emails` — one person to mail, and the words. */
 export interface CampaignEmailRow {
   readonly send_id: string;
   readonly address: string;
@@ -409,7 +409,7 @@ export interface CampaignEmailRow {
 }
 
 export interface CampaignSendResult {
-  /** The `campaign_email_sends` row id, so `baaki_finish_campaign_emails` matches. */
+  /** The `campaign_email_sends` row id, so `waves_finish_campaign_emails` matches. */
   readonly id: string;
   readonly status: 'sent' | 'failed' | 'retry';
   readonly resend_email_id?: string;

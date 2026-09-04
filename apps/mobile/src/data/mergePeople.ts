@@ -10,7 +10,7 @@
 import type { PersonBalanceRow } from './api';
 
 /**
- * Only a ghost — someone with no Baaki account — can be merged. A real person is
+ * Only a ghost — someone with no Waves account — can be merged. A real person is
  * already one identity across every group by their profile id, so folding them
  * under a made-up name would be a lie, not a merge.
  */

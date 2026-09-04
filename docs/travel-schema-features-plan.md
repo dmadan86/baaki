@@ -88,7 +88,7 @@ model TripPhoto {
 ```
 
 **Storage / cap:** new logical bucket `trip-photos`; goes through the existing
-`r2-sign` presign → `baaki_storage_reserve`/`record` cap path so album photos
+`r2-sign` presign → `waves_storage_reserve`/`record` cap path so album photos
 count against the free-tier storage cap exactly like receipts. Uploader-or-owner
 paid-bypass follows the R2 cap rules already in place.
 
@@ -201,7 +201,7 @@ coordinated.
 ## Status — all built
 
 - **#1 Category budgets** — PR #405 (merged). `category_budgets` on the group,
-  admin-gated via `baaki_guard_group_columns`.
+  admin-gated via `waves_guard_group_columns`.
 - **#3 Attachment visibility (`parties`) + RLS/presign** — PR #407 (merged).
   Security review in `private-attachments-security-review.md`; 16 threat tests.
 - **#4 Settlement proof** — schema/hooks in #407, UI in PR #408 (merged). Payer

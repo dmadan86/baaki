@@ -104,8 +104,8 @@ describe('app_releases', () => {
 
   it('orders versions by segment, the way the client does', async () => {
     const { rows } = await client.query(
-      `SELECT baaki_version_key('1.10.0') > baaki_version_key('1.9.0') AS newer,
-              baaki_version_key('1.2')   = baaki_version_key('1.2.0') AS same`,
+      `SELECT waves_version_key('1.10.0') > waves_version_key('1.9.0') AS newer,
+              waves_version_key('1.2')   = waves_version_key('1.2.0') AS same`,
     );
     expect(rows[0]).toEqual({ newer: true, same: true });
   });

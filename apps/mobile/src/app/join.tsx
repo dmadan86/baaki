@@ -137,7 +137,7 @@ export default function JoinScreen() {
         <EmptyState
           title={t.misc.linkExpired}
           body={shown ?? t.misc.linkExpiredBody}
-          action={<Button label={t.misc.goToBaaki} onPress={() => router.replace('/')} />}
+          action={<Button label={t.misc.goToWaves} onPress={() => router.replace('/')} />}
         />
       </Screen>
     );
@@ -183,7 +183,7 @@ export default function JoinScreen() {
               void join(null);
             }}
           />
-          <Button label={t.misc.goToBaaki} variant="ghost" onPress={() => router.replace('/')} />
+          <Button label={t.misc.goToWaves} variant="ghost" onPress={() => router.replace('/')} />
         </View>
       </Screen>
     );

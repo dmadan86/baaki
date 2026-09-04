@@ -24,7 +24,7 @@
  *      null when nothing matches — the same "machine proposes" bargain the app
  *      makes everywhere else.
  *
- * The actual insert reuses the canonical `baaki_import_ledger` RPC — the exact
+ * The actual insert reuses the canonical `waves_import_ledger` RPC — the exact
  * function the app's own import path calls — so ghosts, idempotency, the
  * append-only version rows, the Σpayers = Σshares = amount constraint and the
  * derived-balance triggers are all exercised the way production exercises them,
@@ -472,7 +472,7 @@ export interface ImportResult {
   readonly groupId?: string;
   /** name → group_member id, set only when `dryRun` was false. */
   readonly memberIdByName?: Readonly<Record<string, string>>;
-  /** The raw jsonb `baaki_import_ledger` returned, when `dryRun` was false. */
+  /** The raw jsonb `waves_import_ledger` returned, when `dryRun` was false. */
   readonly ledgerResult?: Record<string, unknown>;
 }
 
@@ -503,7 +503,7 @@ function buildPlan(options: ImportOptions): ImportPlan {
   };
 }
 
-/** minor-unit bigints → the string-valued JSON `baaki_import_ledger` reads. */
+/** minor-unit bigints → the string-valued JSON `waves_import_ledger` reads. */
 function amountMap(record: Readonly<Record<string, bigint>>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(record).map(([name, value]) => [name, value.toString()]),
@@ -514,9 +514,9 @@ function amountMap(record: Readonly<Record<string, bigint>>): Record<string, str
  * Load a parsed Splitwise export into a fresh Waves group.
  *
  * Creates the group and the importing account's membership, then hands the
- * expenses, settlements and the other people to `baaki_import_ledger` — the
+ * expenses, settlements and the other people to `waves_import_ledger` — the
  * canonical RPC — which mints a ghost member for each of the others, applies
- * every expense through the same `baaki_apply_expense` the app uses, inserts the
+ * every expense through the same `waves_apply_expense` the app uses, inserts the
  * settlements, and lets the derived-balance triggers do the rest. Everything
  * runs in one transaction: if any single row is rejected, nothing is written.
  *
@@ -593,7 +593,7 @@ export async function importSplitwiseLedger(
 
     const ledgerRows = (
       await client.query(
-        `SELECT public.baaki_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, $5) AS result`,
+        `SELECT public.waves_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, $5) AS result`,
         [
           groupId,
           JSON.stringify(peopleJson),

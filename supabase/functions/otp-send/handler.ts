@@ -146,7 +146,7 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
   // Keyed on the number rather than a profile id: `auth.sms.enable_signup` is
   // off, so one number is one account, and the number is the only identity that
   // exists at the moment a code is asked for.
-  const { data, error } = await deps.service().rpc('baaki_rate_limit', {
+  const { data, error } = await deps.service().rpc('waves_rate_limit', {
     p_subject: `phone:${phone}`,
     p_bucket: 'otp-send',
     p_limit: OTP_DAILY_LIMIT,

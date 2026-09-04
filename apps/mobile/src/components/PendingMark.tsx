@@ -1,7 +1,7 @@
 /**
  * "This one hasn't left the phone yet."
  *
- * Offline is a normal state in Baaki (ADR-005), not an error, so this is a mark
+ * Offline is a normal state in Waves (ADR-005), not an error, so this is a mark
  * rather than a warning: a small outline cloud beside the amount, gone the
  * moment the row syncs.
  *

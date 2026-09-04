@@ -37,21 +37,21 @@ fallback** to what exists today:
 ## 2. Entitlement — per person, not per group
 
 This is the one rule that departs from every other paid gate in the app. Today,
-[`baaki_group_is_paid`](../packages/db) makes a whole group "full mode" if **any**
+[`waves_group_is_paid`](../packages/db) makes a whole group "full mode" if **any**
 member is subscribed (group photo, receipt cap, attachment cap all use it). Voice
 STT is **the person's own capability** and must **not** leak across a group.
 
-- Reuse the existing definer helper **`baaki_profile_is_paid(p_profile uuid) →
+- Reuse the existing definer helper **`waves_profile_is_paid(p_profile uuid) →
 boolean`**: true iff that profile has an `active` subscription (or an unexpired
   pass **owned by that profile**, not a group pass). Deliberately independent of
-  `baaki_group_is_paid`.
+  `waves_group_is_paid`.
 - A paid person gets **unlimited** cloud STT. A free person is metered.
 - Group membership is irrelevant. A free user in a group with a paid member is
   **still metered** — the paid member's benefit does not extend to them.
 
 ```
 access(profile) =
-  baaki_profile_is_paid(profile) ? 'unlimited'
+  waves_profile_is_paid(profile) ? 'unlimited'
   : remaining_free_seconds(profile) > 0 ? 'metered'
   : 'exhausted'   // → on-device fallback
 ```
@@ -145,7 +145,7 @@ Refusals (so the client can fall back cleanly, never a raw error):
 
 1. Resolve the caller's profile from the JWT.
 2. If `!voice_stt_enabled` → `STT_DISABLED`.
-3. `paid = baaki_profile_is_paid(profile)`.
+3. `paid = waves_profile_is_paid(profile)`.
 4. **Derive the duration server-side.** Decode the uploaded audio and read its
    real length; the client's `durationSeconds` is a hint only and is never
    trusted for admission (a client could send full audio with
@@ -290,9 +290,9 @@ transcript → structure:
 ## 8. Phasing
 
 - **Phase 1 — entitlement & config plumbing (no external calls).** Reuse
-  `baaki_profile_is_paid`; `voice_stt_usage`, `service_config`, the `app_config`
-  knobs, `baaki_voice_stt_remaining_seconds`, `baaki_voice_stt_record`
-  (service-role), and the client-facing `baaki_my_voice_access`. On the client:
+  `waves_profile_is_paid`; `voice_stt_usage`, `service_config`, the `app_config`
+  knobs, `waves_voice_stt_remaining_seconds`, `waves_voice_stt_record`
+  (service-role), and the client-facing `waves_my_voice_access`. On the client:
   the `useVoiceAccess` hook that reads it and the pure `pickVoiceMode(access,
 {online, cloudEnabled})` selector — both land here so the tier decision is
   unit-tested before any network tier exists. Fully testable with DB + unit

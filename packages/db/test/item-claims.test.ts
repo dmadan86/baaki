@@ -64,7 +64,7 @@ beforeEach(async () => {
 });
 
 const claim = (who: number, item: number, claimed = true) =>
-  clients[who]!.query(`SELECT baaki_set_item_claim($1, $2, $3) AS r`, [receiptId, item, claimed]);
+  clients[who]!.query(`SELECT waves_set_item_claim($1, $2, $3) AS r`, [receiptId, item, claimed]);
 
 async function liveClaims(): Promise<{ item: number; member: string }[]> {
   const { rows } = await admin.query(
@@ -117,7 +117,7 @@ describe('four people, one receipt, at the same time', () => {
     const seen = await Promise.all(
       clients.map(async (client) => {
         const { rows } = await client.query(
-          `SELECT item_index, member_id FROM baaki_item_claims($1) ORDER BY item_index, member_id`,
+          `SELECT item_index, member_id FROM waves_item_claims($1) ORDER BY item_index, member_id`,
           [receiptId],
         );
         return JSON.stringify(rows);
@@ -177,7 +177,7 @@ describe('a claim is always about the person making it', () => {
       ]);
       await stranger.query('SET ROLE authenticated');
       const message = await expectDenied(
-        stranger.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]),
+        stranger.query(`SELECT waves_set_item_claim($1, 0, true)`, [receiptId]),
       );
       expect(message).toMatch(/NOT_A_MEMBER/);
     } finally {
@@ -200,13 +200,13 @@ describe('a claim is always about the person making it', () => {
 
   it('refuses a receipt that does not exist', async () => {
     const message = await expectDenied(
-      clients[0]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [randomUUID()]),
+      clients[0]!.query(`SELECT waves_set_item_claim($1, 0, true)`, [randomUUID()]),
     );
     expect(message).toMatch(/NOT_FOUND/);
   });
 });
 
-describe('claiming for the friend who is not on Baaki', () => {
+describe('claiming for the friend who is not on Waves', () => {
   let ghostId: string;
 
   beforeAll(async () => {
@@ -222,13 +222,13 @@ describe('claiming for the friend who is not on Baaki', () => {
     // A ghost is a name and nothing else — no profile, no phone, no way to
     // claim a line. Refusing on their behalf would mean the bill can never be
     // finished, which is a worse answer than the small forgery risk.
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
     expect(await liveClaims()).toEqual([{ item: 4, member: ghostId }]);
   });
 
   it('releases a ghost’s claim the same way', async () => {
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
-    await clients[2]!.query(`SELECT baaki_set_item_claim($1, 4, false, $2)`, [receiptId, ghostId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 4, true, $2)`, [receiptId, ghostId]);
+    await clients[2]!.query(`SELECT waves_set_item_claim($1, 4, false, $2)`, [receiptId, ghostId]);
     expect(await liveClaims()).toEqual([]);
   });
 
@@ -237,7 +237,7 @@ describe('claiming for the friend who is not on Baaki', () => {
     // person who added it. One phone claiming for another turns it back into
     // one person's opinion.
     const message = await expectDenied(
-      clients[0]!.query(`SELECT baaki_set_item_claim($1, 5, true, $2)`, [
+      clients[0]!.query(`SELECT waves_set_item_claim($1, 5, true, $2)`, [
         receiptId,
         group.memberIds[1],
       ]),
@@ -248,7 +248,7 @@ describe('claiming for the friend who is not on Baaki', () => {
   it('refuses a member id from another group entirely', async () => {
     const other = await seedGroup(admin, { memberCount: 1, ghostCount: 1, name: 'Elsewhere' });
     const message = await expectDenied(
-      clients[0]!.query(`SELECT baaki_set_item_claim($1, 6, true, $2)`, [
+      clients[0]!.query(`SELECT waves_set_item_claim($1, 6, true, $2)`, [
         receiptId,
         other.memberIds[1],
       ]),
@@ -277,11 +277,11 @@ describe('finding the bill somebody else scanned', () => {
   it('lists a scanned bill nobody has split yet, with how far along it is', async () => {
     // Without this the second person at the table has no way to reach the bill
     // the first person scanned, and the whole CRDT is plumbing with no tap.
-    await clients[0]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[0]!.query(`SELECT waves_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 0, true)`, [receiptId]);
 
     const { rows } = await clients[2]!.query(
-      `SELECT id, claimed, items FROM baaki_open_receipts($1)`,
+      `SELECT id, claimed, items FROM waves_open_receipts($1)`,
       [group.groupId],
     );
     expect(rows).toHaveLength(1);
@@ -292,7 +292,7 @@ describe('finding the bill somebody else scanned', () => {
   });
 
   it('drops it from the list once it has become an expense', async () => {
-    const { rows: before } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+    const { rows: before } = await clients[0]!.query(`SELECT id FROM waves_open_receipts($1)`, [
       group.groupId,
     ]);
     expect(before).toHaveLength(1);
@@ -306,7 +306,7 @@ describe('finding the bill somebody else scanned', () => {
       receiptId,
     });
 
-    const { rows: after } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+    const { rows: after } = await clients[0]!.query(`SELECT id FROM waves_open_receipts($1)`, [
       group.groupId,
     ]);
     expect(after).toHaveLength(0);
@@ -314,7 +314,7 @@ describe('finding the bill somebody else scanned', () => {
 
   it('shows a stranger nothing', async () => {
     const other = await seedGroup(admin, { memberCount: 1, name: 'Elsewhere' });
-    const { rows } = await clients[0]!.query(`SELECT id FROM baaki_open_receipts($1)`, [
+    const { rows } = await clients[0]!.query(`SELECT id FROM waves_open_receipts($1)`, [
       other.groupId,
     ]);
     expect(rows).toHaveLength(0);
@@ -333,7 +333,7 @@ describe('publishing the corrected lines', () => {
   });
 
   it('lets a member hand the lines to everybody else', async () => {
-    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+    await clients[0]!.query(`SELECT waves_publish_receipt_items($1, $2::jsonb)`, [
       receiptId,
       lines,
     ]);
@@ -347,15 +347,15 @@ describe('publishing the corrected lines', () => {
   it('refuses once somebody has started claiming', async () => {
     // A claim is stored against a line's index. Deleting the second of six
     // lines afterwards would move four people's dinners onto somebody else.
-    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+    await clients[0]!.query(`SELECT waves_publish_receipt_items($1, $2::jsonb)`, [
       receiptId,
       lines,
     ]);
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 0, true)`, [receiptId]);
 
     const message = await expectDenied(
       clients[0]!.query(
-        `SELECT baaki_publish_receipt_items($1, '[{"label":"x","total":1}]'::jsonb)`,
+        `SELECT waves_publish_receipt_items($1, '[{"label":"x","total":1}]'::jsonb)`,
         [receiptId],
       ),
     );
@@ -363,22 +363,22 @@ describe('publishing the corrected lines', () => {
   });
 
   it('refuses a released claim too, because the index still means something', async () => {
-    await clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [
+    await clients[0]!.query(`SELECT waves_publish_receipt_items($1, $2::jsonb)`, [
       receiptId,
       lines,
     ]);
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, true)`, [receiptId]);
-    await clients[1]!.query(`SELECT baaki_set_item_claim($1, 0, false)`, [receiptId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 0, true)`, [receiptId]);
+    await clients[1]!.query(`SELECT waves_set_item_claim($1, 0, false)`, [receiptId]);
 
     const message = await expectDenied(
-      clients[0]!.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
+      clients[0]!.query(`SELECT waves_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
     );
     expect(message).toMatch(/ALREADY_CLAIMING/);
   });
 
   it('refuses an empty bill', async () => {
     const message = await expectDenied(
-      clients[0]!.query(`SELECT baaki_publish_receipt_items($1, '[]'::jsonb)`, [receiptId]),
+      clients[0]!.query(`SELECT waves_publish_receipt_items($1, '[]'::jsonb)`, [receiptId]),
     );
     expect(message).toMatch(/INVALID_ITEMS/);
   });
@@ -397,7 +397,7 @@ describe('publishing the corrected lines', () => {
       ]);
       await stranger.query('SET ROLE authenticated');
       const message = await expectDenied(
-        stranger.query(`SELECT baaki_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
+        stranger.query(`SELECT waves_publish_receipt_items($1, $2::jsonb)`, [receiptId, lines]),
       );
       expect(message).toMatch(/NOT_A_MEMBER/);
     } finally {

@@ -43,7 +43,7 @@ function heroPageOf(event: {
 
 /**
  * Whole days left before a pending settlement auto-confirms — the 7-day window
- * the server's `baaki_auto_confirm_settlements` job enforces, from when the
+ * the server's `waves_auto_confirm_settlements` job enforces, from when the
  * payer recorded it. Never below one; a claim past the window is auto-confirmed
  * by the cron and has already left the pending list.
  */

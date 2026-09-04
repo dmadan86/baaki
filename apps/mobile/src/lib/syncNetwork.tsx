@@ -25,7 +25,9 @@ import {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'baaki.sync_network';
+import { legacyKeysMigrated } from './legacyKeys';
+
+const KEY = 'waves.sync_network';
 
 export enum SyncNetworkPreference {
   /** Sync only on Wi‑Fi — never spend mobile data unasked. */
@@ -56,6 +58,7 @@ function parse(raw: string | null): SyncNetworkPreference {
  * flush with no cache to keep in step.
  */
 export async function loadSyncNetworkPreference(): Promise<SyncNetworkPreference> {
+  await legacyKeysMigrated;
   const raw = await AsyncStorage.getItem(KEY).catch(() => null);
   return parse(raw);
 }

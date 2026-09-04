@@ -47,7 +47,7 @@ async function oauthThroughBrowser(
   provider: OAuthMethod,
   link: boolean,
 ): Promise<Session | null | undefined> {
-  const redirectTo = makeRedirectUri({ scheme: 'baaki', path: 'auth' });
+  const redirectTo = makeRedirectUri({ scheme: 'waves', path: 'auth' });
 
   // Both calls return a URL rather than opening it: the browser has to be the
   // in-app one, or the session comes back to a tab the app cannot see.

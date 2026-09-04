@@ -25,7 +25,7 @@ import {
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { money } from '@/lib/money';
 import { coordLabel, mapsUrl } from '@/lib/geo';
 import { fill } from '@/i18n';
@@ -57,10 +57,10 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
 
   const load = useCallback(async () => {
     const [e, m, v, d] = await Promise.all([
-      baaki.expense(expenseId),
-      baaki.members(groupId),
-      baaki.expenseVersions(expenseId),
-      baaki.disputes(groupId),
+      waves.expense(expenseId),
+      waves.members(groupId),
+      waves.expenseVersions(expenseId),
+      waves.disputes(groupId),
     ]);
     setExpense(e);
     setMembers(m);
@@ -267,7 +267,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
             type="button"
             className="btn soft block"
             disabled={busy}
-            onClick={() => void run(() => baaki.restoreExpense(expenseId))}
+            onClick={() => void run(() => waves.restoreExpense(expenseId))}
           >
             {t.expense.restore}
           </button>
@@ -279,7 +279,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
             onClick={() => {
               if (confirmDelete)
                 void run(() =>
-                  baaki.deleteExpense(expenseId).then(() => router.replace(`/g/${groupId}`)),
+                  waves.deleteExpense(expenseId).then(() => router.replace(`/g/${groupId}`)),
                 );
               else setConfirmDelete(true);
             }}
@@ -299,7 +299,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
                 type="button"
                 className="btn soft block"
                 disabled={busy}
-                onClick={() => void run(() => baaki.withdrawDispute(expenseId))}
+                onClick={() => void run(() => waves.withdrawDispute(expenseId))}
               >
                 {t.expense.withdraw}
               </button>
@@ -316,7 +316,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
                   type="button"
                   className="btn soft block"
                   disabled={busy}
-                  onClick={() => void run(() => baaki.disputeExpense({ expenseId, reason }))}
+                  onClick={() => void run(() => waves.disputeExpense({ expenseId, reason }))}
                 >
                   {t.expense.raiseDispute}
                 </button>
@@ -335,7 +335,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
                       disabled={busy}
                       onClick={() =>
                         void run(() =>
-                          baaki.resolveDispute({ disputeId: openDispute.id, accept: true }),
+                          waves.resolveDispute({ disputeId: openDispute.id, accept: true }),
                         )
                       }
                     >
@@ -347,7 +347,7 @@ function ExpenseDetail({ profileId }: { profileId: string }) {
                       disabled={busy}
                       onClick={() =>
                         void run(() =>
-                          baaki.resolveDispute({ disputeId: openDispute.id, accept: false }),
+                          waves.resolveDispute({ disputeId: openDispute.id, accept: false }),
                         )
                       }
                     >

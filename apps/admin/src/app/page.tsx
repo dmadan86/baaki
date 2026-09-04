@@ -33,7 +33,7 @@ export default async function Dashboard() {
   if (!head) {
     return (
       <main>
-        <h1>Baaki admin</h1>
+        <h1>Waves admin</h1>
         <p className="note">
           The analytics functions returned nothing. That usually means the
           <code> 20260808190000_admin_analytics </code> migration has not been deployed to this
@@ -71,7 +71,7 @@ export default async function Dashboard() {
 
       <section className="hero">
         <div>
-          <div className="who">Baaki, at a glance</div>
+          <div className="who">Waves, at a glance</div>
           <div className="big">{num(head.active_profiles_30d)}</div>
           <div className="lead">people active in the last 30 days</div>
         </div>

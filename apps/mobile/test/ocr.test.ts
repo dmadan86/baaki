@@ -29,7 +29,7 @@ describe('recogniseReceipt', () => {
   it('returns normalized text and block count for receipt-like OCR output', async () => {
     native.recognize.mockResolvedValue({
       blocks: [
-        { text: 'Cafe Baaki   \n' },
+        { text: 'Cafe Waves   \n' },
         { text: 'Masala dosa      180.00' },
         { text: 'Filter coffee     60.00' },
         { text: 'Total            240.00' },
@@ -37,7 +37,7 @@ describe('recogniseReceipt', () => {
     });
 
     await expect(recogniseReceipt('file://receipt.jpg')).resolves.toEqual({
-      text: ['Cafe Baaki', 'Masala dosa 180.00', 'Filter coffee 60.00', 'Total 240.00'].join('\n'),
+      text: ['Cafe Waves', 'Masala dosa 180.00', 'Filter coffee 60.00', 'Total 240.00'].join('\n'),
       lines: 4,
     });
     expect(native.recognize).toHaveBeenCalledWith('file://receipt.jpg');
@@ -59,7 +59,7 @@ describe('recogniseReceipt', () => {
   it('ignores malformed native blocks rather than failing the whole OCR attempt', async () => {
     native.recognize.mockResolvedValue({
       blocks: [
-        { text: 'Cafe Baaki' },
+        { text: 'Cafe Waves' },
         null,
         undefined,
         { text: null },
@@ -72,14 +72,14 @@ describe('recogniseReceipt', () => {
     const result = await recogniseReceipt('file://receipt.jpg');
 
     expect(result?.lines).toBe(3);
-    expect(result?.text).toContain('Cafe Baaki');
+    expect(result?.text).toContain('Cafe Waves');
     expect(result?.text).toContain('Total 123.45');
   });
 
   it('recognises currency-symbol receipts and normalises Unicode spacing', async () => {
     native.recognize.mockResolvedValue({
       blocks: [
-        { text: 'Cafe\u00a0Baaki' },
+        { text: 'Cafe\u00a0Waves' },
         { text: 'SUBTOTAL\u00a0\u00a0₹１,２３４.５０' },
         { text: 'GST ₹12.00' },
         { text: 'Grand Total ₹1,246.50' },
@@ -89,7 +89,7 @@ describe('recogniseReceipt', () => {
     const result = await recogniseReceipt('file://unicode-receipt.jpg');
 
     expect(result).toEqual({
-      text: ['Cafe Baaki', 'SUBTOTAL ₹1,234.50', 'GST ₹12.00', 'Grand Total ₹1,246.50'].join('\n'),
+      text: ['Cafe Waves', 'SUBTOTAL ₹1,234.50', 'GST ₹12.00', 'Grand Total ₹1,246.50'].join('\n'),
       lines: 4,
     });
   });
@@ -100,7 +100,7 @@ describe('recogniseReceipt', () => {
         {
           text: 'Fallback block text that should not be used when lines exist',
           lines: [
-            { text: 'Cafe Baaki' },
+            { text: 'Cafe Waves' },
             { text: 'Idli 80.00' },
             { text: 'Coffee 40.00' },
             { text: 'Total 120.00' },
@@ -110,7 +110,7 @@ describe('recogniseReceipt', () => {
     });
 
     await expect(recogniseReceipt('file://multi-line-receipt.jpg')).resolves.toEqual({
-      text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+      text: ['Cafe Waves', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
       lines: 4,
     });
   });
@@ -119,13 +119,13 @@ describe('recogniseReceipt', () => {
     native.recognize.mockResolvedValue({
       blocks: [
         {
-          text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+          text: ['Cafe Waves', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
         },
       ],
     });
 
     await expect(recogniseReceipt('file://block-newlines.jpg')).resolves.toEqual({
-      text: ['Cafe Baaki', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
+      text: ['Cafe Waves', 'Idli 80.00', 'Coffee 40.00', 'Total 120.00'].join('\n'),
       lines: 4,
     });
   });

@@ -3,7 +3,7 @@
 /**
  * Everyone you are not square with, netted across every group you share.
  *
- * The `baaki_people_i_owe` RPC does the netting server-side — one row per person
+ * The `waves_people_i_owe` RPC does the netting server-side — one row per person
  * per currency — because "what do I owe Priya, all told" spans groups and can't
  * be added up from any single one. Per currency and never across: a net that
  * mixed rupees and dollars would be money in no currency at all (ADR-004).
@@ -17,7 +17,7 @@ import type { PersonBalanceRow } from '@waves/api-client';
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { money } from '@/lib/money';
 import { plural } from '@/i18n';
 import { useStrings } from '@/i18n-context';
@@ -45,7 +45,7 @@ function Friends({ query }: { query: string }) {
     let active = true;
     void (async () => {
       try {
-        const people = await baaki.peopleBalances();
+        const people = await waves.peopleBalances();
         if (active) setRows(people);
       } finally {
         if (active) setLoading(false);

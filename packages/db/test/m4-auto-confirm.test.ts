@@ -77,7 +77,7 @@ const inboxOf = async (profileId: string): Promise<{ kind: string; body: string 
 };
 
 const run = async (): Promise<number> => {
-  const { rows } = await client.query(`SELECT baaki_auto_confirm_settlements() AS n`);
+  const { rows } = await client.query(`SELECT waves_auto_confirm_settlements() AS n`);
   return Number(rows[0]?.n);
 };
 
@@ -229,7 +229,7 @@ describe('who may run it', () => {
     ]);
     await client.query(`SET ROLE authenticated`);
     try {
-      await expect(client.query(`SELECT baaki_auto_confirm_settlements()`)).rejects.toThrow(
+      await expect(client.query(`SELECT waves_auto_confirm_settlements()`)).rejects.toThrow(
         /permission denied/i,
       );
     } finally {

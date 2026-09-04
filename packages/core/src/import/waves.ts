@@ -1,5 +1,5 @@
 /**
- * Reading Baaki's own export back in (M5, ADR-012).
+ * Reading Waves's own export back in (M5, ADR-012).
  *
  * The M5 acceptance line is "export re-imports losslessly". Unlike a Splitwise
  * file — where each person's column is a *net* and the payer has to be
@@ -36,7 +36,7 @@ import type { ImportProblem } from './splitwise';
 /** Statuses that move a balance (TDR §3.3). The rest are carried as history. */
 const SETTLING = new Set(['confirmed', 'auto_confirmed']);
 
-export interface BaakiImportExpense {
+export interface WavesImportExpense {
   readonly description: string;
   readonly category: string | null;
   /** ISO date, YYYY-MM-DD. */
@@ -48,7 +48,7 @@ export interface BaakiImportExpense {
   readonly shares: Readonly<Record<string, bigint>>;
 }
 
-export interface BaakiImportSettlement {
+export interface WavesImportSettlement {
   readonly from: string;
   readonly to: string;
   readonly currency: CurrencyCode;
@@ -60,23 +60,23 @@ export interface BaakiImportSettlement {
   readonly at: string;
 }
 
-export interface BaakiImportGroup {
+export interface WavesImportGroup {
   /** The group's name in the file, or null for a nameless group. */
   readonly name: string | null;
   readonly currency: CurrencyCode;
   /** Everybody the file names, in the order it named them. */
   readonly people: readonly string[];
-  readonly expenses: readonly BaakiImportExpense[];
-  readonly settlements: readonly BaakiImportSettlement[];
+  readonly expenses: readonly WavesImportExpense[];
+  readonly settlements: readonly WavesImportSettlement[];
   /** Net per person, minor units, per currency. Sums to zero in each currency. */
   readonly balances: Readonly<Record<string, Readonly<Record<string, bigint>>>>;
   readonly problems: readonly ImportProblem[];
 }
 
-export interface BaakiImport {
+export interface WavesImport {
   readonly exportedAt: string | null;
   readonly schemaVersion: number;
-  readonly groups: readonly BaakiImportGroup[];
+  readonly groups: readonly WavesImportGroup[];
   readonly problems: readonly ImportProblem[];
 }
 
@@ -126,7 +126,7 @@ function memberName(member: Record<string, unknown>, index: number): string {
  * a partial import is worth offering — and the screen shows the problems
  * before anybody taps Import.
  */
-export function parseBaakiExport(text: string): BaakiImport {
+export function parseWavesExport(text: string): WavesImport {
   const problems: ImportProblem[] = [];
 
   let parsed: unknown;
@@ -141,7 +141,7 @@ export function parseBaakiExport(text: string): BaakiImport {
         {
           kind: ImportProblemKind.UnparseableRow,
           row: null,
-          message: 'That file is not a Baaki export.',
+          message: 'That file is not a Waves export.',
         },
       ],
     };
@@ -164,7 +164,7 @@ export function parseBaakiExport(text: string): BaakiImport {
     problems.push({
       kind: ImportProblemKind.UnparseableRow,
       row: null,
-      message: `That file was written by a newer version of Baaki (format ${schemaVersion}). Update the app and try again.`,
+      message: `That file was written by a newer version of Waves (format ${schemaVersion}). Update the app and try again.`,
     });
   }
 
@@ -178,7 +178,7 @@ export function parseBaakiExport(text: string): BaakiImport {
   };
 }
 
-function parseGroup(entry: unknown): BaakiImportGroup {
+function parseGroup(entry: unknown): WavesImportGroup {
   const problems: ImportProblem[] = [];
   const record = asRecord(entry) ?? {};
   const group = asRecord(record.group) ?? {};
@@ -215,7 +215,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
     });
   }
 
-  const expenses: BaakiImportExpense[] = [];
+  const expenses: WavesImportExpense[] = [];
   for (const [index, entryValue] of asArray(record.expenses).entries()) {
     const expense = asRecord(entryValue);
     if (!expense) continue;
@@ -270,7 +270,7 @@ function parseGroup(entry: unknown): BaakiImportGroup {
     });
   }
 
-  const settlements: BaakiImportSettlement[] = [];
+  const settlements: WavesImportSettlement[] = [];
   for (const [index, entryValue] of asArray(record.settlements).entries()) {
     const settlement = asRecord(entryValue);
     if (!settlement) continue;
@@ -335,8 +335,8 @@ function sum(values: Readonly<Record<string, bigint>>): bigint {
  * proof that the round trip is lossless.
  */
 export function balancesOf(
-  expenses: readonly BaakiImportExpense[],
-  settlements: readonly BaakiImportSettlement[],
+  expenses: readonly WavesImportExpense[],
+  settlements: readonly WavesImportSettlement[],
 ): Record<string, Record<string, bigint>> {
   const byCurrency: Record<string, Record<string, bigint>> = {};
   const add = (currency: string, person: string, delta: bigint): void => {
@@ -367,7 +367,7 @@ export function balancesOf(
 }
 
 /** Whether this is our file at all — asked before a CSV parser is reached for. */
-export function isBaakiExport(text: string): boolean {
+export function isWavesExport(text: string): boolean {
   try {
     const root = asRecord(JSON.parse(text));
     return Array.isArray(root?.groups) && typeof root?.schemaVersion === 'number';

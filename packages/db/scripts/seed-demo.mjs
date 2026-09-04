@@ -19,7 +19,7 @@
  * and profile names, so a purge can find and cascade-delete exactly its own rows
  * and nothing hand-made.
  *
- * A note on guests: a Baaki "guest" is an anonymous auth account, and
+ * A note on guests: a Waves "guest" is an anonymous auth account, and
  * `auth.users.is_anonymous` only exists on Supabase — a bare local Postgres has
  * no auth schema (the profiles table is the source of truth there). So on a
  * local DB the mix of "signed-in and guest" is modelled as profile-backed

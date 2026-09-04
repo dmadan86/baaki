@@ -44,7 +44,7 @@ const guestClaims = (groupIds: string[]) => ({
   sub: randomUUID(),
   role: 'authenticated',
   is_anonymous: true,
-  app_metadata: { baaki_groups: groupIds },
+  app_metadata: { waves_groups: groupIds },
 });
 
 describe('groups', () => {
@@ -101,7 +101,7 @@ describe('expenses and their money rows', () => {
    * what it also allowed: an `expense_versions` row naming somebody else as
    * its author, permanently, because those rows are append-only. The privilege
    * that let a member do the harmless version of that is the same privilege,
-   * so it is gone. `baaki_apply_expense` is the way in, and it stamps the
+   * so it is gone. `waves_apply_expense` is the way in, and it stamps the
    * author itself.
    */
   it('nobody writes the ledger tables by hand — not even a member', async () => {
@@ -119,7 +119,7 @@ describe('expenses and their money rows', () => {
   });
 
   it('no client role calls the expense write RPC directly — not even a member', async () => {
-    // Hardened after the audit: `baaki_apply_expense` is service-role only, so
+    // Hardened after the audit: `waves_apply_expense` is service-role only, so
     // the Deno edge functions (which recompute the shares) are the one door.
     // Both a member and an outsider are refused at the grant — this closes the
     // anon fail-open and the forged-share hole together.
@@ -127,7 +127,7 @@ describe('expenses and their money rows', () => {
     const shares = JSON.stringify(
       (group.memberIds as string[]).slice(0, 3).map((memberId) => ({ memberId, amount: '3000' })),
     );
-    const call = `SELECT baaki_apply_expense($1, NULL, $2, 'Chai', NULL, current_date, 'INR',
+    const call = `SELECT waves_apply_expense($1, NULL, $2, 'Chai', NULL, current_date, 'INR',
       9000, 'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`;
 
     for (const profileId of [group.profileIds[0] as string, outsiderProfileId]) {
@@ -147,7 +147,7 @@ describe('expenses and their money rows', () => {
  * a guest joins, which is the same row every other member has.
  *
  * A second mechanism used to exist alongside it: `is_group_member` also
- * accepted any group id listed in the JWT's `app_metadata.baaki_groups`.
+ * accepted any group id listed in the JWT's `app_metadata.waves_groups`.
  * Nothing in this repository has ever written that claim, and it had no
  * expiry and no way to revoke — leaving the group, revoking the invite and
  * deleting the member row would all have failed to remove it. Removed in

@@ -4,7 +4,7 @@
  * An admin can drop a group for everyone, but only once it is fully settled —
  * and ADR-004 keeps the ledger append-only, so a delete is a group-wide
  * tombstone (`groups.deleted_at`), never a row delete. These pin the boundary
- * `baaki_delete_group` enforces, which the client button only fronts: an admin
+ * `waves_delete_group` enforces, which the client button only fronts: an admin
  * of a squared-up group deletes; a non-admin is refused (NOT_ADMIN); an
  * outstanding balance is refused (NOT_SETTLED); a second delete is a clean no-op.
  */
@@ -58,7 +58,7 @@ describe('deleting a group', () => {
       payers: { [memberIds[0]!]: 500n, [memberIds[1]!]: 500n },
     });
 
-    await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
+    await asUser(profileIds[0]!, () => client.query(`SELECT waves_delete_group($1)`, [groupId]));
 
     expect(await deletedAt(groupId)).not.toBeNull();
     // The group row (and its expense) are still there — a tombstone hides it, it
@@ -75,7 +75,7 @@ describe('deleting a group', () => {
 
     // profileIds[1] is an ordinary member, not an admin.
     const message = await asUser(profileIds[1]!, () =>
-      expectDenied(client.query(`SELECT baaki_delete_group($1)`, [groupId])),
+      expectDenied(client.query(`SELECT waves_delete_group($1)`, [groupId])),
     );
     expect(message).toMatch(/NOT_ADMIN/);
     expect(await deletedAt(groupId)).toBeNull();
@@ -93,7 +93,7 @@ describe('deleting a group', () => {
     });
 
     const message = await asUser(profileIds[0]!, () =>
-      expectDenied(client.query(`SELECT baaki_delete_group($1)`, [groupId])),
+      expectDenied(client.query(`SELECT waves_delete_group($1)`, [groupId])),
     );
     expect(message).toMatch(/NOT_SETTLED/);
     expect(await deletedAt(groupId)).toBeNull();
@@ -102,13 +102,13 @@ describe('deleting a group', () => {
   it('is idempotent — a second delete is a clean no-op', async () => {
     const { groupId, profileIds } = await seedGroup(client, { memberCount: 2 });
 
-    await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
+    await asUser(profileIds[0]!, () => client.query(`SELECT waves_delete_group($1)`, [groupId]));
     const first = await deletedAt(groupId);
     expect(first).not.toBeNull();
 
     // A retried queue flush or a second tap must land cleanly, not raise, and not
     // move the tombstone's timestamp.
-    await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
+    await asUser(profileIds[0]!, () => client.query(`SELECT waves_delete_group($1)`, [groupId]));
     expect(await deletedAt(groupId)).toBe(first);
   });
 
@@ -131,7 +131,7 @@ describe('deleting a group', () => {
       // Connection A: run the delete inside an open transaction — it locks the
       // group row and does not commit yet.
       await client.query('BEGIN');
-      await asUser(profileIds[0]!, () => client.query(`SELECT baaki_delete_group($1)`, [groupId]));
+      await asUser(profileIds[0]!, () => client.query(`SELECT waves_delete_group($1)`, [groupId]));
 
       // Connection B: the same row lock is unavailable while A holds it.
       let refused = false;

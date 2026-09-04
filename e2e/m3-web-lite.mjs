@@ -62,7 +62,7 @@ const host = browser();
   }
 }
 
-const { data: groupId, error: groupError } = await host.rpc('baaki_create_group', {
+const { data: groupId, error: groupError } = await host.rpc('waves_create_group', {
   p_name: 'Goa',
   p_type: 'trip',
   p_currency: 'INR',
@@ -73,7 +73,7 @@ check('host creates a group', !groupError, groupError?.message);
 
 // A ghost, because that is the normal case: the trip is already half planned
 // before the person you are inviting has heard of the app (ADR-006).
-const { data: ghostId, error: ghostError } = await host.rpc('baaki_add_ghost_member', {
+const { data: ghostId, error: ghostError } = await host.rpc('waves_add_ghost_member', {
   p_group_id: groupId,
   p_name: 'Ravi',
   p_member_id: null,
@@ -141,7 +141,7 @@ if (!accepted?.claimId) {
 // The host is the group's only admin — approve it the way the app's admin
 // screen would, so everything below (reading the group, writing an expense)
 // exercises a real member exactly as this scenario always intended.
-const { data: decision, error: decisionError } = await host.rpc('baaki_decide_member_claim', {
+const { data: decision, error: decisionError } = await host.rpc('waves_decide_member_claim', {
   p_claim_id: accepted.claimId,
   p_approve: true,
 });

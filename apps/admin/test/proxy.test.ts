@@ -9,7 +9,7 @@ const ORIGIN_SECRET = 'origin-secret-value';
 // The real vercel.app back door: an attacker sending a request straight to the
 // origin sets Host to the custom domain, but cannot forge the Cloudflare header.
 const VERCEL_ORIGIN = 'https://baaki-admin.vercel.app';
-const SPOOFED_HOST = 'baaki.dmadan.com';
+const SPOOFED_HOST = 'waves.dmadan.com';
 
 beforeAll(() => {
   process.env.ADMIN_SESSION_SECRET = 'test-session-secret';
@@ -25,7 +25,7 @@ async function validCookie(): Promise<string> {
 function request(
   path: string,
   headers: Record<string, string>,
-  origin = 'https://baaki.dmadan.com',
+  origin = 'https://waves.dmadan.com',
 ): NextRequest {
   return new NextRequest(new URL(path, origin), { headers });
 }

@@ -66,7 +66,7 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 
 const dispute = (profileId: string, expenseId: string, reason?: string): Promise<string> =>
   asUser(profileId, async () => {
-    const { rows } = await client.query(`SELECT baaki_dispute_expense($1, $2) AS id`, [
+    const { rows } = await client.query(`SELECT waves_dispute_expense($1, $2) AS id`, [
       expenseId,
       reason ?? null,
     ]);
@@ -185,7 +185,7 @@ describe('answering one', () => {
     note?: string,
   ): Promise<unknown> =>
     asUser(profileId, () =>
-      client.query(`SELECT baaki_resolve_dispute($1, $2, $3)`, [disputeId, accept, note ?? null]),
+      client.query(`SELECT waves_resolve_dispute($1, $2, $3)`, [disputeId, accept, note ?? null]),
     );
 
   it('lets the person who entered the expense accept it', async () => {
@@ -246,7 +246,7 @@ describe('withdrawing one', () => {
     const scene = await seedExpense();
     await dispute(scene.profileIds[1] ?? '', scene.expenseId);
     await asUser(scene.profileIds[1] ?? '', () =>
-      client.query(`SELECT baaki_withdraw_dispute($1)`, [scene.expenseId]),
+      client.query(`SELECT waves_withdraw_dispute($1)`, [scene.expenseId]),
     );
     const [row] = await disputesOn(scene.expenseId);
     expect(row?.status).toBe('withdrawn');
@@ -257,7 +257,7 @@ describe('withdrawing one', () => {
     await dispute(scene.profileIds[1] ?? '', scene.expenseId);
     await expect(
       asUser(scene.profileIds[2] ?? '', () =>
-        client.query(`SELECT baaki_withdraw_dispute($1)`, [scene.expenseId]),
+        client.query(`SELECT waves_withdraw_dispute($1)`, [scene.expenseId]),
       ),
     ).rejects.toThrow(/NOT_YOUR_DISPUTE/);
   });

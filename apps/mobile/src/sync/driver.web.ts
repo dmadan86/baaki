@@ -24,14 +24,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { QueuedMutation } from '@waves/core';
 
+import { legacyKeysMigrated } from '@/lib/legacyKeys';
+
 import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
 
 const WEB_KEYS = {
-  rows: 'baaki:mirror',
-  cursors: 'baaki:cursors',
-  queue: 'baaki:queue',
-  drafts: 'baaki:drafts',
+  rows: 'waves:mirror',
+  cursors: 'waves:cursors',
+  queue: 'waves:queue',
+  drafts: 'waves:drafts',
 } as const;
 
 class AsyncStorageStore implements LocalStore {
@@ -39,9 +41,12 @@ class AsyncStorageStore implements LocalStore {
   // lose one of the two writes. Same lock as native, for a plainer reason.
   private readonly serial = new Serial();
 
-  async ready(): Promise<void> {}
+  async ready(): Promise<void> {
+    await legacyKeysMigrated;
+  }
 
   private async read<T>(key: string, fallback: T): Promise<T> {
+    await legacyKeysMigrated;
     const raw = await AsyncStorage.getItem(key);
     if (!raw) return fallback;
     try {

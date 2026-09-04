@@ -3,7 +3,7 @@
  *
  * There is no paid tier to sell today — no store products, no prices, no
  * receipts. What there is, is a decision worth writing down before anything is
- * built on top of it: the ledger is free forever, and the only thing Baaki
+ * built on top of it: the ledger is free forever, and the only thing Waves
  * would ever charge for is convenience. Splitting a bill, settling it, seeing
  * what you owe and being owed are not features to be taken away and sold back.
  *

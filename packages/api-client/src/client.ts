@@ -80,28 +80,28 @@ const EXPENSE_COLUMNS = `
   )
 `;
 
-export interface BaakiClientOptions {
+export interface WavesClientOptions {
   supabase: SupabaseClient;
 }
 
-export class BaakiApiError extends Error {
+export class WavesApiError extends Error {
   constructor(
     message: string,
     readonly code?: string,
   ) {
     super(message);
-    this.name = 'BaakiApiError';
+    this.name = 'WavesApiError';
   }
 }
 
-export function createBaakiClient({ supabase }: BaakiClientOptions) {
+export function createWavesClient({ supabase }: WavesClientOptions) {
   /**
    * PostgREST answers "you may not see this" with an empty list, not an error
    * — that is RLS doing its job. Only a real failure throws.
    */
   async function read<T>(query: PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
     const { data, error } = await query;
-    if (error) throw new BaakiApiError(String((error as { message?: string }).message ?? error));
+    if (error) throw new WavesApiError(String((error as { message?: string }).message ?? error));
     return (data ?? []) as T[];
   }
 
@@ -125,7 +125,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
    */
   async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
     const { data, error } = await supabase.rpc(name, args);
-    if (error) throw new BaakiApiError(String((error as { message?: string }).message ?? error));
+    if (error) throw new WavesApiError(String((error as { message?: string }).message ?? error));
     return data as T;
   }
 
@@ -140,7 +140,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       const { data } = await supabase.auth.getSession();
       if (data.session) return;
       const { error } = await supabase.auth.signInAnonymously();
-      if (error) throw new BaakiApiError(error.message);
+      if (error) throw new WavesApiError(error.message);
     },
 
     /**
@@ -158,7 +158,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
         provider: 'google',
         options: { redirectTo },
       });
-      if (error) throw new BaakiApiError(error.message);
+      if (error) throw new WavesApiError(error.message);
     },
 
     /**
@@ -173,7 +173,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
         email,
         options: { emailRedirectTo: redirectTo },
       });
-      if (error) throw new BaakiApiError(error.message);
+      if (error) throw new WavesApiError(error.message);
     },
 
     /**
@@ -186,7 +186,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
      *
      * `readIdentifier` and `checkPassword` throw `IdentityError` before any
      * round trip (bad address, too-short/too-common password); Supabase errors
-     * become `BaakiApiError`. Either way the caller shows the message.
+     * become `WavesApiError`. Either way the caller shows the message.
      */
     async withPassword(
       identifier: string,
@@ -209,7 +209,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       if (action.call === 'updateUser') {
         // The upgrade: same user id, so the groups stay put (ADR-006).
         const { error } = await supabase.auth.updateUser({ ...credential, password });
-        if (error) throw new BaakiApiError(error.message);
+        if (error) throw new WavesApiError(error.message);
         return;
       }
 
@@ -217,12 +217,12 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
         action.call === 'signUp'
           ? await supabase.auth.signUp({ ...credential, password })
           : await supabase.auth.signInWithPassword({ ...credential, password });
-      if (error) throw new BaakiApiError(error.message);
+      if (error) throw new WavesApiError(error.message);
     },
 
     async signOut(): Promise<void> {
       const { error } = await supabase.auth.signOut();
-      if (error) throw new BaakiApiError(error.message);
+      if (error) throw new WavesApiError(error.message);
     },
 
     async session(): Promise<Session | null> {
@@ -333,11 +333,11 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
      * RPC so the table itself never takes a client write.
      */
     deleteExpense(expenseId: string): Promise<void> {
-      return rpc('baaki_delete_expense', { p_expense_id: expenseId }).then(() => undefined);
+      return rpc('waves_delete_expense', { p_expense_id: expenseId }).then(() => undefined);
     },
 
     restoreExpense(expenseId: string): Promise<void> {
-      return rpc('baaki_restore_expense', { p_expense_id: expenseId }).then(() => undefined);
+      return rpc('waves_restore_expense', { p_expense_id: expenseId }).then(() => undefined);
     },
 
     // ─────────────────────────────────────── disputes (ADR-004) ──
@@ -359,7 +359,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
 
     async disputeExpense(input: { expenseId: string; reason?: string | null }): Promise<string> {
       return String(
-        await rpc('baaki_dispute_expense', {
+        await rpc('waves_dispute_expense', {
           p_expense_id: input.expenseId,
           p_reason: input.reason?.trim() || null,
         }),
@@ -367,7 +367,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     },
 
     withdrawDispute(expenseId: string): Promise<void> {
-      return rpc('baaki_withdraw_dispute', { p_expense_id: expenseId }).then(() => undefined);
+      return rpc('waves_withdraw_dispute', { p_expense_id: expenseId }).then(() => undefined);
     },
 
     /** Admin only (server-checked): accept means the expense needs fixing. */
@@ -376,7 +376,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       accept: boolean;
       note?: string | null;
     }): Promise<void> {
-      return rpc('baaki_resolve_dispute', {
+      return rpc('waves_resolve_dispute', {
         p_dispute_id: input.disputeId,
         p_accept: input.accept,
         p_note: input.note?.trim() || null,
@@ -470,7 +470,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
 
     /** Every person you are not square with, across every group, per currency. */
     peopleBalances(): Promise<PersonBalanceRow[]> {
-      return read<PersonBalanceRow>(supabase.rpc('baaki_people_i_owe'));
+      return read<PersonBalanceRow>(supabase.rpc('waves_people_i_owe'));
     },
 
     // ─────────────────────────────────────────────── settling up (ADR-007) ──
@@ -505,7 +505,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
       clientMutationId: string;
     }): Promise<string> {
       return String(
-        await rpc('baaki_record_settlement', {
+        await rpc('waves_record_settlement', {
           p_group_id: input.groupId,
           p_from_member_id: input.fromMemberId,
           p_to_member_id: input.toMemberId,
@@ -525,14 +525,14 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
 
     /** "Yes, that reached me." Only the payee may confirm (server-checked). */
     confirmSettlement(settlementId: string): Promise<void> {
-      return rpc('baaki_confirm_settlement', { p_settlement_id: settlementId }).then(
+      return rpc('waves_confirm_settlement', { p_settlement_id: settlementId }).then(
         () => undefined,
       );
     },
 
     /** A gentle poke to someone who owes you in a currency (ADR-010 prefs apply). */
     nudgeToSettle(input: { groupId: string; toMemberId: string; currency: string }): Promise<void> {
-      return rpc('baaki_nudge_to_settle', {
+      return rpc('waves_nudge_to_settle', {
         p_group_id: input.groupId,
         p_to_member_id: input.toMemberId,
         p_currency: input.currency,
@@ -540,7 +540,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
     },
 
     // ─────────────────────────────────────────────────────── the inbox ──
-    // Everything Baaki has told this person, kept whether or not a push ever
+    // Everything Waves has told this person, kept whether or not a push ever
     // landed. No profile filter: `notifications_select_own` decides whose inbox
     // this is, and a second, weaker check here would only invite disagreement.
 
@@ -556,7 +556,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
 
     async markNotificationsRead(ids: string[]): Promise<number> {
       if (ids.length === 0) return 0;
-      return Number(await rpc('baaki_mark_notifications_read', { p_ids: ids }));
+      return Number(await rpc('waves_mark_notifications_read', { p_ids: ids }));
     },
 
     /**
@@ -603,7 +603,7 @@ export function createBaakiClient({ supabase }: BaakiClientOptions) {
   };
 }
 
-export type BaakiClient = ReturnType<typeof createBaakiClient>;
+export type WavesClient = ReturnType<typeof createWavesClient>;
 
 export interface WriteExpenseInput {
   groupId: string;
@@ -651,15 +651,15 @@ export interface WriteExpenseResult {
  * non-2xx status code" is the difference between a person knowing what to do
  * and filing a bug.
  */
-async function describeFunctionError(error: unknown): Promise<BaakiApiError> {
+async function describeFunctionError(error: unknown): Promise<WavesApiError> {
   const context = (error as { context?: Response }).context;
   if (context && typeof context.json === 'function') {
     try {
       const body = (await context.json()) as { code?: string; message?: string };
-      if (body?.message) return new BaakiApiError(body.message, body.code);
+      if (body?.message) return new WavesApiError(body.message, body.code);
     } catch {
       /* not JSON; fall through */
     }
   }
-  return new BaakiApiError(error instanceof Error ? error.message : String(error));
+  return new WavesApiError(error instanceof Error ? error.message : String(error));
 }

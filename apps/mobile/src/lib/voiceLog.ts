@@ -73,7 +73,7 @@ export async function logVoiceAttempt(entry: VoiceAttempt): Promise<void> {
     // The caller is resolved from the JWT inside the RPC — no id is sent from
     // here. `item_count` is always 0 for what we store, but it is passed
     // explicitly so the column reflects what the client actually saw.
-    await backend.rpc('baaki_log_voice_attempt', {
+    await backend.rpc('waves_log_voice_attempt', {
       p_transcript: transcript,
       p_locale: entry.locale,
       p_used_model: entry.usedModel,

@@ -1,7 +1,7 @@
 /**
  * Where the money went — computed on the device from the mirrored ledger.
  *
- * This is the local-first twin of the `baaki_group_spending` RPC (M5, TDR §8):
+ * This is the local-first twin of the `waves_group_spending` RPC (M5, TDR §8):
  * the same per-member, per-currency, per-category, per-month share totals, but
  * derived from the SQLite mirror the group screen already holds instead of a
  * network round-trip (ADR-005). Insights is a read of expenses the phone

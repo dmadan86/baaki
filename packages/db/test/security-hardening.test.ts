@@ -77,7 +77,7 @@ beforeAll(async () => {
   // Person 1 paid 20000, split evenly. Person 2 owes 10000 — the debt every
   // attack below is trying to make disappear.
   const applied = await client.query(
-    `SELECT baaki_apply_expense($1, NULL, $2, 'Dinner', NULL, current_date, 'INR', 20000,
+    `SELECT waves_apply_expense($1, NULL, $2, 'Dinner', NULL, current_date, 'INR', 20000,
        'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5) AS out`,
     [
       groupId,
@@ -148,7 +148,7 @@ describe('a member cannot pay a debt by saying they did', () => {
   });
 
   it('refuses confirming a settlement by updating the row', async () => {
-    // The same hole by another route: `baaki_confirm_settlement` refuses
+    // The same hole by another route: `waves_confirm_settlement` refuses
     // anybody but the payee, and a direct UPDATE went around it.
     await asClient(scene.profiles[1] as string, async () => {
       const message = await expectDenied(
@@ -163,13 +163,13 @@ describe('a member cannot pay a debt by saying they did', () => {
   it('still lets the two RPCs do their jobs', async () => {
     await asClient(scene.profiles[1] as string, async () => {
       const recorded = await client.query(
-        `SELECT baaki_record_settlement($1, $2, $3, 4000, 'upi', 'INR', NULL, NULL, $4) AS id`,
+        `SELECT waves_record_settlement($1, $2, $3, 4000, 'upi', 'INR', NULL, NULL, $4) AS id`,
         [scene.groupId, scene.members[1], scene.members[0], randomUUID()],
       );
       expect(recorded.rows[0].id).toBeTruthy();
     });
     await asClient(scene.profiles[0] as string, async () => {
-      await client.query(`SELECT baaki_confirm_settlement($1)`, [scene.settlementId]);
+      await client.query(`SELECT waves_confirm_settlement($1)`, [scene.settlementId]);
       const { rows } = await client.query(`SELECT status FROM settlements WHERE id = $1`, [
         scene.settlementId,
       ]);
@@ -179,16 +179,16 @@ describe('a member cannot pay a debt by saying they did', () => {
 });
 
 describe('the expense write RPC is not client-callable', () => {
-  // Hardened after the audit: `baaki_apply_expense` is revoked from anon and
+  // Hardened after the audit: `waves_apply_expense` is revoked from anon and
   // authenticated, so no client role reaches the function body at all — the
   // Deno edge functions (sync / expense-write) recompute the shares and call it
   // as the service role, and they are the only door. This closes the anon
-  // fail-open in `baaki_assert_expense_caller` and the forged-share hole (which
+  // fail-open in `waves_assert_expense_caller` and the forged-share hole (which
   // only the SUM was ever checked against) in one move. Every client below is
   // refused at the grant, before a row is touched.
   const write = (groupId: string, authorMemberId: string, payerMemberId: string) =>
     client.query(
-      `SELECT baaki_apply_expense($1, NULL, $2, 'Injected', NULL, current_date, 'INR', 60000,
+      `SELECT waves_apply_expense($1, NULL, $2, 'Injected', NULL, current_date, 'INR', 60000,
          'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`,
       [
         groupId,
@@ -267,7 +267,7 @@ describe('nobody writes history in somebody else’s name', () => {
     await asClient(scene.profiles[1] as string, async () => {
       const message = await expectDenied(
         client.query(
-          `SELECT baaki_apply_expense($1, NULL, $2, 'Not mine', NULL, current_date, 'INR', 6000,
+          `SELECT waves_apply_expense($1, NULL, $2, 'Not mine', NULL, current_date, 'INR', 6000,
              'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`,
           [
             scene.groupId,
@@ -380,7 +380,7 @@ describe('the parts of the database that are nobody’s business', () => {
   it('refuses to recompute a stranger’s balances on demand', async () => {
     await asClient(scene.outsider, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_refresh_group_balances($1)`, [scene.groupId]),
+        client.query(`SELECT waves_refresh_group_balances($1)`, [scene.groupId]),
       );
       expect(message).toMatch(/permission denied/i);
     });
@@ -433,7 +433,7 @@ describe('the parts of the database that are nobody’s business', () => {
    * TRIGGER is not. `CREATE TRIGGER` needs the privilege on the table and
    * EXECUTE on the function and nothing else — no CREATE on the schema, which
    * these roles do not have anyway. So a member cannot write a trigger
-   * function, but can attach one of Baaki's: hang the balance-maintenance
+   * function, but can attach one of Waves's: hang the balance-maintenance
    * trigger on `expense_shares` a second time and every share counts twice.
    */
   it('lets no client attach a trigger or a foreign key to any table', async () => {
@@ -466,22 +466,22 @@ describe('the parts of the database that are nobody’s business', () => {
     // `ALTER DEFAULT PRIVILEGES` is what stops this being rediscovered by the
     // next audit instead of prevented by this one. It applies to objects
     // created by the role that set it, which is the role Prisma migrates as.
-    await client.query('CREATE TABLE public.baaki_default_privilege_probe (id int)');
+    await client.query('CREATE TABLE public.waves_default_privilege_probe (id int)');
     try {
       const { rows } = await client.query(
-        `SELECT has_table_privilege('authenticated', 'public.baaki_default_privilege_probe', 'TRIGGER') AS t,
-                has_table_privilege('authenticated', 'public.baaki_default_privilege_probe', 'REFERENCES') AS r`,
+        `SELECT has_table_privilege('authenticated', 'public.waves_default_privilege_probe', 'TRIGGER') AS t,
+                has_table_privilege('authenticated', 'public.waves_default_privilege_probe', 'REFERENCES') AS r`,
       );
       expect(rows[0].t, 'TRIGGER on a new table').toBe(false);
       expect(rows[0].r, 'REFERENCES on a new table').toBe(false);
     } finally {
-      await client.query('DROP TABLE public.baaki_default_privilege_probe');
+      await client.query('DROP TABLE public.waves_default_privilege_probe');
     }
   });
 
   it('gives a JWT claim naming a group no power at all', async () => {
     // `is_group_member` used to accept any group id in
-    // `app_metadata.baaki_groups`. Nothing ever wrote that claim, and it had
+    // `app_metadata.waves_groups`. Nothing ever wrote that claim, and it had
     // no expiry and no way to revoke. Membership is a row.
     await client.query('BEGIN');
     try {
@@ -489,7 +489,7 @@ describe('the parts of the database that are nobody’s business', () => {
         JSON.stringify({
           sub: scene.outsider,
           role: 'authenticated',
-          app_metadata: { baaki_groups: [scene.groupId] },
+          app_metadata: { waves_groups: [scene.groupId] },
         }),
       ]);
       await client.query('SET LOCAL ROLE authenticated');

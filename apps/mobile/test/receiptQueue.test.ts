@@ -253,7 +253,7 @@ describe('resuming an interrupted upload', () => {
     const result = await fresh.flushReceiptQueue();
 
     expect(world.put).toHaveBeenCalledTimes(1);
-    expect(world.rpc).toHaveBeenCalledWith('baaki_attach_expense_attachment', {
+    expect(world.rpc).toHaveBeenCalledWith('waves_attach_expense_attachment', {
       p_expense_id: 'e1',
       p_storage_path: 'e1/a1.jpg',
       p_visibility: 'group',

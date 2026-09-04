@@ -53,7 +53,7 @@ async function asMe<T>(run: () => Promise<T>, profileId = group.profileIds[0]): 
 
 async function plan(profileId = group.profileIds[0]): Promise<Record<string, unknown>> {
   return asMe(async () => {
-    const { rows } = await client.query(`SELECT baaki_my_plan() AS plan`);
+    const { rows } = await client.query(`SELECT waves_my_plan() AS plan`);
     return rows[0].plan as Record<string, unknown>;
   }, profileId);
 }
@@ -171,7 +171,7 @@ describe('a pass bought for the whole group', () => {
 
   async function groupPlan(profileId: string): Promise<Record<string, unknown>> {
     return asMe(async () => {
-      const { rows } = await client.query(`SELECT baaki_group_plan($1) AS plan`, [group.groupId]);
+      const { rows } = await client.query(`SELECT waves_group_plan($1) AS plan`, [group.groupId]);
       return rows[0].plan as Record<string, unknown>;
     }, profileId);
   }
@@ -194,7 +194,7 @@ describe('a pass bought for the whole group', () => {
       [other.groupId, group.profileIds[1]],
     );
     const result = await asMe(async () => {
-      const { rows } = await client.query(`SELECT baaki_group_plan($1) AS plan`, [other.groupId]);
+      const { rows } = await client.query(`SELECT waves_group_plan($1) AS plan`, [other.groupId]);
       return rows[0].plan as Record<string, unknown>;
     }, group.profileIds[1]);
     expect(result.tier).toBe('free');
@@ -213,7 +213,7 @@ describe('a pass bought for the whole group', () => {
     );
     await asMe(async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_group_plan($1)`, [group.groupId]),
+        client.query(`SELECT waves_group_plan($1)`, [group.groupId]),
       );
       expect(message).toMatch(/NOT_A_MEMBER/);
     }, outsider);
@@ -225,7 +225,7 @@ describe('the scan quota reads the plan', () => {
     // The number used to be hardcoded twice — once here and once in
     // `receipt-parse` — which is two places to forget.
     const free = await asMe(async () => {
-      const { rows } = await client.query(`SELECT baaki_receipt_scan_quota() AS q`);
+      const { rows } = await client.query(`SELECT waves_receipt_scan_quota() AS q`);
       return rows[0].q as Record<string, unknown>;
     });
     expect(free.limit).toBe(20);
@@ -233,7 +233,7 @@ describe('the scan quota reads the plan', () => {
 
     await grant({ period: 'yearly' });
     const paid = await asMe(async () => {
-      const { rows } = await client.query(`SELECT baaki_receipt_scan_quota() AS q`);
+      const { rows } = await client.query(`SELECT waves_receipt_scan_quota() AS q`);
       return rows[0].q as Record<string, unknown>;
     });
     expect(paid.limit).toBe(300);

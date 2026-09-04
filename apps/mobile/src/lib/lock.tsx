@@ -13,9 +13,10 @@ import { useFocusEffect } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
 import { plural, type UiStrings } from '@/i18n';
+import { legacyKeysMigrated } from '@/lib/legacyKeys';
 
-const KEY = 'baaki.app_lock_enabled';
-const GRACE_KEY = 'baaki.app_lock_grace_seconds';
+const KEY = 'waves.app_lock_enabled';
+const GRACE_KEY = 'waves.app_lock_grace_seconds';
 
 /**
  * How long the app may stay open after being backgrounded before it asks again.
@@ -77,6 +78,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
     void (async () => {
       // SecureStore has no web implementation; the lock is a native feature.
       const hasHardware = Platform.OS !== 'web' && (await LocalAuthentication.hasHardwareAsync());
+      await legacyKeysMigrated;
       const stored = Platform.OS === 'web' ? null : await SecureStore.getItemAsync(KEY);
       const storedGrace = Platform.OS === 'web' ? null : await SecureStore.getItemAsync(GRACE_KEY);
       if (!active) return;
@@ -118,7 +120,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(async () => {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock Baaki',
+      promptMessage: 'Unlock Waves',
       fallbackLabel: 'Use passcode',
     });
     if (result.success) setLocked(false);

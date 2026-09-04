@@ -1,7 +1,7 @@
 /**
  * How money actually moves, per country.
  *
- * Baaki was built UPI-first, and `settle.tsx` said so: `'upi' | 'cash' |
+ * Waves was built UPI-first, and `settle.tsx` said so: `'upi' | 'cash' |
  * 'bank'`, a union of three, one of which does not exist outside India. That is
  * fine for one market and a rewrite for every other one, so the rails are data
  * here instead — a list keyed by country, which makes Brazil a new entry rather
@@ -10,7 +10,7 @@
  * **A rail links only where somebody has published a link.**
  *
  * `upi://pay` is a published Android intent that every Indian bank app
- * implements, and it is the reason settling in Baaki takes one tap. The danger
+ * implements, and it is the reason settling in Waves takes one tap. The danger
  * with a custom scheme is that it fails *silently* when nothing is installed to
  * answer it — a tap that appears to work while no money moves — so `'app'`
  * links are checked with `canOpenURL` before they are offered.
@@ -211,7 +211,7 @@ export const PAYMENT_RAILS: readonly PaymentRail[] = [
     id: RailId.Paypal,
     label: 'PayPal',
     icon: 'globe-outline',
-    // PayPal.me works in every market Baaki is going to, and is the one link
+    // PayPal.me works in every market Waves is going to, and is the one link
     // somebody in the US, Canada or Australia can send to somebody in India.
     countries: 'any',
     handle: HandleKind.Tag,

@@ -4,7 +4,7 @@
  * One operator, one password, a signed cookie. Deliberately not Supabase Auth:
  * this console must keep working when the thing it is watching is broken, and
  * an admin login that depends on the app's own auth is one that goes down with
- * it. It is also a different trust boundary — a Baaki account is something
+ * it. It is also a different trust boundary — a Waves account is something
  * anonymous guests get for free (ADR-006), and no amount of allowlisting makes
  * "signed in to the app" mean "may read the whole business".
  *
@@ -17,7 +17,7 @@
  * say to put it behind network restriction too rather than only behind this.
  */
 
-const COOKIE = 'baaki_admin';
+const COOKIE = 'waves_admin';
 
 /** Eight hours. Long enough for a working day, short enough to not be a key. */
 const TTL_SECONDS = 8 * 60 * 60;
@@ -107,7 +107,7 @@ export const SESSION_COOKIE = COOKIE;
 /**
  * The second door: proof the request arrived through the trusted proxy.
  *
- * The custom domain (`baaki.dmadan.com`) is on Vercel Hobby, whose Deployment
+ * The custom domain (`waves.dmadan.com`) is on Vercel Hobby, whose Deployment
  * Protection does not cover custom domains, and the `*.vercel.app` origin stays
  * reachable directly — so a valid session cookie alone does not prove a request
  * came through Cloudflare Access. Cloudflare injects a shared secret header (a

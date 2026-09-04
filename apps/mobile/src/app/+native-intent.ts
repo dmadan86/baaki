@@ -2,8 +2,8 @@
  * Rewrite incoming native deep links before expo-router tries to match them.
  *
  * The one link that needs rewriting is the OAuth callback. Google and Apple
- * sign-in redirect to `baaki://auth?code=…` — see
- * `makeRedirectUri({ scheme: 'baaki', path: 'auth' })` in `lib/auth.tsx`. The
+ * sign-in redirect to `waves://auth?code=…` — see
+ * `makeRedirectUri({ scheme: 'waves', path: 'auth' })` in `lib/auth.tsx`. The
  * code exchange is already done in-process: `WebBrowser.openAuthSessionAsync`
  * hands that URL straight back to the caller, which calls
  * `exchangeCodeForSession` (a one-time code; a second delivery is worthless). So
@@ -18,14 +18,14 @@
  * launch down with it, so anything unexpected passes straight through.
  *
  * @param path the incoming link. Named `path` but it is the full URL (e.g.
- *   `baaki://auth#…`), not just the path portion.
+ *   `waves://auth#…`), not just the path portion.
  */
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     // A base is required for the custom-scheme URL to parse. `waves://auth`
     // lands `auth` in the hostname; a `waves:///auth` triple-slash form lands it
     // in the pathname instead — cover both. The base only matters when `path`
-    // arrives schemeless; a full `waves://` or `baaki://` URL parses on its own.
+    // arrives schemeless; a full `waves://` URL parses on its own.
     const url = new URL(path, 'waves://app');
     const firstSegment = url.pathname.replace(/^\/+/, '').split('/')[0];
     if (url.hostname === 'auth' || firstSegment === 'auth') {

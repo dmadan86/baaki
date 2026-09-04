@@ -1,5 +1,5 @@
 /**
- * How long a guest may stay a guest, and how much they may do before Baaki
+ * How long a guest may stay a guest, and how much they may do before Waves
  * asks them to keep the account (ADR-006 addendum).
  *
  * ADR-006 lets anybody start with no account and upgrade in place, and that is
@@ -12,7 +12,7 @@
  * wiping.
  *
  * Pure, and shared three ways: the mobile app disables the buttons with it, the
- * `sync` edge function refuses the writes with it, and the `baaki_create_group`
+ * `sync` edge function refuses the writes with it, and the `waves_create_group`
  * function mirrors the same two numbers in SQL. They agree to the day because
  * two of the three import this file and the third quotes it.
  */

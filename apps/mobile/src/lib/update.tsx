@@ -41,9 +41,10 @@ import { AppState, Linking, Platform } from 'react-native';
 import { decideUpdate, UpdateDecision } from '@waves/core';
 
 import { fetchReleasePolicy } from '@/data/api';
+import { legacyKeysMigrated } from '@/lib/legacyKeys';
 
-const POLICY_KEY = 'baaki.release_policy';
-const DISMISSED_KEY = 'baaki.update_dismissed';
+const POLICY_KEY = 'waves.release_policy';
+const DISMISSED_KEY = 'waves.update_dismissed';
 
 interface CachedPolicy {
   latestVersion: string;
@@ -139,6 +140,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     void (async () => {
       // Cache first so a blocked build stays blocked without a round trip,
       // then the network answer replaces it.
+      await legacyKeysMigrated;
       const raw = await AsyncStorage.getItem(POLICY_KEY).catch(() => null);
       const dismissed = await AsyncStorage.getItem(DISMISSED_KEY).catch(() => null);
       if (!active) return;

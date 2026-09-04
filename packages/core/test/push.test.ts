@@ -26,7 +26,7 @@ const NOTIFICATION: PushableNotification = {
   kind: 'trip_nudge_evening',
   title: 'Before you forget',
   body: 'What did you pay for today?',
-  deepLink: 'baaki://group/g1/add-expense',
+  deepLink: 'waves://group/g1/add-expense',
   facts: { group: 'Goa' },
   locale: 'en-IN',
   tokens: ['ExponentPushToken[phone]'],
@@ -54,7 +54,7 @@ describe('building the batch', () => {
     const [message] = buildPushBatch([NOTIFICATION]).messages;
     expect(message?.data).toMatchObject({
       notificationId: 'n1',
-      url: 'baaki://group/g1/add-expense',
+      url: 'waves://group/g1/add-expense',
     });
   });
 

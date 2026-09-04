@@ -4,7 +4,7 @@
  * Where Google sends the browser back.
  *
  * The client is configured not to read the URL on its own
- * (`detectSessionInUrl: false` in lib/baaki.ts) so this is the one place a
+ * (`detectSessionInUrl: false` in lib/waves.ts) so this is the one place a
  * code is exchanged for a session — deliberately explicit, so an invite link
  * carrying its own token is never mistaken for a login. Once the session is
  * written, `onAuthChange` in the AuthProvider re-renders the app and we send
@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { supabase } from '@/lib/baaki';
+import { supabase } from '@/lib/waves';
 import { useStrings } from '@/i18n-context';
 
 export default function AuthCallback() {

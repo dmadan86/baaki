@@ -38,7 +38,7 @@ import {
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { money } from '@/lib/money';
 import { useStrings } from '@/i18n-context';
 
@@ -69,7 +69,7 @@ function Settle({ profileId }: { profileId: string }) {
     let active = true;
     void (async () => {
       try {
-        const [g, m] = await Promise.all([baaki.myGroups(), baaki.membersByGroup()]);
+        const [g, m] = await Promise.all([waves.myGroups(), waves.membersByGroup()]);
         if (!active) return;
         setGroups(g);
         setMembersByGroup(m);
@@ -174,7 +174,7 @@ function GroupSettle({
     let active = true;
     void (async () => {
       try {
-        const [e, s] = await Promise.all([baaki.expenses(group.id), baaki.settlements(group.id)]);
+        const [e, s] = await Promise.all([waves.expenses(group.id), waves.settlements(group.id)]);
         if (!active) return;
         setExpenses(e);
         setSettlements(s);
@@ -224,7 +224,7 @@ function GroupSettle({
   // Refetch in place and wait for it, so callers that `await refresh()` only
   // clear their busy state once the new figures are on screen.
   async function refresh() {
-    const [e, s] = await Promise.all([baaki.expenses(group.id), baaki.settlements(group.id)]);
+    const [e, s] = await Promise.all([waves.expenses(group.id), waves.settlements(group.id)]);
     setExpenses(e);
     setSettlements(s);
   }
@@ -233,7 +233,7 @@ function GroupSettle({
     setBusy(settlementId);
     setError(null);
     try {
-      await baaki.confirmSettlement(settlementId);
+      await waves.confirmSettlement(settlementId);
       await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -246,7 +246,7 @@ function GroupSettle({
     setBusy(toMemberId);
     setError(null);
     try {
-      await baaki.nudgeToSettle({ groupId: group.id, toMemberId, currency });
+      await waves.nudgeToSettle({ groupId: group.id, toMemberId, currency });
       setNudged((prev) => new Set(prev).add(toMemberId));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -439,7 +439,7 @@ function SettleForm({
     setSaving(true);
     setError(null);
     try {
-      await baaki.recordSettlement({
+      await waves.recordSettlement({
         groupId: group.id,
         fromMemberId,
         toMemberId: payee.id,

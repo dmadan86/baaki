@@ -36,7 +36,7 @@ async function hit(
   limit = 3,
   windowSeconds = 60,
 ): Promise<Decision> {
-  const result = await client.query(`SELECT public.baaki_rate_limit($1, $2, $3, $4) AS decision`, [
+  const result = await client.query(`SELECT public.waves_rate_limit($1, $2, $3, $4) AS decision`, [
     subjectId,
     bucket,
     limit,
@@ -86,7 +86,7 @@ afterAll(async () => {
   await client.end();
 });
 
-describe('baaki_rate_limit', () => {
+describe('waves_rate_limit', () => {
   it('allows up to the limit and refuses the one after', async () => {
     const { first, second, third, fourth } = await inOneWindow(
       async () => {
@@ -209,7 +209,7 @@ describe('baaki_rate_limit', () => {
           return await Promise.all(
             clients.map(async (each) => {
               const result = await each.query(
-                `SELECT public.baaki_rate_limit($1, 'concurrent', 5, 60) AS decision`,
+                `SELECT public.waves_rate_limit($1, 'concurrent', 5, 60) AS decision`,
                 [who],
               );
               return result.rows[0].decision as Decision;
@@ -244,7 +244,7 @@ describe('baaki_rate_limit', () => {
     // The dangerous failure here is silent: an empty subject would put every
     // caller in the world in one bucket and lock the app out for everybody.
     const message = await expectDenied(
-      client.query(`SELECT public.baaki_rate_limit('', 'unit-test', 5, 60)`),
+      client.query(`SELECT public.waves_rate_limit('', 'unit-test', 5, 60)`),
     );
     expect(message).toMatch(/needs a subject and a bucket/);
   });
@@ -330,7 +330,7 @@ describe('who may reach the limiter', () => {
     for (const role of ['anon', 'authenticated'] as const) {
       await asRole(client, role, { sub: randomUUID(), role }, async () => {
         const denied = await expectDenied(
-          client.query(`SELECT public.baaki_rate_limit($1, 'unit-test', 5, 60)`, [subject()]),
+          client.query(`SELECT public.waves_rate_limit($1, 'unit-test', 5, 60)`, [subject()]),
         );
         expect(denied).toMatch(/permission denied/i);
       });
@@ -341,7 +341,7 @@ describe('who may reach the limiter', () => {
     const who = subject();
     await asRole(client, 'service_role', { role: 'service_role' }, async () => {
       const result = await client.query(
-        `SELECT public.baaki_rate_limit($1, 'unit-test', 5, 60) AS decision`,
+        `SELECT public.waves_rate_limit($1, 'unit-test', 5, 60) AS decision`,
         [who],
       );
       expect((result.rows[0].decision as Decision).allowed).toBe(true);
@@ -349,7 +349,7 @@ describe('who may reach the limiter', () => {
   });
 });
 
-describe('baaki_sweep_rate_limits', () => {
+describe('waves_sweep_rate_limits', () => {
   it('deletes windows older than a day and leaves the current one alone', async () => {
     const stale = subject();
     const fresh = subject();
@@ -361,7 +361,7 @@ describe('baaki_sweep_rate_limits', () => {
     );
     await hit(fresh, 'sweep');
 
-    await client.query(`SELECT public.baaki_sweep_rate_limits()`);
+    await client.query(`SELECT public.waves_sweep_rate_limits()`);
 
     const staleRows = await client.query(
       `SELECT 1 FROM public.rate_limit_hits WHERE subject = $1`,

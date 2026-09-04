@@ -1,7 +1,7 @@
 /**
  * A trip, day by day: what was planned, and what it actually cost.
  *
- * The reason this is worth building inside Baaki rather than reaching for an
+ * The reason this is worth building inside Waves rather than reaching for an
  * itinerary app is the second half of that sentence. Anything can hold a list
  * of days with "Dudhsagar falls" on one of them. Only the app that already has
  * the ledger can say the falls were budgeted at ₹2,000 and came to ₹3,150, and

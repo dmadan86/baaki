@@ -28,7 +28,7 @@ export async function GET(_request: Request, context: { params: Promise<{ report
   return new Response(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="baaki-${report}-${today()}.csv"`,
+      'Content-Disposition': `attachment; filename="waves-${report}-${today()}.csv"`,
       'Cache-Control': 'no-store',
     },
   });

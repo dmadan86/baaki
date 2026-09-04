@@ -41,11 +41,11 @@ afterAll(async () => {
  * a signed-out caller is always false.
  */
 const POLICY_HELPERS = [
-  'baaki_is_expense_party',
-  'baaki_is_settlement_party',
-  'baaki_my_member_id',
-  'baaki_version_group_id',
   'is_group_member',
+  'waves_is_expense_party',
+  'waves_is_settlement_party',
+  'waves_my_member_id',
+  'waves_version_group_id',
 ];
 
 /**

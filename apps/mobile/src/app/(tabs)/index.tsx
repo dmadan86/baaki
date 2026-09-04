@@ -560,7 +560,7 @@ export default function HomeScreen() {
       ) : null}
 
       {/* The daily tip, surfaced as a sheet on the first Home open of the day —
-          one useful, Baaki-specific move at a time, then out of the way until
+          one useful, Waves-specific move at a time, then out of the way until
           tomorrow. Replaces the inline card so a hint asks for a beat of
           attention rather than sitting as furniture nobody reads. */}
       <TipSheet t={t} />

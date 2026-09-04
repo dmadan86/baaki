@@ -7,7 +7,7 @@
  * dumb: claim, render, send, record. Everything that could be got wrong lives
  * somewhere it can be tested without a phone —
  *
- *   * claiming and closing out: `baaki_claim_push_notifications`, which is an
+ *   * claiming and closing out: `waves_claim_push_notifications`, which is an
  *     UPDATE rather than a SELECT so two overlapping runs cannot both send the
  *     same reminder;
  *   * building the messages and reading the tickets: `@waves/core`, including
@@ -107,7 +107,7 @@ export async function handlePushFanout(
 
     const service = deps.asService();
 
-    const { data, error } = await service.rpc('baaki_claim_push_notifications', { p_limit: 200 });
+    const { data, error } = await service.rpc('waves_claim_push_notifications', { p_limit: 200 });
     if (error) throw new HttpError(500, 'CLAIM_FAILED', error.message);
 
     const rows = (data ?? []) as ClaimedRow[];
@@ -184,7 +184,7 @@ export async function handlePushFanout(
       console.warn('push problems:', JSON.stringify(summary));
     }
 
-    const { error: finishError } = await service.rpc('baaki_finish_push', {
+    const { error: finishError } = await service.rpc('waves_finish_push', {
       p_delivered: delivered,
       p_failed: failed,
       p_revoke: revoke,
@@ -228,7 +228,7 @@ export async function dispatchEmail(service: SupabaseClient): Promise<EmailSumma
       return sendable.reason ? { ...empty, error: sendable.reason } : empty;
     }
 
-    const { data, error } = await service.rpc('baaki_claim_email_notifications', {
+    const { data, error } = await service.rpc('waves_claim_email_notifications', {
       p_limit: EMAIL_BATCH,
     });
     if (error) return { ...empty, error: error.message };
@@ -255,7 +255,7 @@ export async function dispatchEmail(service: SupabaseClient): Promise<EmailSumma
       results.push(await sendEmail(built));
     }
 
-    const { error: finishError } = await service.rpc('baaki_finish_email', { p_results: results });
+    const { error: finishError } = await service.rpc('waves_finish_email', { p_results: results });
     if (finishError) console.error('could not record email results:', finishError.message);
 
     const count = (status: EmailResult['status']): number =>

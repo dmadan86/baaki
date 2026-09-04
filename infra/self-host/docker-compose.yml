@@ -107,7 +107,7 @@ services:
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
 
       GOTRUE_SITE_URL: ${SITE_URL:-waves://}
-      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-waves://,waves://auth,baaki://,baaki://auth,http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-waves://,waves://auth,waves://,waves://auth,http://localhost:3000}
       GOTRUE_DISABLE_SIGNUP: 'false'
 
       GOTRUE_JWT_SECRET: ${JWT_SECRET}

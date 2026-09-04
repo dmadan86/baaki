@@ -5,7 +5,7 @@
  * bar for bringing a group across (TDR §10) is that the *balances* round-trip
  * exactly. This test takes a real 90-plus-row export — a two-week Vietnam trip
  * with five people, three of them member-to-member repayments — parses it,
- * imports it through `baaki_import_ledger`, and checks that:
+ * imports it through `waves_import_ledger`, and checks that:
  *
  *   - the five people become one real member (the importing account) and four
  *     ghosts;
@@ -188,7 +188,7 @@ describe('splitwise import: the real write', () => {
 
   it('derives a balance for each person equal to their CSV net, summing to zero', async () => {
     const truth = await client.query(
-      `SELECT member_id, balance FROM baaki_group_balances_truth($1)`,
+      `SELECT member_id, balance FROM waves_group_balances_truth($1)`,
       [imported.groupId],
     );
     const balanceByMember = new Map<string, bigint>(

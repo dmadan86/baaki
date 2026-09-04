@@ -88,10 +88,10 @@ describe('web local store', () => {
   });
 
   it('treats corrupt or empty JSON as an empty store so the next sync can rebuild it', async () => {
-    await AsyncStorage.setItem('baaki:mirror', '{not-json');
-    await AsyncStorage.setItem('baaki:cursors', '{not-json');
-    await AsyncStorage.setItem('baaki:queue', '{not-json');
-    await AsyncStorage.setItem('baaki:drafts', '{not-json');
+    await AsyncStorage.setItem('waves:mirror', '{not-json');
+    await AsyncStorage.setItem('waves:cursors', '{not-json');
+    await AsyncStorage.setItem('waves:queue', '{not-json');
+    await AsyncStorage.setItem('waves:drafts', '{not-json');
 
     const store = createLocalStore();
 
@@ -101,7 +101,7 @@ describe('web local store', () => {
     expect(await store.readDraft('missing')).toBeNull();
     expect(await store.listDrafts()).toEqual([]);
 
-    await AsyncStorage.setItem('baaki:mirror', '');
+    await AsyncStorage.setItem('waves:mirror', '');
     expect(await store.readRows()).toEqual([]);
   });
 });

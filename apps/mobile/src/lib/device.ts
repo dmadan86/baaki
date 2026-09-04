@@ -19,7 +19,9 @@ import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const KEY = 'baaki.device.id';
+import { legacyKeysMigrated } from './legacyKeys';
+
+const KEY = 'waves.device.id';
 
 export interface DeviceIdentity {
   readonly deviceId: string;
@@ -32,6 +34,7 @@ export interface DeviceIdentity {
 // for an id that is not a secret so much as a stable name.
 async function readStoredId(): Promise<string | null> {
   try {
+    await legacyKeysMigrated;
     return Platform.OS === 'web'
       ? await AsyncStorage.getItem(KEY)
       : await SecureStore.getItemAsync(KEY);

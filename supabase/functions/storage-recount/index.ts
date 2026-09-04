@@ -6,7 +6,7 @@
  * shrinks it; the `storage_objects` ledger still holds the pre-transcode size, so
  * the free-tier cap would over-count until the next re-upload. The worker POSTs
  * `{bucket, path}` here after it rewrites the object; this HEADs the object for
- * its true size and records it (`baaki_storage_recount`).
+ * its true size and records it (`waves_storage_recount`).
  *
  * Like the sweep, this is the service role's business — the gate is the service
  * key, not a user JWT — because it is called machine-to-machine by the worker.
@@ -47,7 +47,7 @@ serveWithCors(async (request) => {
     const contentType = head.headers.get('content-type') ?? 'image/webp';
 
     const service = asService();
-    const { error } = await service.rpc('baaki_storage_recount', {
+    const { error } = await service.rpc('waves_storage_recount', {
       p_logical_bucket: bucket,
       p_path: path,
       p_bytes: size,

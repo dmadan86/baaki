@@ -52,13 +52,13 @@ afterAll(async () => {
   await client?.end();
 });
 
-describe('baaki_create_group', () => {
+describe('waves_create_group', () => {
   it('creates the group and makes the caller its admin, in one operation', async () => {
     const profileId = await createProfile('Asha');
 
     const groupId = await asUser(profileId, async () => {
       const result = await client.query(
-        `SELECT baaki_create_group('Goa trip', 'trip', 'INR', '🏖️', true) AS id`,
+        `SELECT waves_create_group('Goa trip', 'trip', 'INR', '🏖️', true) AS id`,
       );
       return String(result.rows[0]?.id);
     });
@@ -89,7 +89,7 @@ describe('baaki_create_group', () => {
         (async () => {
           await client.query(`SET ROLE authenticated`);
           try {
-            await client.query(`SELECT baaki_create_group('Orphan', 'other', 'INR', NULL, true)`);
+            await client.query(`SELECT waves_create_group('Orphan', 'other', 'INR', NULL, true)`);
           } finally {
             await client.query(`RESET ROLE`);
           }
@@ -105,7 +105,7 @@ describe('baaki_create_group', () => {
     const profileId = await createProfile('Ravi');
     const groupId = await asUser(profileId, async () => {
       const result = await client.query(
-        `SELECT baaki_create_group('   ', 'other', 'INR', NULL, true) AS id`,
+        `SELECT waves_create_group('   ', 'other', 'INR', NULL, true) AS id`,
       );
       return String(result.rows[0]?.id);
     });
@@ -129,12 +129,12 @@ describe('soft delete and restore (ADR-004)', () => {
     expect((await readBalances(client, groupId)).get(b)).toBe(-5000n);
 
     await asUser(profileIds[0] as string, () =>
-      client.query(`SELECT baaki_delete_expense($1)`, [expenseId]),
+      client.query(`SELECT waves_delete_expense($1)`, [expenseId]),
     );
     expect((await readBalances(client, groupId)).size).toBe(0);
 
     await asUser(profileIds[0] as string, () =>
-      client.query(`SELECT baaki_restore_expense($1)`, [expenseId]),
+      client.query(`SELECT waves_restore_expense($1)`, [expenseId]),
     );
     expect((await readBalances(client, groupId)).get(b)).toBe(-5000n);
 
@@ -157,7 +157,7 @@ describe('soft delete and restore (ADR-004)', () => {
 
     expect(
       await expectDenied(
-        asUser(outsider, () => client.query(`SELECT baaki_delete_expense($1)`, [expenseId])),
+        asUser(outsider, () => client.query(`SELECT waves_delete_expense($1)`, [expenseId])),
       ),
     ).toMatch(/NOT_A_MEMBER/);
   });
@@ -176,7 +176,7 @@ describe('settlement recording (ADR-007)', () => {
 
     const settlementId = await asUser(profileIds[1] as string, async () => {
       const result = await client.query(
-        `SELECT baaki_record_settlement($1, $2, $3, 5000, 'cash', NULL, NULL, $4::jsonb, NULL) AS id`,
+        `SELECT waves_record_settlement($1, $2, $3, 5000, 'cash', NULL, NULL, $4::jsonb, NULL) AS id`,
         [groupId, b, a, JSON.stringify([{ expenseId, amount: '5000' }])],
       );
       return String(result.rows[0]?.id);
@@ -195,13 +195,13 @@ describe('settlement recording (ADR-007)', () => {
     expect(
       await expectDenied(
         asUser(profileIds[1] as string, () =>
-          client.query(`SELECT baaki_confirm_settlement($1)`, [settlementId]),
+          client.query(`SELECT waves_confirm_settlement($1)`, [settlementId]),
         ),
       ),
     ).toMatch(/NOT_THE_PAYEE/);
 
     await asUser(profileIds[0] as string, () =>
-      client.query(`SELECT baaki_confirm_settlement($1)`, [settlementId]),
+      client.query(`SELECT waves_confirm_settlement($1)`, [settlementId]),
     );
     expect((await readBalances(client, groupId)).size).toBe(0);
   });
@@ -214,7 +214,7 @@ describe('settlement recording (ADR-007)', () => {
     const record = () =>
       asUser(profileIds[1] as string, async () => {
         const result = await client.query(
-          `SELECT baaki_record_settlement($1, $2, $3, 2500, 'upi', NULL, NULL, '[]'::jsonb, $4) AS id`,
+          `SELECT waves_record_settlement($1, $2, $3, 2500, 'upi', NULL, NULL, '[]'::jsonb, $4) AS id`,
           [groupId, b, a, mutationId],
         );
         return String(result.rows[0]?.id);
@@ -238,7 +238,7 @@ describe('settlement recording (ADR-007)', () => {
       await expectDenied(
         asUser(outsider, () =>
           client.query(
-            `SELECT baaki_record_settlement($1, $2, $3, 100, 'cash', NULL, NULL, '[]'::jsonb, NULL)`,
+            `SELECT waves_record_settlement($1, $2, $3, 100, 'cash', NULL, NULL, '[]'::jsonb, NULL)`,
             [groupId, memberIds[0], memberIds[1]],
           ),
         ),
@@ -247,26 +247,26 @@ describe('settlement recording (ADR-007)', () => {
   });
 });
 
-describe('baaki_my_member_id', () => {
+describe('waves_my_member_id', () => {
   it('resolves my membership and stays null for everyone else', async () => {
     const { groupId, profileIds, memberIds } = await seedGroup(client, { memberCount: 2 });
     const outsider = await createProfile('Stranger');
 
     const mine = await asUser(profileIds[0] as string, async () => {
-      const result = await client.query(`SELECT baaki_my_member_id($1) AS id`, [groupId]);
+      const result = await client.query(`SELECT waves_my_member_id($1) AS id`, [groupId]);
       return result.rows[0]?.id as string | null;
     });
     expect(mine).toBe(memberIds[0]);
 
     const theirs = await asUser(outsider, async () => {
-      const result = await client.query(`SELECT baaki_my_member_id($1) AS id`, [groupId]);
+      const result = await client.query(`SELECT waves_my_member_id($1) AS id`, [groupId]);
       return result.rows[0]?.id as string | null;
     });
     expect(theirs).toBeNull();
   });
 });
 
-describe('baaki_apply_expense (atomic write)', () => {
+describe('waves_apply_expense (atomic write)', () => {
   const applyExpense = async (params: {
     groupId: string;
     author: string;
@@ -277,7 +277,7 @@ describe('baaki_apply_expense (atomic write)', () => {
     mutationId?: string | null;
   }) => {
     const result = await client.query(
-      `SELECT baaki_apply_expense($1, $2, $3, 'Dinner', NULL, '2026-03-01', 'INR', $4,
+      `SELECT waves_apply_expense($1, $2, $3, 'Dinner', NULL, '2026-03-01', 'INR', $4,
                                   'equal', '{"kind":"equal"}'::jsonb, $5::jsonb, $6::jsonb, $7)
          AS out`,
       [
@@ -331,7 +331,7 @@ describe('baaki_apply_expense (atomic write)', () => {
     // snapshot every member renders it from.
     const meta = { label: 'Client dinner', icon: 'briefcase-outline', tint: 'mint' };
     const written = await client.query(
-      `SELECT baaki_apply_expense(
+      `SELECT waves_apply_expense(
          p_group_id => $1, p_expense_id => NULL, p_author_member_id => $2,
          p_description => 'Dinner', p_category => 'tag-uuid', p_expense_date => '2026-03-01',
          p_currency => 'INR', p_amount => $3, p_split_type => 'equal',

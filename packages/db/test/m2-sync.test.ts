@@ -58,7 +58,7 @@ async function applyExpense(params: {
   description?: string;
 }): Promise<ApplyResult> {
   const result = await client.query(
-    `SELECT baaki_apply_expense($1, $2, $3, $8, NULL, '2026-03-01', 'INR', $4,
+    `SELECT waves_apply_expense($1, $2, $3, $8, NULL, '2026-03-01', 'INR', $4,
                                 'equal', '{"kind":"equal"}'::jsonb, $5::jsonb, $6::jsonb, $7,
                                 NULL, NULL, $9)
        AS out`,
@@ -337,7 +337,7 @@ describe('replaying a queue is free (ADR-005)', () => {
     const create = async (): Promise<string> =>
       asUser(profileId, async () => {
         const result = await client.query(
-          `SELECT baaki_create_group('Goa trip', 'trip', 'INR', NULL, true, $1) AS id`,
+          `SELECT waves_create_group('Goa trip', 'trip', 'INR', NULL, true, $1) AS id`,
           [groupId],
         );
         return String(result.rows[0]?.id);
@@ -364,14 +364,14 @@ describe('replaying a queue is free (ADR-005)', () => {
     const groupId = randomUUID();
 
     await asUser(owner, () =>
-      client.query(`SELECT baaki_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
+      client.query(`SELECT waves_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
         groupId,
       ]),
     );
 
     const message = await asUser(stranger, () =>
       expectDenied(
-        client.query(`SELECT baaki_create_group('Mine now', 'trip', 'INR', NULL, true, $1)`, [
+        client.query(`SELECT waves_create_group('Mine now', 'trip', 'INR', NULL, true, $1)`, [
           groupId,
         ]),
       ),
@@ -383,7 +383,7 @@ describe('replaying a queue is free (ADR-005)', () => {
     const profileId = await createProfile('Asha');
     const groupId = randomUUID();
     await asUser(profileId, () =>
-      client.query(`SELECT baaki_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
+      client.query(`SELECT waves_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
         groupId,
       ]),
     );
@@ -391,7 +391,7 @@ describe('replaying a queue is free (ADR-005)', () => {
     const ghostId = randomUUID();
     const add = async (): Promise<string> =>
       asUser(profileId, async () => {
-        const result = await client.query(`SELECT baaki_add_ghost_member($1, 'Priya', $2) AS id`, [
+        const result = await client.query(`SELECT waves_add_ghost_member($1, 'Priya', $2) AS id`, [
           groupId,
           ghostId,
         ]);
@@ -413,13 +413,13 @@ describe('replaying a queue is free (ADR-005)', () => {
     const stranger = await createProfile('Mallory');
     const groupId = randomUUID();
     await asUser(owner, () =>
-      client.query(`SELECT baaki_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
+      client.query(`SELECT waves_create_group('Goa trip', 'trip', 'INR', NULL, true, $1)`, [
         groupId,
       ]),
     );
 
     const message = await asUser(stranger, () =>
-      expectDenied(client.query(`SELECT baaki_add_ghost_member($1, 'Priya', NULL)`, [groupId])),
+      expectDenied(client.query(`SELECT waves_add_ghost_member($1, 'Priya', NULL)`, [groupId])),
     );
     expect(message).toMatch(/NOT_A_MEMBER/);
   });

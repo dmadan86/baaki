@@ -42,7 +42,7 @@ async function assertFx(
   groupCurrency: string,
 ): Promise<string | null> {
   try {
-    await client.query(`SELECT baaki_assert_fx_valid($1::jsonb, $2::char(3), $3::char(3))`, [
+    await client.query(`SELECT waves_assert_fx_valid($1::jsonb, $2::char(3), $3::char(3))`, [
       fx === null ? null : JSON.stringify(fx),
       expenseCurrency,
       groupCurrency,
@@ -125,7 +125,7 @@ describe('the rate on the expense itself', () => {
     ]);
     await client.query(`SET ROLE authenticated`);
     const { rows } = await client.query(
-      `SELECT baaki_create_group('Trip', 'trip', $1, NULL, true, NULL, NULL) AS id`,
+      `SELECT waves_create_group('Trip', 'trip', $1, NULL, true, NULL, NULL) AS id`,
       [groupCurrency],
     );
     const groupId = String(rows[0].id);
@@ -145,13 +145,13 @@ describe('the rate on the expense itself', () => {
     fx: unknown,
   ): Promise<string | null> {
     try {
-      // `baaki_apply_expense` is service-role only; seed on the owner connection
+      // `waves_apply_expense` is service-role only; seed on the owner connection
       // (the trusted path the edge functions use). The JWT claim set by
       // `seedGroup` stays, so the in-function member checks still resolve to the
       // real member — this test is about the fx validation, not authorization.
       await client.query(`RESET ROLE`);
       await client.query(
-        `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
+        `SELECT waves_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
                                     '2026-08-05'::date, $4::char(3), 1000::bigint,
                                     'equal'::text, '{"kind":"equal"}'::jsonb,
                                     $5::jsonb, $6::jsonb, $7::uuid,

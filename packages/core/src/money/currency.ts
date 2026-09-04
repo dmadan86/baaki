@@ -9,7 +9,7 @@ export type CurrencyCode = string;
  * Minor-unit exponents for currencies we expect to see. Anything not listed
  * falls back to 2, which is correct for the overwhelming majority of ISO-4217.
  * Listed explicitly: every currency whose exponent is NOT 2, plus the ones
- * Baaki cares about first (INR and the diaspora corridors).
+ * Waves cares about first (INR and the diaspora corridors).
  */
 const EXPONENTS: Readonly<Record<string, number>> = Object.freeze({
   // exponent 0
