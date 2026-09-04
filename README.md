@@ -514,24 +514,26 @@ here already assumes they have been changed:
 2. **The admin domain.** The console, its CSRF check and its tests all name
    `waves.dmadan.com`. Point that host at the admin Vercel project and put it in
    `ADMIN_ALLOWED_ORIGIN`; the old host stops matching the moment this ships.
-3. **The database.** `packages/db/prisma/migrations/20260904120000_rename_baaki_to_waves`
-   renames all 172 routines and rewrites their bodies in one transaction. It has
-   to land at the same time as the app release that calls `waves_*` — there are
-   no compatibility aliases, by choice, and an older build talking to the
-   migrated database gets "function does not exist" on every write.
+3. **The database is rebuilt, not migrated.** The whole migration history was
+   replaced by one file — `20260904000000_waves_baseline` — that builds the
+   schema already named `waves_*`, and the hosted database is dropped and
+   recreated from it. There is no upgrade path from a database built by the old
+   files and no compatibility aliases, by choice. Everything in the hosted
+   database goes with it: profiles, groups, expenses, settlements, receipts and
+   the storage rows that point at uploaded bytes. That was a deliberate call
+   made while there is no published release to strand.
 
 What deliberately kept its old name: the Firebase project (`baaki-43455`), the
-Vercel projects (`baaki-admin`, `baaki-web`), the local Postgres database and
-its container, and the App Store / Play listing ids. Those are external
-identifiers, and renaming them in source only breaks the thing they point at.
-The `activity_log` rows that record a ledger imported "from baaki" are left
-alone too: the log is append-only (ADR-004), and what it says did happen.
+Vercel projects (`baaki-admin`, `baaki-web`), and the local Postgres database
+and its container. Those are external identifiers, and renaming them in source
+only breaks the thing they point at.
 
-An installed app carries its own state across the rename. The device keys and
-the mirror's SQLite file move on the first launch after the update
-(`lib/legacyKeys.ts`, `sync/legacyDatabase.ts`) — without that, an update would
-silently take out the app lock, the unsent write queue and the device identity
-the two-device cap counts.
+An installed app still carries its own device state across the rename. The
+device keys and the mirror's SQLite file move on the first launch after the
+update (`lib/legacyKeys.ts`, `sync/legacyDatabase.ts`), which keeps the
+language, theme, app lock and device identity rather than resetting them. The
+mirror itself is of a database that no longer holds those rows, so the first
+sync after this is a fresh one either way.
 
 ## Releasing, and stopping old builds
 
