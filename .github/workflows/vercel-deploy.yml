@@ -74,10 +74,25 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: vercel pull --yes --environment=${{ github.event.inputs.target == 'production' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
 
+      # `apps/*` build here and upload the finished output. The marketing site
+      # cannot: it is a Next app in a pnpm workspace, so every dependency is a
+      # symlink into a store at the repository root, and `vercel build` run
+      # inside `website/` packages nothing above that directory. The upload then
+      # fails on a file that exists — just not underneath `website/` —
+      # ("Please ensure project dependencies have been installed"). Building on
+      # Vercel instead installs from `website/package.json`, which has no
+      # workspace dependencies and so resolves on its own.
       - name: Build
+        if: matrix.app != 'website'
         working-directory: ${{ env.APP_DIR }}
         run: vercel build ${{ github.event.inputs.target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy (prebuilt)
+        if: matrix.app != 'website'
         working-directory: ${{ env.APP_DIR }}
         run: vercel deploy --prebuilt ${{ github.event.inputs.target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy (built on Vercel)
+        if: matrix.app == 'website'
+        working-directory: ${{ env.APP_DIR }}
+        run: vercel deploy ${{ github.event.inputs.target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
