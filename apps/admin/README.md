@@ -75,7 +75,7 @@ because most of it is not obvious from the app's own config.
      "The custom domain took that door away" below. **In production, if this is
      unset the proxy refuses every request** (fail-closed), so set it and the
      Cloudflare Transform Rule together.
-   - `ADMIN_ALLOWED_ORIGIN` — optional, e.g. `https://waves.dmadan.com`. Pins
+   - `ADMIN_ALLOWED_ORIGIN` — optional, e.g. `https://admin.wavs.co.in`. Pins
      the origin the CSRF check compares against; leave it unset to derive the
      expected origin from the request `Host`, which is correct for a normal
      single-domain deployment.
@@ -108,14 +108,14 @@ another door_, and a bad one on its own.
 ### The custom domain took that door away
 
 **Current state, and it is not the state above.** The console answers on
-`waves.dmadan.com`, and pointing a custom domain at a Vercel project removes it
+`admin.wavs.co.in`, and pointing a custom domain at a Vercel project removes it
 from Vercel Authentication's scope. Verified rather than assumed:
 
 ```
 waves-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
 waves-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
-waves-admin.vercel.app                   307 → waves.dmadan.com     (open)
-waves.dmadan.com                         307 → /login               (open)
+waves-admin.vercel.app                   307 → admin.wavs.co.in     (open)
+admin.wavs.co.in                         307 → /login               (open)
 ```
 
 The project is on the **Hobby** plan with
@@ -127,17 +127,17 @@ Advanced Deployment Protection add-on at $150/month with a 30-day minimum, and
 Trusted IPs is Enterprise-only.
 
 So the second door has to come from somewhere other than Vercel. `dmadan.com`
-runs on Cloudflare and `waves.dmadan.com` is currently DNS-only, which makes
+runs on Cloudflare and `admin.wavs.co.in` is currently DNS-only, which makes
 **Cloudflare Access** the cheap answer: free to 50 seats, and a real second
 factor by one-time PIN.
 
 Two things that must be true together, or neither is worth doing:
 
-1. `waves.dmadan.com` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
+1. `admin.wavs.co.in` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
    Zero Trust Access application in front of it.
 2. **The `.vercel.app` back door closed.** `waves-admin.vercel.app` still serves
    this console, and a request sent straight to Vercel's IP with
-   `Host: waves.dmadan.com` walks around Cloudflare entirely. Closing it means a
+   `Host: admin.wavs.co.in` walks around Cloudflare entirely. Closing it means a
    secret header injected by a Cloudflare Transform Rule that `src/proxy.ts`
    requires — a host check alone does not do it, because the host is exactly
    what an attacker sets.
@@ -151,9 +151,9 @@ attacker on the open origin could obtain or replay. The compare is constant-time
 Ops steps to make it hold, in Cloudflare's dashboard:
 
 1. **Zero Trust → Access → Applications**: add a self-hosted application for
-   `waves.dmadan.com` with a one-time-PIN (or stricter) policy for your email.
+   `admin.wavs.co.in` with a one-time-PIN (or stricter) policy for your email.
 2. **Rules → Transform Rules → Modify Request Header**: on requests to
-   `waves.dmadan.com`, _set_ `x-admin-origin-secret` to the same value you put
+   `admin.wavs.co.in`, _set_ `x-admin-origin-secret` to the same value you put
    in the `ADMIN_ORIGIN_SECRET` env var. Set (not add), so a value a client
    tried to send cannot survive.
 3. Set `ADMIN_ORIGIN_SECRET` in Vercel Production to that value and redeploy.

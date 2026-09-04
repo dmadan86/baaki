@@ -107,7 +107,7 @@ export const SESSION_COOKIE = COOKIE;
 /**
  * The second door: proof the request arrived through the trusted proxy.
  *
- * The custom domain (`waves.dmadan.com`) is on Vercel Hobby, whose Deployment
+ * The custom domain (`admin.wavs.co.in`) is on Vercel Hobby, whose Deployment
  * Protection does not cover custom domains, and the `*.vercel.app` origin stays
  * reachable directly — so a valid session cookie alone does not prove a request
  * came through Cloudflare Access. Cloudflare injects a shared secret header (a

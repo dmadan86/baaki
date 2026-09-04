@@ -304,7 +304,7 @@ export function emailFrom(): string {
  * right choice for a self-host not yet pointing anywhere it can vouch for.
  */
 function emailWebUrl(): string | null {
-  return Deno.env.get('EMAIL_WEB_URL') ?? 'https://wavs.co.in';
+  return Deno.env.get('EMAIL_WEB_URL') ?? 'https://app.wavs.co.in';
 }
 
 /** Where an unsubscribe click lands. Same origin as every other function. */

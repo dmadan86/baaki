@@ -20,7 +20,7 @@ vi.mock('next/headers', () => ({
 import { assertCsrfToken, assertSameOrigin, csrfToken, guardMutation } from '@/lib/csrf';
 import { SESSION_COOKIE, csrfTokenFor, issueToken } from '@/lib/session';
 
-const HOST = 'waves.dmadan.com';
+const HOST = 'admin.wavs.co.in';
 
 beforeEach(() => {
   headerStore.clear();

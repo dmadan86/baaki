@@ -14,7 +14,7 @@
  * anything heavier along with it.
  */
 
-const DEFAULT_WEB_URL = 'https://wavs.co.in';
+const DEFAULT_WEB_URL = 'https://app.wavs.co.in';
 
 /**
  * Origin only — scheme + host, no path, query or fragment — however

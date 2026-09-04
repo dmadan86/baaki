@@ -23,9 +23,9 @@ afterEach(() => {
 describe('WEB_URL', () => {
   it('defaults to the site’s real domain when unset', async () => {
     const mod = await loadWith(undefined);
-    expect(mod.WEB_URL).toBe('https://wavs.co.in');
-    expect(mod.INVITE_BASE).toBe('https://wavs.co.in/join');
-    expect(mod.INVITE_HOST).toBe('wavs.co.in');
+    expect(mod.WEB_URL).toBe('https://app.wavs.co.in');
+    expect(mod.INVITE_BASE).toBe('https://app.wavs.co.in/join');
+    expect(mod.INVITE_HOST).toBe('app.wavs.co.in');
   });
 
   it('takes a clean origin override as-is', async () => {
@@ -50,11 +50,11 @@ describe('WEB_URL', () => {
 
   it('falls back to the default rather than shipping a broken URL', async () => {
     const mod = await loadWith('not a url at all');
-    expect(mod.WEB_URL).toBe('https://wavs.co.in');
+    expect(mod.WEB_URL).toBe('https://app.wavs.co.in');
   });
 
   it('builds a join link with the token as the fragment', async () => {
     const mod = await loadWith(undefined);
-    expect(mod.groupJoinLink('abc123')).toBe('https://wavs.co.in/join#abc123');
+    expect(mod.groupJoinLink('abc123')).toBe('https://app.wavs.co.in/join#abc123');
   });
 });
