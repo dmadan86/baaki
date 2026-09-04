@@ -18,6 +18,7 @@
     "test:web": "pnpm --filter @waves/web run test",
     "test:edge": "vitest run --config supabase/functions/vitest.config.ts",
     "web": "pnpm --filter @waves/web run dev",
+    "website": "pnpm --filter @waves/website run dev",
     "admin": "pnpm --filter @waves/admin run dev",
     "db:generate": "pnpm --filter @waves/db run generate",
     "db:migrate": "pnpm --filter @waves/db run migrate:deploy",
