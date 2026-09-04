@@ -1123,9 +1123,9 @@ export interface UiStrings {
     sendMeACode: string;
     useAPassword: string;
     phoneNumber: string;
-    countryCodeHint: string;
     sendCode: string;
     codeSentTo: string;
+    enterCodeTitle: string;
     verify: string;
     differentNumber: string;
     identifier: string;
@@ -3334,10 +3334,9 @@ const en: UiStrings = {
     sendMeACode: 'Send me a code',
     useAPassword: 'Email or password',
     phoneNumber: 'Phone number',
-    countryCodeHint:
-      'Start with your country code. Waves never assumes +91 — a trip is exactly when foreign numbers turn up.',
     sendCode: 'Send code',
     codeSentTo: 'Code sent to {value}',
+    enterCodeTitle: 'Enter the code',
     verify: 'Verify',
     differentNumber: 'Use a different number',
     identifier: 'Email or phone number',
@@ -5504,10 +5503,9 @@ const ta: UiStrings = {
     sendMeACode: 'எனக்கு ஒரு குறியீடு அனுப்பு',
     useAPassword: 'மின்னஞ்சல் அல்லது கடவுச்சொல்',
     phoneNumber: 'தொலைபேசி எண்',
-    countryCodeHint:
-      'நாட்டுக் குறியீட்டுடன் தொடங்குங்கள். Waves +91 என்று ஊகிப்பதே இல்லை — வெளிநாட்டு எண்கள் வருவது பயணத்தின்போதுதான்.',
     sendCode: 'குறியீடு அனுப்பு',
     codeSentTo: '{value} க்கு குறியீடு அனுப்பப்பட்டது',
+    enterCodeTitle: 'குறியீட்டை உள்ளிடுங்கள்',
     verify: 'சரிபார்',
     differentNumber: 'வேறு எண்ணைப் பயன்படுத்து',
     identifier: 'மின்னஞ்சல் அல்லது தொலைபேசி எண்',
@@ -7716,10 +7714,9 @@ const hi: UiStrings = {
     sendMeACode: 'मुझे कोड भेजें',
     useAPassword: 'ईमेल या पासवर्ड',
     phoneNumber: 'फ़ोन नंबर',
-    countryCodeHint:
-      'देश कोड से शुरू करें। Waves +91 कभी नहीं मान लेता — विदेशी नंबर सफ़र में ही तो आते हैं।',
     sendCode: 'कोड भेजें',
     codeSentTo: '{value} पर कोड भेजा गया',
+    enterCodeTitle: 'कोड दर्ज करें',
     verify: 'सत्यापित करें',
     differentNumber: 'कोई दूसरा नंबर इस्तेमाल करें',
     identifier: 'ईमेल या फ़ोन नंबर',
@@ -9909,10 +9906,9 @@ const ar: UiStrings = {
     sendMeACode: 'أرسل لي رمزًا',
     useAPassword: 'البريد الإلكتروني أو كلمة المرور',
     phoneNumber: 'رقم الهاتف',
-    countryCodeHint:
-      'ابدأ برمز بلدك. لا يفترض Waves أبدًا رمزًا بعينه — فالأرقام الأجنبية تظهر في السفر تحديدًا.',
     sendCode: 'أرسل الرمز',
     codeSentTo: 'أُرسل الرمز إلى {value}',
+    enterCodeTitle: 'أدخل الرمز',
     verify: 'تحقّق',
     differentNumber: 'استخدم رقمًا آخر',
     identifier: 'البريد الإلكتروني أو رقم الهاتف',

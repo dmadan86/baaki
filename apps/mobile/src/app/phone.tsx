@@ -17,7 +17,7 @@
  * hardcoded, since it never reaches a release build.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import {
@@ -47,6 +47,12 @@ import { dialingCodeForCountry } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { OtpInput, OTP_LEN } from '@/components/OtpInput';
+
+/** Matches the email code screen, so the two waits feel like one product. */
+const RESEND_SECONDS = 60;
+/** Four codes a number a day is the server's rule; three from one sitting
+    leaves the person a fourth after they have gone away and come back. */
+const MAX_RESENDS = 3;
 import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
@@ -80,7 +86,31 @@ export default function PhoneScreen() {
   // `__DEV__` is false in every release build, so none of this ships — a client
   // that accepted a magic code in production would be an auth bypass.
   const DEV_OTP = '000000';
-  const devStub = __DEV__;
+  // A dev build stubs the send by default, because there is usually no Twilio
+  // account behind it and a walkable app matters more than a real message.
+  // Setting `EXPO_PUBLIC_DEV_REAL_OTP=true` takes the stub away and exercises
+  // the actual WhatsApp path — the same code a release build runs.
+  //
+  // The guard stays anchored on `__DEV__`, so the flag cannot resurrect the
+  // magic code in a release build however the environment is set: there,
+  // `devStub` is false whatever this evaluates to, and a client that accepted
+  // a fixed code in production would be an auth bypass.
+  const devStub = __DEV__ && process.env.EXPO_PUBLIC_DEV_REAL_OTP !== 'true';
+
+  // The same cool-down the email code screen uses. It is not decoration here:
+  // the server allows four codes to a number a day, so a resend that can be
+  // hammered spends the person's own daily allowance before they notice.
+  const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [resends, setResends] = useState(0);
+
+  // One interval for the screen, settling at zero; a resend winds it back up.
+  useEffect(() => {
+    if (stage !== 'code') return;
+    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [stage]);
+
+  const canResend = seconds <= 0 && resends < MAX_RESENDS && !busy && !devStub;
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     setBusy(true);
@@ -193,10 +223,6 @@ export default function PhoneScreen() {
                   />
                 </Row>
               </Card>
-              <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                {t.signIn.countryCodeHint}
-              </Text>
-
               {error ? <Callout tone="negative">{error}</Callout> : null}
 
               {/* The action pinned to the foot: a spacer eats the middle so it
@@ -213,6 +239,7 @@ export default function PhoneScreen() {
                     // Dev build: no SMS to send — go straight to the code field,
                     // where 000000 stands in.
                     if (!devStub) await sendOtp(fullPhone);
+                    setSeconds(RESEND_SECONDS);
                     setStage('code');
                   })
                 }
@@ -221,6 +248,10 @@ export default function PhoneScreen() {
             </>
           ) : (
             <>
+              {/* The heading says what to do; the number it went to is the
+                  answer to "which number?" and belongs under it, not as the
+                  title. A long number set as a 30pt heading wraps to three
+                  lines and buries the instruction. */}
               <View style={{ gap: theme.spacing.sm }}>
                 <Text
                   style={{
@@ -231,24 +262,28 @@ export default function PhoneScreen() {
                     color: theme.color.onBrand,
                   }}
                 >
+                  {t.signIn.enterCodeTitle}
+                </Text>
+                <Text variant="body" tone="onBrand" style={{ opacity: 0.9 }}>
                   {t.signIn.codeSentTo.replace('{value}', `${dialCode} ${phone}`)}
                 </Text>
+                {/* Mistyping the number is the likeliest reason nothing came,
+                    so the way back to it sits with the number itself rather
+                    than behind the back chevron. */}
                 <Pressable
                   accessibilityRole="button"
-                  disabled={busy || devStub}
                   hitSlop={8}
-                  onPress={() => void run(() => sendOtp(fullPhone))}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: theme.spacing.xs,
-                    alignSelf: 'flex-start',
-                    opacity: pressed || devStub ? 0.6 : 1,
-                  })}
+                  onPress={onBack}
+                  style={({ pressed }) => ({ alignSelf: 'flex-start', opacity: pressed ? 0.6 : 1 })}
                 >
-                  <Ionicons name="refresh" size={iconSize.md} color={theme.color.onBrand} />
-                  <Text style={{ fontWeight: '700', color: theme.color.onBrand }}>
-                    {t.entry.resendCode}
+                  <Text
+                    style={{
+                      fontWeight: '700',
+                      color: theme.color.onBrand,
+                      textDecorationLine: 'underline',
+                    }}
+                  >
+                    {t.signIn.differentNumber}
                   </Text>
                 </Pressable>
                 {devStub ? (
@@ -265,6 +300,45 @@ export default function PhoneScreen() {
                 accessibilityLabel={t.contact.verificationCode}
                 autoFocus
               />
+
+              {/* Countdown, then a live link, then the note that the road runs
+                  out — the same three states as the email code screen. The
+                  fixed height keeps the boxes still as it changes. */}
+              <View style={{ alignItems: 'center', minHeight: 24 }}>
+                {seconds > 0 ? (
+                  <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                    {t.signIn.resendIn.replace('{s}', String(seconds))}
+                  </Text>
+                ) : resends < MAX_RESENDS ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={!canResend}
+                    hitSlop={8}
+                    onPress={() =>
+                      void run(async () => {
+                        await sendOtp(fullPhone);
+                        setResends((n) => n + 1);
+                        setSeconds(RESEND_SECONDS);
+                      })
+                    }
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: theme.spacing.xs,
+                      opacity: pressed || !canResend ? 0.6 : 1,
+                    })}
+                  >
+                    <Ionicons name="refresh" size={iconSize.md} color={theme.color.onBrand} />
+                    <Text style={{ fontWeight: '700', color: theme.color.onBrand }}>
+                      {t.entry.resendCode}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                    {t.entry.resendLimit}
+                  </Text>
+                )}
+              </View>
 
               {error ? <Callout tone="negative">{error}</Callout> : null}
 
