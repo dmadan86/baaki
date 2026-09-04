@@ -8,8 +8,9 @@
  * plugins/withWavesWear.js; the shared transport is the WavesWatch Expo module.
  *
  * UNVERIFIED: authored on Windows without Xcode — build on a Mac/EAS to prove it.
- * Needs the companion bundle id app.waves.mobile.watchkitapp under the Apple
- * Developer account.
+ * Needs the companion bundle id app.wavs.mobile.watchkitapp under the Apple
+ * Developer account — `wavs`, matching the iOS bundle id in app.json rather
+ * than the Android package, which is still `app.waves.mobile`.
  *
  * @type {import('@bacons/apple-targets/app.plugin').Config}
  */

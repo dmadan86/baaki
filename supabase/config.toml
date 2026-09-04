@@ -176,22 +176,49 @@ secrets = "env(SEND_SMS_HOOK_SECRETS)"
 # anyway, silently overwriting whatever the dashboard had. The first push here
 # turned off anonymous sign-ins, manual identity linking and email confirmation
 # in one go — the first two are the guest flow, which is the app.
+# One *web* client serves all three platforms, and that is deliberate. The app
+# does not hold a Google client id at all: it asks Supabase for an authorize URL
+# and opens it in an in-app browser (`oauthThroughBrowser` in lib/auth.tsx), so
+# Google only ever sees this client and the app is reached afterwards by the
+# PKCE redirect. There is no Android or iOS OAuth client for sign-in and no
+# SHA-1 to register — which is also why one missing redirect URI took down
+# sign-in on iOS, Android and web at the same time.
+#
+# The redirect URI on this client is Supabase's callback, not the app's:
+# `https://<project-ref>.supabase.co/auth/v1/callback`. It is per-project, so
+# moving the database to a new project silently breaks sign-in everywhere until
+# the console is updated — which is exactly what the Singapore → Mumbai move did
+# on 2026-09-04.
 [auth.external.google]
 enabled = true
-client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleusercontent.com"
+client_id = "484909326858-1va1lbsiba9chuouu8e3m7u9bbivoj02.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 # Sign in with Apple. Two audiences share one block:
-#   - the native bundle id (`app.waves.mobile`) authorizes the iOS id-token flow
-#     (AppleAuthentication.signInAsync -> supabase.auth.signInWithIdToken),
-#   - the Services ID authorizes the browser-redirect fallback used on Android
-#     and web (signInWithOAuth via `oauthThroughBrowser`).
+#   - the Services ID (`app.wavs.web`) authorizes the browser-redirect fallback
+#     used on Android and web (signInWithOAuth via `oauthThroughBrowser`),
+#   - the native bundle id (`app.wavs.mobile`) authorizes the iOS id-token flow
+#     (AppleAuthentication.signInAsync -> supabase.auth.signInWithIdToken).
+#
+# THE ORDER IS LOAD-BEARING. GoTrue treats every id here as an accepted audience
+# when it verifies an identity token, but it sends only the *first* one to Apple
+# as `client_id` when it starts a browser round trip. A bundle id is not a valid
+# web client — put it first and Apple answers `invalid_request` on every
+# Android and web sign-in, while iOS keeps working, which makes it look like a
+# platform bug rather than one character of ordering. Services ID first.
+#
+# Note the spelling: iOS is `app.wavs.mobile` while Android is
+# `app.waves.mobile`. `app.waves.mobile` was already registered under another
+# Apple developer account and bundle ids are globally unique, so the iOS half
+# took the domain's own spelling instead. The two platforms are separate
+# namespaces and nothing reads across them — but a `waves` typed here where
+# `wavs` belongs fails a sign-in with an audience mismatch and nothing else.
+#
 # `secret` is the ES256 client-secret JWT signed with the Sign in with Apple key
-# (.p8); regenerate it before it expires (max 6 months). Replace <services-id>
-# with the real Services ID once created in the Apple Developer portal.
+# (.p8); regenerate it before it expires (max 6 months).
 [auth.external.apple]
 enabled = true
-client_id = "app.waves.mobile,<services-id>"
+client_id = "app.wavs.web,app.wavs.mobile"
 secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
 
 [edge_runtime]
