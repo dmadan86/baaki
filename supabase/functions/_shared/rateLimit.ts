@@ -58,6 +58,17 @@ export const LIMITS = {
    * recovery retry backs off rather than hammering `deleteUser` all hour.
    */
   'account-delete': { limit: 5, windowSeconds: 3600 },
+  /**
+   * Sign-in codes over WhatsApp, four to a number a day. Unlike every other
+   * bucket here this one is a product rule rather than an abuse ceiling — four
+   * is roughly "you mistyped, you waited, you tried the other phone", and a
+   * fifth is somebody else's problem. `otp-send` calls `baaki_rate_limit`
+   * directly rather than through `enforceRateLimit`, because the subject is a
+   * phone number (nobody has signed in yet) and the refusal has to come back in
+   * GoTrue's error envelope, not ours — the limit lives here so there is still
+   * one list of every ceiling in the system.
+   */
+  'otp-send': { limit: 4, windowSeconds: 86400 },
 } as const;
 
 export type Bucket = keyof typeof LIMITS;

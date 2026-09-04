@@ -89,11 +89,70 @@ otp_length = 8
 # fails to send, and the person is left on a screen waiting for an SMS that was
 # never posted. Turn both on in the same change that adds the credentials.
 [auth.sms]
+# Stays off, and the client agrees: `sendOtp` in apps/mobile/src/lib/auth.tsx
+# passes `shouldCreateUser: false`, and the phone tile is absent from the
+# sign-up door. A number signs a person back in, or attaches to the account a
+# guest already has; it never opens a new one.
 enable_signup = false
 enable_confirmations = true
 
+# Programmable Messaging — not used. Verify below is the provider; this block
+# stays present and disabled so nobody wires the cheaper one by accident.
 [auth.sms.twilio]
 enabled = false
+
+# Twilio Verify — off, and not the plan. Verify mints and checks its own code,
+# which cannot work behind the send hook below: the hook exists because GoTrue
+# generates the code and hands it to us to deliver, so Verify would put two
+# different codes in play and neither would validate. Left here, disabled, so
+# nobody reaches for it later without meeting this note first.
+[auth.sms.twilio_verify]
+enabled = false
+
+# The code travels over WhatsApp, not SMS, and the `otp-send` edge function is
+# what sends it. Three reasons, in order of weight:
+#
+#   1. India is the first market, and A2P SMS there is gated on DLT registration
+#      with the operators through TRAI — unregistered traffic is dropped by the
+#      carrier, not by Supabase. WhatsApp business messaging is not A2P SMS and
+#      carries none of that paperwork.
+#   2. A per-number daily cap can only be enforced somewhere the client cannot
+#      skip. The app calls GoTrue directly, so a limit written into the app is
+#      advice; in the hook it is the only door.
+#   3. It is markedly cheaper per message, and the code lands in an app people
+#      already have open.
+#
+# STILL OFF, deliberately. Enabled with the function undeployed or its Twilio
+# secrets unset, every send fails and somebody sits on the code screen waiting
+# for a message that was never posted. Flip `enabled` in the same change that
+# deploys `otp-send` and sets its secrets — never before.
+#
+# The one signing secret has to be written in *two* places, because two
+# different runtimes need it and they are configured by different mechanisms.
+# Generate it once (`v1,whsec_<base64>`), then:
+#
+#   1. The edge function, which verifies the signature. `supabase secrets set`
+#      sets Edge Function environment only:
+#
+#        supabase secrets set SEND_SMS_HOOK_SECRET=v1,whsec_...  \
+#                             TWILIO_ACCOUNT_SID=AC...           \
+#                             TWILIO_AUTH_TOKEN=...              \
+#                             TWILIO_WHATSAPP_FROM=whatsapp:+... \
+#                             TWILIO_OTP_CONTENT_SID=HX...
+#
+#   2. GoTrue, which creates the signature. That is the `env(...)` below, read
+#      from `supabase/.env` (gitignored) when this file is pushed — exactly like
+#      the Google secret further down. `supabase secrets set` does **not** reach
+#      it; a hook configured that way is signed by nobody and refused by us.
+#
+#        # supabase/.env
+#        SEND_SMS_HOOK_SECRETS=v1,whsec_...
+#
+# Same value in both, or every genuine request is answered 401.
+[auth.hook.send_sms]
+enabled = false
+uri = "https://<project-ref>.supabase.co/functions/v1/otp-send"
+secrets = "env(SEND_SMS_HOOK_SECRETS)"
 
 # The client id is not a secret — it travels in every authorize URL and is
 # visible to anyone who taps "continue with Google". The secret is, and lives in
@@ -138,13 +197,21 @@ inspector_port = 8083
 #   * `email-unsubscribe` is a mail client pressing the button Gmail puts beside
 #     the sender's name (RFC 8058) — unattended, with no session, on behalf of
 #     somebody who may not have the app. The signed address stands in for one.
+#   * `otp-send` is GoTrue handing over a sign-in code to deliver. The caller is
+#     the auth server itself, before any session exists — by definition there is
+#     no JWT to check. A standardwebhooks signature over the exact bytes stands
+#     in for one, verified before the body is parsed.
 #
-# Left at the default of true, both answer 401: delivery reports stop arriving
-# and nobody can get off the list. Neither failure says anything out loud.
+# Left at the default of true, all three answer 401: delivery reports stop
+# arriving, nobody can get off the list, and no sign-in code is ever sent. None
+# of those failures says anything out loud.
 [functions.email-events]
 verify_jwt = false
 
 [functions.email-unsubscribe]
+verify_jwt = false
+
+[functions.otp-send]
 verify_jwt = false
 
 [analytics]

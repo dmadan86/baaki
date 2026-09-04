@@ -430,7 +430,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
               busy={busy}
               onGoogle={() => void run(withGoogle)}
               onApple={() => void run(withApple)}
-              onPhone={() => router.push('/phone')}
+              onPhone={isSignup ? undefined : () => router.push('/phone')}
               t={t}
             />
             {/* ADR-006 addendum: the guest way in belongs to the sign-up page —
@@ -530,13 +530,20 @@ function TextLink({
 }
 
 /**
- * The tile row — Google, Apple, phone.
+ * The tile row — Google, Apple, and phone on the login door only.
  *
  * Apple leads on iOS (its guidelines want it at least as prominent as the
  * others; App Store guideline 4.8 requires it alongside Google there); Google
  * leads elsewhere, where Apple is the browser fallback. Spoken labels are the
  * full "Continue with …" — Google's own wording for a button that both makes
  * an account and returns to one — and the visible caption is the one word.
+ *
+ * Phone is absent from sign-up on purpose. ADR-006 makes a number a way to keep
+ * an account rather than a way to get one, so `auth.sms.enable_signup` is off
+ * and `sendOtp` asks for no user to be created — a number nobody holds yet is
+ * refused. Offering the tile on the sign-up door would advertise a door the
+ * server does not open. Signing in with a number still reaches the same screen,
+ * and so does a guest attaching one to the account they already have.
  */
 function SocialTiles({
   busy,
@@ -548,7 +555,8 @@ function SocialTiles({
   busy: boolean;
   onGoogle: () => void;
   onApple: () => void;
-  onPhone: () => void;
+  /** Omitted on the sign-up door, where a new number cannot make an account. */
+  onPhone?: () => void;
   t: UiStrings;
 }) {
   const theme = useTheme();
@@ -574,7 +582,7 @@ function SocialTiles({
       onPress={onApple}
     />
   );
-  const phone = (
+  const phone = onPhone ? (
     <SocialTile
       key="phone"
       testID="auth-phone"
@@ -584,10 +592,9 @@ function SocialTiles({
       disabled={busy}
       onPress={onPhone}
     />
-  );
+  ) : null;
+  const order = Platform.OS === 'ios' ? [apple, google, phone] : [google, apple, phone];
   return (
-    <Row style={{ justifyContent: 'center', gap: theme.spacing.xxl }}>
-      {Platform.OS === 'ios' ? [apple, google, phone] : [google, apple, phone]}
-    </Row>
+    <Row style={{ justifyContent: 'center', gap: theme.spacing.xxl }}>{order.filter(Boolean)}</Row>
   );
 }
