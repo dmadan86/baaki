@@ -549,18 +549,54 @@ tells you what happened to each one — `suppressed` means we chose not to mail 
 list), `failed` means Resend refused it, and NULL after a run means it will be
 retried. `email_events` is the trail, one row per send plus one per report.
 
-## Sign in with Apple (removed)
+## Sign in with Apple
 
-Sign in with Apple has been taken out of the app. The client button, the
-`expo-apple-authentication` dependency, the `usesAppleSignIn` entitlement, and
-`withApple` in `lib/auth.tsx` are all gone; the only way in through a provider is
-Google. The `AuthMethod.Apple` / `OAuthMethod.Apple` plumbing in
-`@waves/core` is left in place (unused) so the identity tests stay green.
+Back, and live since 2026-09-05. This section previously said it had been
+removed; that was true for a while and stopped being true when the entitlement,
+`expo-apple-authentication` and the native sheet came back. App Store guideline
+4.8 is why it is not optional: an app offering a third-party social login must
+offer an equivalent private one, and this app offers Google.
 
-Note for an eventual iOS release: App Store guideline 4.8 requires an equivalent
-private sign-in option (Sign in with Apple) alongside any third-party social
-login. With Google as the only provider, this must be revisited before shipping
-to the App Store.
+Two audiences share one Supabase provider, and **the order they are listed in is
+load-bearing**:
+
+```
+app.wavs.web,app.wavs.mobile
+```
+
+GoTrue accepts every id here as a valid audience when it verifies an identity
+token, but it sends only the **first** to Apple as `client_id` when it starts a
+browser round trip. A bundle id is not a valid web client. Put it first and
+Apple answers `invalid_request` on every Android and web sign-in while native
+iOS keeps working — which looks like a platform bug rather than like one field
+in the wrong order.
+
+So: the Services ID (`app.wavs.web`) first, for the browser fallback used on
+Android and web; the bundle id (`app.wavs.mobile`) second, for the iOS
+id-token flow.
+
+**The secret expires.** Apple issues no static one — what Supabase stores is an
+ES256 JWT signed with the Sign in with Apple `.p8`, and six months is the
+maximum lifetime Apple accepts. Apple sign-in fails on the day it lapses and
+nothing else does. Regenerating it needs the `.p8`, the Key ID, the Team ID and
+the Services ID; the signature must be raw R||S (`dsaEncoding: 'ieee-p1363'` in
+Node), because the DER encoding Node produces by default yields a token Apple
+rejects as malformed, which reads like a wrong key.
+
+**Testing either provider without a device.** Ask the hosted project for an
+authorize URL and follow it:
+
+```bash
+curl -s -o /dev/null -w '%{redirect_url}\n' \
+  "https://<project-ref>.supabase.co/auth/v1/authorize?provider=apple&redirect_to=waves://auth"
+```
+
+The `Location` carries the exact `client_id` and `redirect_uri` being sent,
+which is what makes a mismatch obvious. Follow it: a working client returns
+Apple's full sign-in page, a rejected one a bare shell. The same probe against
+`provider=google` returns a plain `Error 400: redirect_uri_mismatch` page when
+the console is wrong. Both providers were broken in exactly these two ways on
+2026-09-05, and this is how it was found.
 
 ## The rename, and what it needs from the consoles
 
