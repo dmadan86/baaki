@@ -13,6 +13,14 @@ Rules for every function in this directory:
    `@waves/core` and a mismatch is rejected with `SHARE_MISMATCH` (TDR §4).
 3. **Secrets only from the function environment** — `ANTHROPIC_API_KEY`,
    `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
+   Email delivery is provider-agnostic in shape: `EMAIL_PROVIDER` selects
+   `resend` (default) or `sendgrid`, and the key it needs is `RESEND_API_KEY` or
+   `SENDGRID_API_KEY` accordingly. **`sendgrid` is refused by the mail queues
+   today**, by `emailSendable()`, for two reasons that both have to be closed
+   first: SendGrid has no idempotency key, so a send whose outcome was never
+   learned would be retried and delivered twice; and `email-events` verifies a
+   Svix signature while SendGrid signs its Event Webhook with ECDSA, so
+   delivery events — and with them the suppression list — would stop.
    Nothing here may ever be referenced from `apps/*`.
 4. **Idempotency.** Mutations carry `client_mutation_id`; retries must be safe.
 5. **Attach ids, never rows.** Anything falling through to a 500 is sent to
