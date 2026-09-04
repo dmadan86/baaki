@@ -37,7 +37,12 @@ BEGIN
     SELECT decrypted_secret INTO v_url
       FROM vault.decrypted_secrets WHERE name = 'functions_base_url';
 
-    IF v_key IS NOT NULL AND v_url IS NOT NULL THEN
+    -- Plain HTTP would put the service-role key on the wire in clear text, and
+    -- the swallow below means nobody would ever find out: the mail still goes
+    -- out on the cron, so there is no symptom to notice. A mistyped scheme in
+    -- the vault therefore has to be refused here rather than trusted, and the
+    -- honest response is the same one an absent secret gets — do nothing.
+    IF v_key IS NOT NULL AND v_url IS NOT NULL AND v_url LIKE 'https://%' THEN
       PERFORM net.http_post(
         url     := rtrim(v_url, '/') || '/notify-fanout',
         headers := jsonb_build_object(
