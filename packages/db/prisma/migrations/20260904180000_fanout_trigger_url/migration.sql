@@ -56,3 +56,12 @@ BEGIN
   RETURN NULL; -- ignored on an AFTER trigger
 END
 $$;
+
+-- Nothing calls this by name. It fires as an AFTER trigger, and Postgres checks
+-- EXECUTE when the trigger is created rather than each time it fires, so taking
+-- the grant away from every caller role leaves the trigger working and closes
+-- the direct call. `CREATE OR REPLACE` preserves the ACL a function already
+-- has, which is why the default grant has to be revoked explicitly rather than
+-- assumed absent.
+REVOKE EXECUTE ON FUNCTION public.waves_notify_fanout_trigger() FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.waves_notify_fanout_trigger() TO service_role;
