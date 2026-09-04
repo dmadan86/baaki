@@ -38,13 +38,16 @@ import Animated, {
     `backgroundColor` in `app.json` so the native splash (a solid field) and the
     middle of this gradient are the same colour — the handoff shifts as little as
     possible. Change both together. */
-const SPLASH_BG = '#5B3FD1';
+const SPLASH_BG = '#14162a';
 
-/** The field is a diagonal wash, light top-left to deep bottom-right — the Digit
-    concept, in the app's brand indigo (matching the neon-indigo brand wash so
-    the splash hands off to the dashboard with no colour jump). Revisit once the
-    final splash art is settled. */
-const GRADIENT = ['#6C4EE3', SPLASH_BG, '#4326A6'] as const;
+/** The field is a diagonal wash, light top-left to deep bottom-right. The stops
+    are the icon's own radial gradient (`#2a2d4a` centre to `#14162a` edge) with
+    a deeper corner, so the launch screen reads as the same object as the icon
+    the person just tapped rather than a second brand colour. It no longer
+    matches the dashboard's indigo wash — the icon ground moved to navy and the
+    native splash with it, and matching the icon matters more at this seam,
+    since the two are on screen consecutively. */
+const GRADIENT = ['#2a2d4a', SPLASH_BG, '#0d0f1c'] as const;
 
 /** The wordmark drawn on the field. Placeholder text until the brand mark
     lands. Lowercase to match the reference. */
