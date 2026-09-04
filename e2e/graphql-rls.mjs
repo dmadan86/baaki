@@ -15,7 +15,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const URL_BASE = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL_BASE = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 if (!ANON) {
   console.error('Set ANON_KEY.');

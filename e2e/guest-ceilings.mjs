@@ -35,7 +35,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { GUEST_GROUP_LIMIT, GUEST_TRIAL_DAYS } from '../supabase/functions/_shared/core.js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 const SERVICE = process.env.SERVICE_KEY;
 

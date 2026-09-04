@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 
 import { createClient } from '@supabase/supabase-js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 
 if (!ANON) {

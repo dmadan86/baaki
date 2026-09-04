@@ -1,0 +1,25 @@
+# What the secret scan should ignore, and — more importantly — what it must not.
+#
+# Supabase issues two key formats. `sb_publishable_…` is the successor to the
+# anon key: it is compiled into every mobile binary and served in every web
+# page, it carries no privilege of its own, and RLS is what actually guards the
+# data behind it. It is public by construction, so a scanner finding one has
+# found something that was never hidden.
+#
+# `sb_secret_…` is the opposite — it is the service-role credential and it
+# bypasses RLS entirely. The allowlist below is written to match the publishable
+# prefix **only**, so a secret key pasted into the tree still trips
+# `generic-api-key` exactly as it does today. Widening this to `sb_` would be
+# the mistake worth avoiding.
+#
+# Everything else stays on the default ruleset.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase publishable keys ship in clients on purpose; secret keys are still caught"
+regexTarget = "match"
+regexes = [
+  '''sb_publishable_[A-Za-z0-9_\-]{20,}''',
+]
