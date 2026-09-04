@@ -64,12 +64,7 @@ export function emailKeyName(provider: EmailProviderId = emailProvider()): strin
  * one nothing will look at again.
  */
 export function emailConfigured(): boolean {
-  try {
-    return Boolean(Deno.env.get(emailKeyName()) && Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET'));
-  } catch {
-    // An unknown EMAIL_PROVIDER. Not configured, and the send path says why.
-    return false;
-  }
+  return Boolean(Deno.env.get(emailKeyName()) && Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET'));
 }
 
 /** One message, in the shape both providers are built from. */
