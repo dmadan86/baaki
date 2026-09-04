@@ -59,11 +59,18 @@ Vercel, as its own project, with **Root Directory** set to `website`.
 
 | Setting           | Value                          |
 | ----------------- | ------------------------------ |
+| Project name      | `waves`                        |
 | Framework         | Next.js (detected)             |
 | Root directory    | `website`                      |
 | Install command   | `pnpm install`                 |
 | Build command     | `pnpm build`                   |
 | Production domain | `wavs.co.in`, `www.wavs.co.in` |
+
+Nothing deploys on a push: `git.deploymentEnabled` is false, and the only way a
+deployment happens is the **Vercel deploy (manual)** workflow in the Actions tab
+— pick `website` and a target. It needs `VERCEL_TOKEN`, `VERCEL_ORG_ID` and
+`VERCEL_PROJECT_ID_WEBSITE` (the id in this directory's `.vercel/project.json`
+after a `vercel link`) as repository secrets.
 
 `vercel.json` carries an `ignoreCommand` so a push that did not touch this
 directory does not spend a deployment — the free tier rate-limits on a burst of
@@ -78,8 +85,7 @@ commits.
 
 Both have working defaults; set them only if a domain moves.
 
-> **Note on the apex domain.** `apps/web` (the product) already claims
-> `wavs.co.in`. Decide which one owns the apex: either the product moves to
-> `app.wavs.co.in` and this site takes the apex, or this site takes `www.` and
-> `NEXT_PUBLIC_APP_URL` stays pointing at the apex. The site works either way —
-> it is one environment variable.
+The apex question is settled: this site owns `wavs.co.in`, the product answers
+on `app.wavs.co.in` and the console on `admin.wavs.co.in`. The mobile app's
+invite links and the button in every email resolve against `app.wavs.co.in`,
+so nothing here should be pointed back at the apex.

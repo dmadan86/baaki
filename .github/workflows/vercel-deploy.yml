@@ -10,7 +10,7 @@ name: Vercel deploy (manual)
 #   VERCEL_ORG_ID             — the Vercel team/org id (same for every project)
 #   VERCEL_PROJECT_ID_WEB     — project id of waves-web     (.vercel/project.json)
 #   VERCEL_PROJECT_ID_ADMIN   — project id of waves-admin   (.vercel/project.json)
-#   VERCEL_PROJECT_ID_WEBSITE — project id of waves-website (.vercel/project.json)
+#   VERCEL_PROJECT_ID_WEBSITE — project id of waves         (.vercel/project.json)
 
 on:
   workflow_dispatch:

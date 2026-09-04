@@ -465,7 +465,7 @@ both before it claims a row, so a half-configured deployment strands nothing.
 ```bash
 supabase secrets set RESEND_WEBHOOK_SECRET=whsec_...
 supabase secrets set EMAIL_FROM='Waves <hello@mail.dmadan.com>'   # optional; this is the default
-supabase secrets set EMAIL_WEB_URL=https://wavs.co.in             # optional; this is the default
+supabase secrets set EMAIL_WEB_URL=https://app.wavs.co.in         # optional; this is the default
 pnpm edge:deploy
 ```
 
@@ -473,8 +473,9 @@ pnpm edge:deploy
 it invalidates every unsubscribe link already sitting in somebody's mailbox, so
 it is set once and left alone.
 
-`EMAIL_WEB_URL` is where the button in an email points — defaults to the site's
-real domain, `https://wavs.co.in`. A fork or a self-host pointing at a
+`EMAIL_WEB_URL` is where the button in an email points — defaults to the web
+app, `https://app.wavs.co.in`, because the button lands on a group page that
+only that deployment serves. A fork or a self-host pointing at a
 different domain (or nothing at all, deliberately) should set this explicitly;
 with it unset the button falls back to the `waves://` deep link,
 which works on a phone and does nothing in desktop webmail. That fallback is
@@ -510,14 +511,13 @@ lives in somebody's console rather than in this repository:
    URL Configuration → Redirect URLs**, and to the redirect URIs of the Google
    OAuth client (and Apple's Services ID, if that ever comes back). Until it is
    listed, Google sign-in completes at the provider and lands nowhere.
-2. **The admin domain.** The console, its CSRF check and its tests all name
-   `waves.dmadan.com`. Point that host at the admin Vercel project and put it in
-   `ADMIN_ALLOWED_ORIGIN`; the old host stops matching the moment this ships.
-3. **The Vercel projects.** The workflows and the admin README name
-   `waves-admin` and `waves-web`. Renaming a project in Vercel keeps its
-   project id, so the `VERCEL_PROJECT_ID_*` secrets stay valid — only the
-   `.vercel.app` hostname moves.
-4. **The edge functions.** They call `waves_*` now. A deployed function still
+2. **The three hosts.** The marketing site keeps the apex, `wavs.co.in`; the
+   product moved to `app.wavs.co.in` and the console to `admin.wavs.co.in`.
+   Point both subdomains at their Vercel projects, and put the console's host in
+   `ADMIN_ALLOWED_ORIGIN` — its CSRF check compares against exactly that name.
+   The app's invite links and the button in every email now resolve against
+   `app.wavs.co.in`, so a join link is dead until that host answers.
+3. **The edge functions.** They call `waves_*` now. A deployed function still
    calling the old names answers "function does not exist" on every write, so
    they redeploy with this.
 
