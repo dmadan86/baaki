@@ -74,8 +74,8 @@ jobs:
             exit 1
           fi
           case "$url" in
-            *.aab) out="baaki-${{ inputs.profile }}.aab" ;;
-            *)     out="baaki-${{ inputs.profile }}.apk" ;;
+            *.aab) out="waves-${{ inputs.profile }}.aab" ;;
+            *)     out="waves-${{ inputs.profile }}.apk" ;;
           esac
           curl -fSL "$url" -o "$out"
           echo "file=apps/mobile/$out" >> "$GITHUB_OUTPUT"

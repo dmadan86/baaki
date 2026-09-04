@@ -502,9 +502,8 @@ to the App Store.
 ## The rename, and what it needs from the consoles
 
 The app was called `baaki` before it was called Waves, and the old name is now
-gone from the source, the database and these docs. Three of the things it
-touched live in somebody's console rather than in this repository, and the code
-here already assumes they have been changed:
+gone from the source, the database, the local stack and these docs. What is left
+lives in somebody's console rather than in this repository:
 
 1. **The OAuth redirect.** The app asks for `waves://auth` and registers only
    the `waves` scheme. Add `waves://auth` to the hosted project's **Auth →
@@ -514,19 +513,27 @@ here already assumes they have been changed:
 2. **The admin domain.** The console, its CSRF check and its tests all name
    `waves.dmadan.com`. Point that host at the admin Vercel project and put it in
    `ADMIN_ALLOWED_ORIGIN`; the old host stops matching the moment this ships.
-3. **The database is rebuilt, not migrated.** The whole migration history was
-   replaced by one file — `20260904000000_waves_baseline` — that builds the
-   schema already named `waves_*`, and the hosted database is dropped and
-   recreated from it. There is no upgrade path from a database built by the old
-   files and no compatibility aliases, by choice. Everything in the hosted
-   database goes with it: profiles, groups, expenses, settlements, receipts and
-   the storage rows that point at uploaded bytes. That was a deliberate call
-   made while there is no published release to strand.
+3. **The Vercel projects.** The workflows and the admin README name
+   `waves-admin` and `waves-web`. Renaming a project in Vercel keeps its
+   project id, so the `VERCEL_PROJECT_ID_*` secrets stay valid — only the
+   `.vercel.app` hostname moves.
+4. **The edge functions.** They call `waves_*` now. A deployed function still
+   calling the old names answers "function does not exist" on every write, so
+   they redeploy with this.
 
-What deliberately kept its old name: the Firebase project (`baaki-43455`), the
-Vercel projects (`baaki-admin`, `baaki-web`), and the local Postgres database
-and its container. Those are external identifiers, and renaming them in source
-only breaks the thing they point at.
+The database was **rebuilt, not migrated**. The whole migration history is one
+file — `20260904000000_waves_baseline` — that builds the schema already named
+`waves_*`, and the hosted database was dropped and recreated from it on
+2026-09-04. There is no upgrade path from a database built by the old files and
+no compatibility aliases, by choice. Everything the hosted database held went
+with it — 152 accounts, 100 groups, 806 expenses, all of it development data —
+and a dump was taken first. The three rows in `storage.objects` survived: the
+Storage API refuses a direct delete, so those bytes are orphaned until they are
+removed through it.
+
+The only thing that keeps its old name is the Firebase project
+(`baaki-43455`), because that id was issued by a console and the app is
+still registered under it.
 
 An installed app still carries its own device state across the rename. The
 device keys and the mirror's SQLite file move on the first launch after the

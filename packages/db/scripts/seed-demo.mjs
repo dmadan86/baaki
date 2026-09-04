@@ -43,7 +43,7 @@ const { Client } = pg;
 const CONNECTION_STRING =
   process.env.SEED_DATABASE_URL ??
   process.env.TEST_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:54330/baaki';
+  'postgresql://postgres:postgres@localhost:54330/waves';
 
 const TAG = process.env.SEED_TAG ?? 'Demo:';
 const FOCUS_NAME = `${TAG} You`;

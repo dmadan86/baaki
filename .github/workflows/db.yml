@@ -29,9 +29,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves_shadow?schema=public
 
 jobs:
   database:
@@ -42,7 +42,7 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: baaki
+          POSTGRES_DB: waves
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -78,7 +78,7 @@ jobs:
       # whichever project a developer is pointed at (packages/db/test/helpers.ts).
       - name: Policy and invariant tests
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves
         run: pnpm test:db
 
   scenario:
@@ -95,7 +95,7 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: baaki
+          POSTGRES_DB: waves
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -121,5 +121,5 @@ jobs:
       # inherit whichever project a developer is pointed at (helpers.ts).
       - name: Twenty-user scenario ledger test
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves
         run: pnpm test:db:scenario

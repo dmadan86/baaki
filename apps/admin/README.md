@@ -52,7 +52,7 @@ pnpm admin                                         # http://localhost:3100
 
 ## Deploying to Vercel
 
-Already deployed, as the `baaki-admin` project. What follows is what it took,
+Already deployed, as the `waves-admin` project. What follows is what it took,
 because most of it is not obvious from the app's own config.
 
 1. **Root Directory must be `apps/admin`** — Settings → General on the
@@ -112,9 +112,9 @@ another door_, and a bad one on its own.
 from Vercel Authentication's scope. Verified rather than assumed:
 
 ```
-baaki-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
-baaki-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
-baaki-admin.vercel.app                   307 → waves.dmadan.com     (open)
+waves-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
+waves-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
+waves-admin.vercel.app                   307 → waves.dmadan.com     (open)
 waves.dmadan.com                         307 → /login               (open)
 ```
 
@@ -135,7 +135,7 @@ Two things that must be true together, or neither is worth doing:
 
 1. `waves.dmadan.com` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
    Zero Trust Access application in front of it.
-2. **The `.vercel.app` back door closed.** `baaki-admin.vercel.app` still serves
+2. **The `.vercel.app` back door closed.** `waves-admin.vercel.app` still serves
    this console, and a request sent straight to Vercel's IP with
    `Host: waves.dmadan.com` walks around Cloudflare entirely. Closing it means a
    secret header injected by a Cloudflare Transform Rule that `src/proxy.ts`

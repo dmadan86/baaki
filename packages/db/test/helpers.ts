@@ -11,7 +11,7 @@ import { computeShares, type SplitParams } from '@waves/core';
  * deletes rows freely. It only ever talks to an explicitly-named test database.
  */
 export const CONNECTION_STRING =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54330/baaki';
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54330/waves';
 
 export async function connect(): Promise<Client> {
   const client = new Client({ connectionString: CONNECTION_STRING });

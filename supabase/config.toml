@@ -3,7 +3,7 @@
 # (packages/db) and applied against the direct connection, never by `supabase
 # db push`.
 
-project_id = "baaki"
+project_id = "waves"
 
 [api]
 enabled = true

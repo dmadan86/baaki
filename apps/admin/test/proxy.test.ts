@@ -8,7 +8,7 @@ const ORIGIN_SECRET = 'origin-secret-value';
 
 // The real vercel.app back door: an attacker sending a request straight to the
 // origin sets Host to the custom domain, but cannot forge the Cloudflare header.
-const VERCEL_ORIGIN = 'https://baaki-admin.vercel.app';
+const VERCEL_ORIGIN = 'https://waves-admin.vercel.app';
 const SPOOFED_HOST = 'waves.dmadan.com';
 
 beforeAll(() => {

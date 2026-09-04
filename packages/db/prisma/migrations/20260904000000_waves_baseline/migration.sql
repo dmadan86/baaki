@@ -58,7 +58,9 @@ SET row_security = off;
 -- Name: extensions; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA extensions;
+-- `IF NOT EXISTS` because a hosted Supabase project already has this schema and
+-- a plain Postgres does not. The same file has to build both.
+CREATE SCHEMA IF NOT EXISTS extensions;
 
 
 --
@@ -68,11 +70,6 @@ CREATE SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 
---
--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
 --
@@ -13077,4 +13074,340 @@ INSERT INTO public.service_config (key, value, description, updated_at) VALUES (
 -- PostgreSQL database dump complete
 --
 
+-- ──────────────────────────────────────────────────── object storage ──
+-- Buckets and their row policies. This is the one part of the schema that does
+-- not live in `public`: `storage` belongs to Supabase, and a plain Postgres —
+-- CI, a laptop — has no such schema at all. Every block below is guarded on it
+-- existing and says so and skips when it does not, which is why a schema-only
+-- dump of a local database could never carry them.
+--
+-- Order matters. The photo-gate rewrite of the group-photo write policies comes
+-- after the policies it replaces, and the signed-out hardening comes last,
+-- because it narrows every policy above it to `authenticated`.
 
+-- from 20260805120000_nameless_groups_and_photos
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the photo bucket';
+    RETURN;
+  END IF;
+
+  -- Private, not public. A group photo is a picture of somebody's friends on
+  -- holiday; it is read through a signed URL by people in the group and by
+  -- nobody else (ADR-013). 5 MB and three image types is enough for a cover
+  -- and keeps the free tier's storage honest (ADR-011).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('group-photos', 'group-photos', false, 5242880,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "group photos are readable by members" ON storage.objects;
+    CREATE POLICY "group photos are readable by members" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are writable by members" ON storage.objects;
+    CREATE POLICY "group photos are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are replaceable by members" ON storage.objects;
+    CREATE POLICY "group photos are replaceable by members" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are removable by members" ON storage.objects;
+    CREATE POLICY "group photos are removable by members" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260805140000_receipt_scanning
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the receipts bucket';
+    RETURN;
+  END IF;
+
+  -- Private. A receipt is a record of what somebody ate and where they were;
+  -- it is readable by the group it belongs to and nobody else (ADR-013).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('receipts', 'receipts', false, 10485760,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "receipts are readable by members" ON storage.objects;
+    CREATE POLICY "receipts are readable by members" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "receipts are writable by members" ON storage.objects;
+    CREATE POLICY "receipts are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "receipts are removable by members" ON storage.objects;
+    CREATE POLICY "receipts are removable by members" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260806210000_profile_avatars
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the avatar bucket';
+    RETURN;
+  END IF;
+
+  -- 2 MB, not the 5 MB a group cover gets. An avatar is displayed at 78pt at
+  -- its largest; the client downscales to 512px before it ever gets here, and
+  -- the ceiling exists to catch the case where it did not (ADR-011).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('avatars', 'avatars', false, 2097152,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "avatars are readable by people you split with" ON storage.objects;
+    CREATE POLICY "avatars are readable by people you split with" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_shares_a_group_with(public.waves_group_from_storage_path(name))
+      );
+
+    -- Writes are self-only. Reading a groupmate's face is ordinary; replacing
+    -- it is impersonation.
+    DROP POLICY IF EXISTS "avatars are writable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are writable by their owner" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "avatars are replaceable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are replaceable by their owner" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "avatars are removable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are removable by their owner" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260814140000_captures_inbox
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the captures bucket';
+    RETURN;
+  END IF;
+
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('captures', 'captures', false, 5242880,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "captures are readable by their owner" ON storage.objects;
+    CREATE POLICY "captures are readable by their owner" ON storage.objects
+      FOR SELECT TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are writable by their owner" ON storage.objects;
+    CREATE POLICY "captures are writable by their owner" ON storage.objects
+      FOR INSERT TO authenticated
+      WITH CHECK (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are replaceable by their owner" ON storage.objects;
+    CREATE POLICY "captures are replaceable by their owner" ON storage.objects
+      FOR UPDATE TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are removable by their owner" ON storage.objects;
+    CREATE POLICY "captures are removable by their owner" ON storage.objects
+      FOR DELETE TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260815180000_group_photo_gate_enforcement
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the photo policies';
+    RETURN;
+  END IF;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "group photos are writable by members" ON storage.objects;
+    CREATE POLICY "group photos are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+        AND public.waves_can_upload_group_photo(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are replaceable by members" ON storage.objects;
+    CREATE POLICY "group photos are replaceable by members" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+        AND public.waves_can_upload_group_photo(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260818150000_personal_receipt_storage
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping personal receipt policies';
+    RETURN;
+  END IF;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "personal receipts are readable by owner" ON storage.objects;
+    CREATE POLICY "personal receipts are readable by owner" ON storage.objects
+      FOR SELECT TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are writable by paid owner" ON storage.objects;
+    CREATE POLICY "personal receipts are writable by paid owner" ON storage.objects
+      FOR INSERT TO authenticated
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+        AND public.waves_can_upload_group_photo(NULL)
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are replaceable by paid owner" ON storage.objects;
+    CREATE POLICY "personal receipts are replaceable by paid owner" ON storage.objects
+      FOR UPDATE TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      )
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+        AND public.waves_can_upload_group_photo(NULL)
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are removable by owner" ON storage.objects;
+    CREATE POLICY "personal receipts are removable by owner" ON storage.objects
+      FOR DELETE TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260831120000_anon_surface_hardening
+DO $$
+DECLARE
+  v_policy text;
+  v_policies text[] := ARRAY[
+    'captures are readable by their owner',
+    'captures are removable by their owner',
+    'captures are replaceable by their owner',
+    'personal receipts are readable by owner',
+    'personal receipts are removable by owner',
+    'personal receipts are replaceable by paid owner'
+  ];
+BEGIN
+  FOREACH v_policy IN ARRAY v_policies LOOP
+    BEGIN
+      -- Only touch what is actually there: a policy renamed or dropped since
+      -- the linter ran is not an error worth stopping for.
+      IF EXISTS (
+        SELECT 1 FROM pg_policies
+         WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = v_policy
+      ) THEN
+        EXECUTE format('ALTER POLICY %I ON storage.objects TO authenticated', v_policy);
+      END IF;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        RAISE NOTICE 'storage.objects policy %: not owned by this role, left as it is', v_policy;
+    END;
+  END LOOP;
+END
+$$;

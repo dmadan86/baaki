@@ -62,11 +62,11 @@ describe('assertSameOrigin', () => {
   it('honours a pinned ADMIN_ALLOWED_ORIGIN over the Host header', async () => {
     process.env.ADMIN_ALLOWED_ORIGIN = `https://${HOST}`;
     // Host is attacker-controlled on the back door; the pin ignores it.
-    headerStore.set('host', 'baaki-admin.vercel.app');
+    headerStore.set('host', 'waves-admin.vercel.app');
     headerStore.set('origin', `https://${HOST}`);
     await expect(assertSameOrigin()).resolves.toBeUndefined();
 
-    headerStore.set('origin', 'https://baaki-admin.vercel.app');
+    headerStore.set('origin', 'https://waves-admin.vercel.app');
     await expect(assertSameOrigin()).rejects.toThrow(/another site/);
   });
 
