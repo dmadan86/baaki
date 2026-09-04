@@ -456,7 +456,7 @@ both before it claims a row, so a half-configured deployment strands nothing.
    records it gives you. Until it says verified, every send is refused outright —
    this is not a deliverability problem that shows up as spam, it is a 4xx.
 2. Add a webhook pointing at
-   `https://xvjzbpgcmotoahtqcxve.supabase.co/functions/v1/email-events`,
+   `https://ywojpnfyxxltvihqmcni.supabase.co/functions/v1/email-events`,
    subscribed to `email.delivered`, `email.bounced`, `email.complained` and
    `email.opened`. Copy its signing secret — it starts `whsec_`.
 

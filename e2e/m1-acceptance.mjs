@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // The same bundle the edge function runs, so client and server agree by construction.
 import { computeNetBalances, computeShares, balanceSums } from '../supabase/functions/_shared/core.js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 const SERVICE = process.env.SERVICE_KEY;
 

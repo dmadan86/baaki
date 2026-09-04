@@ -18,7 +18,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { computeNetBalances } from '../supabase/functions/_shared/core.js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 
 if (!ANON) {

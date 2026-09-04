@@ -24,7 +24,7 @@ different Supabase project has neither, and a migration can't safely carry a
 literal service-role key in checked-in SQL. The trigger's **schema** (the
 function and the `CREATE TRIGGER` itself) IS migration-tracked, same as every
 other trigger in this codebase — only the URL inside its body names this
-project (`xvjzbpgcmotoahtqcxve`), and it no-ops harmlessly if the Vault secret
+project (`ywojpnfyxxltvihqmcni`), and it no-ops harmlessly if the Vault secret
 below isn't set, which is exactly what makes it safe to ship as a migration.
 
 ## One-time setup on a project that doesn't have this yet

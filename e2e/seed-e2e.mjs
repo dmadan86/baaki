@@ -39,7 +39,7 @@ const PASSWORD = process.env.E2E_PASSWORD;
 
 // The production project ref. This seeder deletes and rewrites freely, so it
 // must never point at it, the way `seed-demo` refuses DATABASE_URL/DIRECT_URL.
-const PROD_REF = 'xvjzbpgcmotoahtqcxve';
+const PROD_REF = 'ywojpnfyxxltvihqmcni';
 
 if (!URL || !SERVICE_KEY || !PASSWORD) {
   console.error(

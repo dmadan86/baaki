@@ -9,7 +9,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { convertWithRecord, money } from '../supabase/functions/_shared/core.js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 if (!ANON) { console.error('Set ANON_KEY.'); process.exit(2); }
 

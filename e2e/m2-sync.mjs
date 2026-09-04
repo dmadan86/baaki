@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto';
 
 import { computeShares, computeNetBalances } from '../supabase/functions/_shared/core.js';
 
-const URL = process.env.SUPABASE_URL ?? 'https://xvjzbpgcmotoahtqcxve.supabase.co';
+const URL = process.env.SUPABASE_URL ?? 'https://ywojpnfyxxltvihqmcni.supabase.co';
 const ANON = process.env.ANON_KEY;
 const SERVICE = process.env.SERVICE_KEY;
 
