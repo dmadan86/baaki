@@ -176,9 +176,22 @@ secrets = "env(SEND_SMS_HOOK_SECRETS)"
 # anyway, silently overwriting whatever the dashboard had. The first push here
 # turned off anonymous sign-ins, manual identity linking and email confirmation
 # in one go — the first two are the guest flow, which is the app.
+# One *web* client serves all three platforms, and that is deliberate. The app
+# does not hold a Google client id at all: it asks Supabase for an authorize URL
+# and opens it in an in-app browser (`oauthThroughBrowser` in lib/auth.tsx), so
+# Google only ever sees this client and the app is reached afterwards by the
+# PKCE redirect. There is no Android or iOS OAuth client for sign-in and no
+# SHA-1 to register — which is also why one missing redirect URI took down
+# sign-in on iOS, Android and web at the same time.
+#
+# The redirect URI on this client is Supabase's callback, not the app's:
+# `https://<project-ref>.supabase.co/auth/v1/callback`. It is per-project, so
+# moving the database to a new project silently breaks sign-in everywhere until
+# the console is updated — which is exactly what the Singapore → Mumbai move did
+# on 2026-09-04.
 [auth.external.google]
 enabled = true
-client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleusercontent.com"
+client_id = "484909326858-1va1lbsiba9chuouu8e3m7u9bbivoj02.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 # Sign in with Apple. Two audiences share one block:
