@@ -358,6 +358,68 @@ allocations. None of the three changes what anybody owes, and the screen says so
 in those words before the import runs. `packages/db/test/m5-import-export.test.ts`
 proves the round trip against a real database rather than in the abstract.
 
+## Backing the personal ledger up to Drive
+
+The "Me" tab — solo expenses, income, recurring rules, loans, budgets — can be
+copied to the person's **own** Google Drive, WhatsApp-style: back up now, an
+Off/Daily/Weekly/Monthly schedule, Wi‑Fi-only or Wi‑Fi-and-data, a "last backup"
+line, and a restore for the new phone. `apps/mobile/src/app/settings/backup.tsx`
+is the screen; `apps/mobile/src/lib/backup` is the machinery and
+`apps/mobile/src/lib/cloud` is the provider seam it sits on.
+
+Three decisions worth knowing:
+
+- **The narrowest scope Google offers.** `drive.appdata`, not `drive.file` and
+  never full `drive`. The backup lives in the hidden per-application folder: the
+  app cannot see, list or read anything else in the user's Drive, because the
+  token was never issued for it. The file does not appear in their Drive either
+  — Drive's storage settings are where they can see and delete it.
+
+- **The key is the user's, and only the user's.** The file is sealed with
+  XChaCha20-Poly1305 under a 256-bit key the app generates and shows once as 64
+  hexadecimal characters, the same `seal`/`open` the offline mirror uses. It is
+  kept in this device's keystore for convenience and typed in on a new phone.
+  Waves never sees it and Google holds only ciphertext, so **a lost key is a
+  lost backup** — the screen says that before it makes one. The reasoning, and
+  the two options rejected, are in the header of
+  `apps/mobile/src/lib/backup/recoveryKey.ts`.
+
+- **A restore only adds.** Records carry client-chosen ids that are already the
+  idempotency key for `personal.upsert`, so a restore re-queues what this device
+  is missing and touches nothing it already has — including things it has
+  deleted on purpose. Running it twice does nothing the second time.
+
+- **Everything is per-account, on a phone that is not always one person's.** The
+  keystore slots for the Drive tokens and the recovery key, the schedule and
+  last-backup preferences, and the remote filename all carry the owner id, and
+  signing out wipes the departing account's set (`clearBackupState`, called from
+  `clearLocalPrivateData`). The Drive file itself is left alone: it is the
+  user's, it is unreadable without their key, and outliving the app's state is
+  the whole point of it.
+
+Drive needs **its own OAuth clients**, which the app does not otherwise have:
+sign-in goes through Supabase's hosted Google flow and holds no Google client id
+of its own. In the Google Cloud console, on a project with the Drive API
+enabled: create an OAuth client per platform (Android bound to
+`app.waves.mobile` plus the signing SHA-1 — one for debug, one for release; iOS
+bound to the bundle id), add `.../auth/drive.appdata` to the consent screen, and
+set:
+
+| Variable                                     | Where              | What it does                   |
+| -------------------------------------------- | ------------------ | ------------------------------ |
+| `EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID_ANDROID` | `apps/mobile/.env` | the Android OAuth client       |
+| `EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID_IOS`     | `apps/mobile/.env` | the iOS OAuth client           |
+| `EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID_WEB`     | `apps/mobile/.env` | the fallback for anything else |
+
+These are not secrets — a native OAuth client has none, which is why the flow is
+PKCE — but they name a Google project, so they are read from the environment
+rather than committed. With none set the app builds and runs; the backup screen
+says the destination is unavailable in this build rather than opening a consent
+page Google would reject.
+
+A `drive.appdata` app stays in testing until the consent screen is verified;
+until then only accounts added as test users can link one.
+
 ## Turning on push
 
 Everything between the inbox row and the phone is built and tested — the claim,

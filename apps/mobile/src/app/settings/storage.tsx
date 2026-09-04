@@ -30,18 +30,10 @@ import {
 } from '@waves/ui';
 
 import { canUploadGroupPhoto, myStorageUsage } from '@/data/api';
+import { formatBytes } from '@/lib/bytes';
 import { useStrings } from '@/i18n';
 import { SkeletonList } from '@/components/Skeletons';
 import { r2Enabled } from '@/lib/storage';
-
-/** "3.2 MB", "512 KB", "0 MB" — a size a person reads, localised. */
-function formatBytes(bytes: number, locale: string): string {
-  const number = (value: number, fractionDigits: number): string =>
-    new Intl.NumberFormat(locale, { maximumFractionDigits: fractionDigits }).format(value);
-  if (bytes > 0 && bytes < 1024 * 1024) return `${number(bytes / 1024, 0)} KB`;
-  const mb = bytes / (1024 * 1024);
-  return `${number(mb, mb < 10 ? 1 : 0)} MB`;
-}
 
 export default function StorageUsageScreen() {
   const theme = useTheme();

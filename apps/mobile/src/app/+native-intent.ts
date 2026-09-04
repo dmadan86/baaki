@@ -31,6 +31,18 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     if (url.hostname === 'auth' || firstSegment === 'auth') {
       return '/';
     }
+    // The Drive-backup consent redirects to `waves://oauthredirect`, and the
+    // same double delivery happens: `promptAsync` has already taken the code
+    // and swapped it, so the intent carries nothing left to do — but there is
+    // no `/oauthredirect` screen either, and letting the router match it lands
+    // on "Unmatched Route" the moment somebody links their Drive. Unlike
+    // sign-in, sending this one to the root would be wrong: the person is
+    // standing on the backup screen and expects to still be there, so it goes
+    // back to the screen that started the flow. A `navigate` to a route already
+    // in the stack returns to it rather than pushing a second copy.
+    if (url.hostname === 'oauthredirect' || firstSegment === 'oauthredirect') {
+      return '/settings/backup';
+    }
     // The scan-receipt home-screen widget carries a fixed `?scan=1` — its link
     // is baked at build time and cannot mint a fresh value per tap. The capture
     // screen's consume-once guard keys off the nonce *value*, so a constant one

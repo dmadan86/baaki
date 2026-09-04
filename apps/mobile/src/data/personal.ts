@@ -24,6 +24,7 @@ import {
   personalScope,
   recurringCatchUp,
   recurringOccurrenceId,
+  type MirrorPersonalRecord,
   type PersonalBudget,
   type PersonalLoan,
   type PersonalRecordKind,
@@ -59,19 +60,55 @@ export interface PersonalLedger {
 }
 
 const EMPTY: PersonalLedger = { txns: [], recurrings: [], loans: [], budgets: [] };
+const NO_RECORDS: readonly MirrorPersonalRecord[] = [];
+
+/**
+ * The ledger's raw rows — the mirror's `personal_records` for this owner with
+ * the offline queue replayed on top, before anything is decoded into a txn or
+ * a loan.
+ *
+ * The decoded shapes below are one interpretation of the `data` blob, and a
+ * lossy one: a field a future build adds does not survive today's decode. The
+ * cloud backup (`lib/backup`) has to keep what it does not understand, so it
+ * reads the rows instead. Empty when signed out.
+ */
+export function usePersonalRecords(): readonly MirrorPersonalRecord[] {
+  const { mirror, queue } = useSync();
+  const { session } = useAuth();
+  const ownerId = session?.user?.id ?? '';
+  return useMemo(
+    () => (ownerId ? materialisePersonalRecords(mirror, queue, { ownerId }) : NO_RECORDS),
+    [mirror, queue, ownerId],
+  );
+}
+
+/**
+ * Every personal record id this device knows about, **tombstones included**.
+ *
+ * Only a restore wants this. A record the person deleted here must not come
+ * back because an older backup still has it, and the live rows alone cannot say
+ * "deleted on purpose" apart from "never seen".
+ */
+export function usePersonalRecordIds(): ReadonlySet<string> {
+  const { mirror, queue } = useSync();
+  const { session } = useAuth();
+  const ownerId = session?.user?.id ?? '';
+  return useMemo(() => {
+    if (!ownerId) return new Set<string>();
+    const rows = materialisePersonalRecords(mirror, queue, { ownerId, includeDeleted: true });
+    return new Set(rows.map((row) => row.id));
+  }, [mirror, queue, ownerId]);
+}
 
 /**
  * The whole ledger, decoded by kind and read local-first. Txns come back newest
  * first. Empty (not an error) when signed out — personal finance is per-account.
  */
 export function usePersonalLedger(): PersonalLedger {
-  const { mirror, queue } = useSync();
-  const { session } = useAuth();
-  const ownerId = session?.user?.id ?? '';
+  const records = usePersonalRecords();
 
   return useMemo(() => {
-    if (!ownerId) return EMPTY;
-    const records = materialisePersonalRecords(mirror, queue, { ownerId });
+    if (records.length === 0) return EMPTY;
     const txns: PersonalTxn[] = [];
     const recurrings: PersonalRecurring[] = [];
     const loans: PersonalLoan[] = [];
@@ -96,7 +133,7 @@ export function usePersonalLedger(): PersonalLedger {
     }
     txns.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     return { txns, recurrings, loans, budgets };
-  }, [mirror, queue, ownerId]);
+  }, [records]);
 }
 
 export interface UpsertPersonalInput {

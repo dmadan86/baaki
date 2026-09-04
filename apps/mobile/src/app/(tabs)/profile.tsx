@@ -495,6 +495,12 @@ function ProfileForm() {
               route: '/settings/sync',
             },
             {
+              icon: 'cloud-done-outline',
+              label: t.backup.title,
+              hint: t.backup.row,
+              route: '/settings/backup',
+            },
+            {
               icon: 'shield-checkmark-outline',
               label: t.privacy.row,
               route: '/settings/privacy',

@@ -1448,39 +1448,93 @@ export interface UiStrings {
     full: string;
     upgrade: string;
   };
+  /**
+   * Copying the private "Me" ledger to the person's own Google Drive, and
+   * getting it back on a new phone. WhatsApp's chat-backup screen applied to a
+   * ledger: back up now, how often, which account, over which network — and the
+   * 64-character key without which none of it opens again.
+   */
   backup: {
-    connectFailed: string;
     title: string;
-    subtitle: string;
-    primaryTitle: string;
-    primaryBody: string;
-    off: string;
+    /** The settings-row label. */
+    row: string;
+    /** The promise the screen leads with. */
+    intro: string;
+    /** Shown when this build carries no Drive OAuth client id. */
+    unavailable: string;
+
+    accountSection: string;
+    notConnected: string;
     connect: string;
+    connectFailed: string;
     disconnect: string;
-    connected: string;
-    notConfigured: string;
-    /** The status line under the Waves destination when it is available. */
-    wavesHint: string;
-    /** Badge on the Waves row for a free account: it is a paid destination. */
-    plus: string;
-    /** Button on the Waves row for a free account, routing to the upgrade screen. */
-    upgrade: string;
-    networkTitle: string;
-    wifiOnly: string;
-    wifiAndData: string;
-    pending: PluralForms;
-    allBackedUp: string;
-    /** Heading of the card shown when receipts failed to upload. */
-    troubleTitle: string;
-    troubleOffline: string;
-    troublePolicy: string;
-    troubleReconnect: string;
-    troubleGeneric: string;
-    /** Reassurance under the trouble card: nothing is lost while stuck. */
-    troubleSafe: string;
-    /** Button on the trouble card: reset the backoff and try the upload again. */
-    retry: string;
-    privacyNote: string;
+    disconnectTitle: string;
+    disconnectBody: string;
+
+    backUpNow: string;
+    phaseCollecting: string;
+    phaseSealing: string;
+    phaseUploading: string;
+    backedUp: PluralForms;
+    backupFailed: string;
+
+    lastSection: string;
+    never: string;
+    /** "{date} · {size}" — when the last backup landed, and how big it was. */
+    lastLine: string;
+
+    frequencySection: string;
+    freqOff: string;
+    freqDaily: string;
+    freqWeekly: string;
+    freqMonthly: string;
+    /** Why "daily" means "daily, when you open the app". */
+    frequencyNote: string;
+
+    networkSection: string;
+    networkWifi: string;
+    networkAny: string;
+
+    keySection: string;
+    keyIntro: string;
+    keyPresent: string;
+    keyAbsent: string;
+    keyCreate: string;
+    keyShow: string;
+    keyEnter: string;
+    keyTitle: string;
+    keyWarning: string;
+    keyCopy: string;
+    keyCopied: string;
+    keyConfirm: string;
+    keyEnterTitle: string;
+    keyEnterBody: string;
+    keyEnterPlaceholder: string;
+    keyEnterInvalid: string;
+    keyEnterSave: string;
+
+    restoreSection: string;
+    restoreIntro: string;
+    restoreCheck: string;
+    restoreFound: PluralForms;
+    /** "Backed up {date}" — the found backup's own date. */
+    restoreFrom: string;
+    restoreNothingNew: string;
+    restoreConfirm: string;
+    restoreDone: PluralForms;
+    restoreFailed: string;
+    restoreWrongKey: string;
+
+    /** Why a run did nothing. Each one is a different way out. */
+    refusedNotConnected: string;
+    refusedNoKey: string;
+    refusedOffline: string;
+    refusedNetwork: string;
+    refusedAuth: string;
+    refusedNoBackup: string;
+    refusedBusy: string;
+    /** Screen-reader suffix on a chosen option row. */
+    selected: string;
   };
   /** A group: its screen, its settings, and the ways out of it. */
   group: {
@@ -3610,38 +3664,91 @@ const en: UiStrings = {
     upgrade: 'Upgrade for unlimited',
   },
   backup: {
-    connectFailed: 'Could not connect. Please try again.',
-    title: 'Storage',
-    subtitle: 'Where scanned receipts are kept',
-    primaryTitle: 'Back up receipts to',
-    primaryBody:
-      'Scanned receipts always stay on this device. Copy them to a cloud you own, or — on Plus — to Waves’ own encrypted storage.',
-    off: 'Off',
-    connect: 'Connect',
-    disconnect: 'Disconnect',
-    connected: 'Connected',
-    notConfigured: 'Not set up in this build',
-    wavesHint: 'Encrypted on Waves — a Plus feature',
-    plus: 'Plus',
-    upgrade: 'Upgrade',
-    networkTitle: 'Upload over',
-    wifiOnly: 'Wi‑Fi only',
-    wifiAndData: 'Wi‑Fi & mobile data',
-    pending: {
-      one: '{n} receipt waiting to back up',
-      other: '{n} receipts waiting to back up',
+    title: 'Backup',
+    row: 'Back up to Google Drive',
+    intro:
+      'Your private Me ledger, copied to your own Google Drive and locked with a key only you hold. Neither Waves nor Google can read it.',
+    unavailable: 'Backup is not available in this build.',
+
+    accountSection: 'Google account',
+    notConnected: 'No account linked yet',
+    connect: 'Link Google Drive',
+    connectFailed: 'Could not link that account. Try again.',
+    disconnect: 'Unlink',
+    disconnectTitle: 'Unlink Google Drive?',
+    disconnectBody:
+      'Automatic backups stop and this phone forgets its key. The backup already on Drive stays there, and the key you wrote down still opens it.',
+
+    backUpNow: 'Back up now',
+    phaseCollecting: 'Gathering your records…',
+    phaseSealing: 'Locking the backup…',
+    phaseUploading: 'Uploading to Drive…',
+    backedUp: {
+      one: '{n} record backed up',
+      other: '{n} records backed up',
     },
-    allBackedUp: 'All receipts backed up',
-    troubleTitle: 'Some receipts didn’t upload',
-    troubleOffline: 'You’re offline. They’ll upload on their own once you’re back on a network.',
-    troublePolicy: 'Uploads are set to Wi‑Fi only. Connect to Wi‑Fi, or allow mobile data above.',
-    troubleReconnect:
-      'The destination stopped accepting the upload — its sign-in may have expired, or a Plus plan ended. Reconnect it above, or pick another.',
-    troubleGeneric: 'The last attempt failed. Fix the cause, then try again.',
-    troubleSafe: 'Your receipts are safe on this device the whole time — nothing is lost.',
-    retry: 'Try again',
-    privacyNote:
-      'A personal cloud keeps the photo off Waves entirely. Waves storage is a Plus feature, encrypted at rest.',
+    backupFailed: 'The backup did not finish. Try again in a moment.',
+
+    lastSection: 'Last backup',
+    never: 'Never backed up',
+    lastLine: '{date} · {size}',
+
+    frequencySection: 'Automatic backup',
+    freqOff: 'Off',
+    freqDaily: 'Daily',
+    freqWeekly: 'Weekly',
+    freqMonthly: 'Monthly',
+    frequencyNote: 'Automatic backups run when you open the app, not while it is closed.',
+
+    networkSection: 'Back up over',
+    networkWifi: 'Wi‑Fi only',
+    networkAny: 'Wi‑Fi or mobile data',
+
+    keySection: 'Your key',
+    keyIntro:
+      'The backup is locked with a 64-character key. Write it down: it is the only way to open the backup on a new phone, and nobody can give it back to you — not Waves, not Google.',
+    keyPresent: 'This phone has your key',
+    keyAbsent: 'No key on this phone yet',
+    keyCreate: 'Create a key',
+    keyShow: 'Show my key',
+    keyEnter: 'I already have a key',
+    keyTitle: 'Your backup key',
+    keyWarning: 'Save this somewhere safe. Lose it and the backup can never be opened.',
+    keyCopy: 'Copy',
+    keyCopied: 'Copied',
+    keyConfirm: 'I have saved it',
+    keyEnterTitle: 'Enter your backup key',
+    keyEnterBody: 'The 64 characters from the phone that made the backup.',
+    keyEnterPlaceholder: '64 characters',
+    keyEnterInvalid: 'That is not a backup key. A key is 64 letters and digits.',
+    keyEnterSave: 'Use this key',
+
+    restoreSection: 'Restore',
+    restoreIntro:
+      'Bring records back from the Drive backup. Nothing already on this phone is changed or removed.',
+    restoreCheck: 'Check for a backup',
+    restoreFound: {
+      one: '{n} record to bring back',
+      other: '{n} records to bring back',
+    },
+    restoreFrom: 'Backed up {date}',
+    restoreNothingNew: 'That backup holds nothing this phone is missing.',
+    restoreConfirm: 'Restore',
+    restoreDone: {
+      one: '{n} record restored',
+      other: '{n} records restored',
+    },
+    restoreFailed: 'Could not read that backup. Try again in a moment.',
+    restoreWrongKey: 'That key does not open this backup.',
+
+    refusedNotConnected: 'Link a Google account first.',
+    refusedNoKey: 'Create your backup key first.',
+    refusedOffline: 'No connection. The backup will run when you are back online.',
+    refusedNetwork: 'Waiting for Wi‑Fi. Change Back up over to use mobile data.',
+    refusedAuth: 'Google asked for the link again. Reconnect the account.',
+    refusedNoBackup: 'There is no backup on this Drive account yet.',
+    refusedBusy: 'A backup is already running.',
+    selected: 'selected',
   },
   group: {
     notFound: 'Group not found',
@@ -5795,41 +5902,92 @@ const ta: UiStrings = {
       '\u0bb5\u0bb0\u0bae\u0bcd\u0baa\u0bbf\u0bb2\u0bcd\u0bb2\u0bbe\u0ba4\u0ba4\u0bb1\u0bcd\u0b95\u0bc1 \u0bae\u0bc7\u0bae\u0bcd\u0baa\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1',
   },
   backup: {
-    connectFailed: 'இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
-    title: 'சேமிப்பு',
-    subtitle: 'ஸ்கேன் செய்த ரசீதுகள் எங்கே வைக்கப்படும்',
-    primaryTitle: 'ரசீதுகளை காப்புப்பிடி',
-    primaryBody:
-      'ஸ்கேன் செய்த ரசீதுகள் எப்போதும் இந்தச் சாதனத்தில் இருக்கும். உங்கள் சொந்த கிளவுடுக்கு நகலெடுங்கள் — அல்லது Plus-இல் Waves-இன் சொந்த குறியாக்க சேமிப்புக்கு.',
-    off: 'அணை',
-    connect: 'இணை',
-    disconnect: 'துண்டி',
-    connected: 'இணைக்கப்பட்டது',
-    notConfigured: 'இந்த பதிப்பில் அமைக்கப்படவில்லை',
-    wavesHint: 'Waves-இல் குறியாக்கம் — Plus வசதி',
-    plus: 'Plus',
-    upgrade: 'மேம்படுத்து',
-    networkTitle: 'இதன் மூலம் பதிவேற்று',
-    wifiOnly: 'வைஃபை மட்டும்',
-    wifiAndData: 'வைஃபை & மொபைல் டேட்டா',
-    pending: {
-      one: '{n} ரசீது காப்புப்படிக்கக் காத்திருக்கிறது',
-      other: '{n} ரசீதுகள் காப்புப்படிக்கக் காத்திருக்கின்றன',
+    title: 'காப்புப்பிரதி',
+    row: 'Google Drive-இல் காப்பு',
+    intro:
+      'உங்கள் தனிப்பட்ட "நான்" கணக்கு, உங்கள் சொந்த Google Drive-க்கு நகலெடுக்கப்பட்டு, உங்களிடம் மட்டுமே உள்ள சாவியால் பூட்டப்படுகிறது. Waves-ஆலும் Google-ஆலும் அதைப் படிக்க முடியாது.',
+    unavailable: 'இந்தப் பதிப்பில் காப்புப்பிரதி கிடைக்கவில்லை.',
+
+    accountSection: 'Google கணக்கு',
+    notConnected: 'எந்தக் கணக்கும் இணைக்கப்படவில்லை',
+    connect: 'Google Drive-ஐ இணை',
+    connectFailed: 'அந்தக் கணக்கை இணைக்க முடியவில்லை. மீண்டும் முயலுங்கள்.',
+    disconnect: 'இணைப்பை நீக்கு',
+    disconnectTitle: 'Google Drive இணைப்பை நீக்கவா?',
+    disconnectBody:
+      'தானியங்கி காப்புப்பிரதிகள் நிற்கும், இந்த ஃபோன் தன் சாவியை மறக்கும். Drive-இல் உள்ள காப்புப்பிரதி அப்படியே இருக்கும் — நீங்கள் எழுதி வைத்த சாவி இன்னும் அதைத் திறக்கும்.',
+
+    backUpNow: 'இப்போது காப்பு எடு',
+    phaseCollecting: 'உங்கள் பதிவுகளைச் சேகரிக்கிறது…',
+    phaseSealing: 'காப்புப்பிரதியைப் பூட்டுகிறது…',
+    phaseUploading: 'Drive-க்கு பதிவேற்றுகிறது…',
+    backedUp: {
+      one: '{n} பதிவு காப்பு செய்யப்பட்டது',
+      other: '{n} பதிவுகள் காப்பு செய்யப்பட்டன',
     },
-    allBackedUp: 'அனைத்து ரசீதுகளும் காப்புப்படி எடுக்கப்பட்டன',
-    troubleTitle: 'சில ரசீதுகள் பதிவேற்றப்படவில்லை',
-    troubleOffline:
-      'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். மீண்டும் நெட்வொர்க்கில் வந்ததும் தானாகப் பதிவேறும்.',
-    troublePolicy:
-      'பதிவேற்றம் வைஃபை மட்டும் என அமைக்கப்பட்டுள்ளது. வைஃபையில் இணையுங்கள், அல்லது மேலே மொபைல் டேட்டாவை அனுமதியுங்கள்.',
-    troubleReconnect:
-      'இலக்கு பதிவேற்றத்தை ஏற்க நிறுத்தியது — அதன் உள்நுழைவு காலாவதியாகியிருக்கலாம், அல்லது Plus திட்டம் முடிந்திருக்கலாம். மேலே மீண்டும் இணையுங்கள், அல்லது வேறொன்றைத் தேர்ந்தெடுங்கள்.',
-    troubleGeneric: 'கடைசி முயற்சி தோல்வியடைந்தது. காரணத்தைச் சரிசெய்து மீண்டும் முயற்சிக்கவும்.',
-    troubleSafe:
-      'உங்கள் ரசீதுகள் இந்தச் சாதனத்தில் எப்போதும் பாதுகாப்பாக உள்ளன — எதுவும் இழக்கப்படவில்லை.',
-    retry: 'மீண்டும் முயற்சி',
-    privacyNote:
-      'சொந்த கிளவுட் புகைப்படத்தை Waves-இலிருந்து முழுவதுமாக விலக்கி வைக்கும். Waves சேமிப்பு ஒரு Plus வசதி, ஓய்வில் குறியாக்கம் செய்யப்படும்.',
+    backupFailed: 'காப்புப்பிரதி முடியவில்லை. சிறிது நேரம் கழித்து முயலுங்கள்.',
+
+    lastSection: 'கடைசி காப்புப்பிரதி',
+    never: 'இதுவரை காப்பு எடுக்கவில்லை',
+    lastLine: '{date} · {size}',
+
+    frequencySection: 'தானியங்கி காப்பு',
+    freqOff: 'இல்லை',
+    freqDaily: 'தினமும்',
+    freqWeekly: 'வாரம் ஒருமுறை',
+    freqMonthly: 'மாதம் ஒருமுறை',
+    frequencyNote: 'செயலியைத் திறக்கும்போது தானியங்கி காப்பு இயங்கும்; மூடியிருக்கும்போது அல்ல.',
+
+    networkSection: 'எதன் வழியாகக் காப்பு எடுக்க',
+    networkWifi: 'Wi‑Fi மட்டும்',
+    networkAny: 'Wi‑Fi அல்லது மொபைல் டேட்டா',
+
+    keySection: 'உங்கள் சாவி',
+    keyIntro:
+      'காப்புப்பிரதி 64 எழுத்துச் சாவியால் பூட்டப்படுகிறது. அதை எழுதி வையுங்கள்: புதிய ஃபோனில் அதைத் திறக்க அதுவே ஒரே வழி. Waves-ஆலும் Google-ஆலும் அதைத் திரும்பத் தர முடியாது.',
+    keyPresent: 'இந்த ஃபோனில் உங்கள் சாவி உள்ளது',
+    keyAbsent: 'இந்த ஃபோனில் இன்னும் சாவி இல்லை',
+    keyCreate: 'சாவியை உருவாக்கு',
+    keyShow: 'என் சாவியைக் காட்டு',
+    keyEnter: 'என்னிடம் ஏற்கனவே சாவி உள்ளது',
+    keyTitle: 'உங்கள் காப்புச் சாவி',
+    keyWarning: 'இதைப் பத்திரமாக வையுங்கள். தொலைந்தால் காப்புப்பிரதியை ஒருபோதும் திறக்க முடியாது.',
+    keyCopy: 'நகலெடு',
+    keyCopied: 'நகலெடுக்கப்பட்டது',
+    keyConfirm: 'சேமித்துவிட்டேன்',
+    keyEnterTitle: 'உங்கள் காப்புச் சாவியை உள்ளிடுங்கள்',
+    keyEnterBody: 'காப்பு எடுத்த ஃபோனில் இருந்த 64 எழுத்துகள்.',
+    keyEnterPlaceholder: '64 எழுத்துகள்',
+    keyEnterInvalid: 'இது காப்புச் சாவி அல்ல. சாவி 64 எழுத்துகளும் இலக்கங்களும் கொண்டது.',
+    keyEnterSave: 'இந்தச் சாவியைப் பயன்படுத்து',
+
+    restoreSection: 'மீட்டெடு',
+    restoreIntro:
+      'Drive காப்புப்பிரதியிலிருந்து பதிவுகளைத் திரும்பக் கொண்டுவாருங்கள். இந்த ஃபோனில் ஏற்கனவே உள்ளது எதுவும் மாறாது, நீக்கப்படாது.',
+    restoreCheck: 'காப்புப்பிரதி உள்ளதா எனப் பார்',
+    restoreFound: {
+      one: '{n} பதிவைத் திரும்பக் கொண்டுவரலாம்',
+      other: '{n} பதிவுகளைத் திரும்பக் கொண்டுவரலாம்',
+    },
+    restoreFrom: '{date} அன்று எடுக்கப்பட்ட காப்பு',
+    restoreNothingNew: 'இந்த ஃபோனில் இல்லாதது எதுவும் அந்தக் காப்பில் இல்லை.',
+    restoreConfirm: 'மீட்டெடு',
+    restoreDone: {
+      one: '{n} பதிவு மீட்கப்பட்டது',
+      other: '{n} பதிவுகள் மீட்கப்பட்டன',
+    },
+    restoreFailed: 'அந்தக் காப்பைப் படிக்க முடியவில்லை. சிறிது நேரம் கழித்து முயலுங்கள்.',
+    restoreWrongKey: 'அந்தச் சாவி இந்தக் காப்பைத் திறக்காது.',
+
+    refusedNotConnected: 'முதலில் ஒரு Google கணக்கை இணையுங்கள்.',
+    refusedNoKey: 'முதலில் உங்கள் காப்புச் சாவியை உருவாக்குங்கள்.',
+    refusedOffline: 'இணைப்பு இல்லை. மீண்டும் ஆன்லைனுக்கு வரும்போது காப்பு எடுக்கப்படும்.',
+    refusedNetwork:
+      'Wi‑Fi-க்காகக் காத்திருக்கிறது. மொபைல் டேட்டாவைப் பயன்படுத்த அமைப்பை மாற்றுங்கள்.',
+    refusedAuth: 'Google மீண்டும் அனுமதி கேட்கிறது. கணக்கை மீண்டும் இணையுங்கள்.',
+    refusedNoBackup: 'இந்த Drive கணக்கில் இன்னும் காப்புப்பிரதி இல்லை.',
+    refusedBusy: 'ஒரு காப்பு ஏற்கனவே இயங்குகிறது.',
+    selected: 'தேர்ந்தெடுக்கப்பட்டது',
   },
   group: {
     notFound: 'குழு கிடைக்கவில்லை',
@@ -7993,39 +8151,91 @@ const hi: UiStrings = {
       '\u0905\u0938\u0940\u092e\u093f\u0924 \u0915\u0947 \u0932\u093f\u090f \u0905\u092a\u0917\u094d\u0930\u0947\u0921 \u0915\u0930\u0947\u0902',
   },
   backup: {
-    connectFailed: 'कनेक्ट नहीं हो सका। कृपया फिर कोशिश करें।',
-    title: 'स्टोरेज',
-    subtitle: 'स्कैन की गई रसीदें कहाँ रखी जाती हैं',
-    primaryTitle: 'रसीदें यहाँ बैकअप करें',
-    primaryBody:
-      'स्कैन की गई रसीदें हमेशा इसी डिवाइस पर रहती हैं। इन्हें अपने किसी क्लाउड पर कॉपी करें — या Plus पर Waves के अपने एन्क्रिप्टेड स्टोरेज पर।',
-    off: 'बंद',
-    connect: 'कनेक्ट करें',
-    disconnect: 'डिसकनेक्ट करें',
-    connected: 'कनेक्टेड',
-    notConfigured: 'इस बिल्ड में सेट नहीं है',
-    wavesHint: 'Waves पर एन्क्रिप्टेड — एक Plus सुविधा',
-    plus: 'Plus',
-    upgrade: 'अपग्रेड',
-    networkTitle: 'इसके ज़रिए अपलोड करें',
-    wifiOnly: 'केवल वाई‑फाई',
-    wifiAndData: 'वाई‑फाई और मोबाइल डेटा',
-    pending: {
-      one: '{n} रसीद बैकअप के लिए प्रतीक्षारत',
-      other: '{n} रसीदें बैकअप के लिए प्रतीक्षारत',
+    title: 'बैकअप',
+    row: 'Google Drive पर बैकअप',
+    intro:
+      'आपका निजी "मैं" खाता, आपकी अपनी Google Drive पर कॉपी होता है और सिर्फ़ आपके पास मौजूद चाबी से बंद रहता है। इसे न Waves पढ़ सकता है, न Google।',
+    unavailable: 'इस बिल्ड में बैकअप उपलब्ध नहीं है।',
+
+    accountSection: 'Google खाता',
+    notConnected: 'अभी कोई खाता जुड़ा नहीं है',
+    connect: 'Google Drive जोड़ें',
+    connectFailed: 'वह खाता नहीं जुड़ सका। फिर कोशिश करें।',
+    disconnect: 'हटाएँ',
+    disconnectTitle: 'Google Drive हटाएँ?',
+    disconnectBody:
+      'अपने आप होने वाले बैकअप रुक जाएँगे और यह फ़ोन अपनी चाबी भूल जाएगा। Drive पर मौजूद बैकअप वहीं रहेगा — आपकी लिखी हुई चाबी उसे अब भी खोल देगी।',
+
+    backUpNow: 'अभी बैकअप लें',
+    phaseCollecting: 'आपके रिकॉर्ड जुटाए जा रहे हैं…',
+    phaseSealing: 'बैकअप बंद किया जा रहा है…',
+    phaseUploading: 'Drive पर भेजा जा रहा है…',
+    backedUp: {
+      one: '{n} रिकॉर्ड का बैकअप हो गया',
+      other: '{n} रिकॉर्ड का बैकअप हो गया',
     },
-    allBackedUp: 'सभी रसीदें बैकअप हो गईं',
-    troubleTitle: 'कुछ रसीदें अपलोड नहीं हुईं',
-    troubleOffline: 'आप ऑफ़लाइन हैं। नेटवर्क वापस आते ही ये अपने आप अपलोड हो जाएँगी।',
-    troublePolicy:
-      'अपलोड केवल वाई‑फाई पर सेट है। वाई‑फाई से कनेक्ट करें, या ऊपर मोबाइल डेटा की अनुमति दें।',
-    troubleReconnect:
-      'गंतव्य ने अपलोड लेना बंद कर दिया — उसका साइन-इन समाप्त हो गया होगा, या Plus प्लान खत्म हो गया होगा। ऊपर दोबारा कनेक्ट करें, या कोई और चुनें।',
-    troubleGeneric: 'पिछली कोशिश विफल रही। कारण ठीक करें, फिर दोबारा कोशिश करें।',
-    troubleSafe: 'आपकी रसीदें इस दौरान इसी डिवाइस पर सुरक्षित रहती हैं — कुछ भी नहीं खोता।',
-    retry: 'दोबारा कोशिश करें',
-    privacyNote:
-      'निजी क्लाउड रखने पर फ़ोटो Waves तक पहुँचती ही नहीं। Waves स्टोरेज एक Plus सुविधा है, जो स्थिर अवस्था में एन्क्रिप्टेड रहती है।',
+    backupFailed: 'बैकअप पूरा नहीं हुआ। थोड़ी देर में फिर कोशिश करें।',
+
+    lastSection: 'पिछला बैकअप',
+    never: 'अभी तक कोई बैकअप नहीं',
+    lastLine: '{date} · {size}',
+
+    frequencySection: 'अपने आप बैकअप',
+    freqOff: 'बंद',
+    freqDaily: 'रोज़',
+    freqWeekly: 'हफ़्ते में एक बार',
+    freqMonthly: 'महीने में एक बार',
+    frequencyNote: 'अपने आप बैकअप तब चलता है जब आप ऐप खोलते हैं, बंद रहने पर नहीं।',
+
+    networkSection: 'किस पर बैकअप लें',
+    networkWifi: 'सिर्फ़ Wi‑Fi',
+    networkAny: 'Wi‑Fi या मोबाइल डेटा',
+
+    keySection: 'आपकी चाबी',
+    keyIntro:
+      'बैकअप 64 अक्षरों की एक चाबी से बंद रहता है। उसे लिख लीजिए: नए फ़ोन पर बैकअप खोलने का यही एक रास्ता है, और उसे कोई लौटा नहीं सकता — न Waves, न Google।',
+    keyPresent: 'इस फ़ोन पर आपकी चाबी है',
+    keyAbsent: 'इस फ़ोन पर अभी कोई चाबी नहीं',
+    keyCreate: 'चाबी बनाएँ',
+    keyShow: 'मेरी चाबी दिखाएँ',
+    keyEnter: 'मेरे पास पहले से चाबी है',
+    keyTitle: 'आपकी बैकअप चाबी',
+    keyWarning: 'इसे कहीं सुरक्षित रखें। खो गई तो बैकअप कभी नहीं खुलेगा।',
+    keyCopy: 'कॉपी करें',
+    keyCopied: 'कॉपी हो गया',
+    keyConfirm: 'मैंने सहेज लिया',
+    keyEnterTitle: 'अपनी बैकअप चाबी डालें',
+    keyEnterBody: 'उस फ़ोन के 64 अक्षर जिसने बैकअप लिया था।',
+    keyEnterPlaceholder: '64 अक्षर',
+    keyEnterInvalid: 'यह बैकअप चाबी नहीं है। चाबी में 64 अक्षर और अंक होते हैं।',
+    keyEnterSave: 'यही चाबी इस्तेमाल करें',
+
+    restoreSection: 'वापस लाएँ',
+    restoreIntro:
+      'Drive बैकअप से रिकॉर्ड वापस लाएँ। इस फ़ोन पर जो पहले से है, वह न बदलेगा न हटेगा।',
+    restoreCheck: 'बैकअप ढूँढें',
+    restoreFound: {
+      one: '{n} रिकॉर्ड वापस आ सकता है',
+      other: '{n} रिकॉर्ड वापस आ सकते हैं',
+    },
+    restoreFrom: '{date} को लिया गया बैकअप',
+    restoreNothingNew: 'उस बैकअप में ऐसा कुछ नहीं जो इस फ़ोन पर न हो।',
+    restoreConfirm: 'वापस लाएँ',
+    restoreDone: {
+      one: '{n} रिकॉर्ड वापस आ गया',
+      other: '{n} रिकॉर्ड वापस आ गए',
+    },
+    restoreFailed: 'वह बैकअप पढ़ा नहीं जा सका। थोड़ी देर में फिर कोशिश करें।',
+    restoreWrongKey: 'यह चाबी इस बैकअप को नहीं खोलती।',
+
+    refusedNotConnected: 'पहले एक Google खाता जोड़ें।',
+    refusedNoKey: 'पहले अपनी बैकअप चाबी बनाएँ।',
+    refusedOffline: 'कोई कनेक्शन नहीं। ऑनलाइन आते ही बैकअप चल जाएगा।',
+    refusedNetwork: 'Wi‑Fi का इंतज़ार है। मोबाइल डेटा इस्तेमाल करने के लिए सेटिंग बदलें।',
+    refusedAuth: 'Google ने फिर से अनुमति माँगी है। खाता दोबारा जोड़ें।',
+    refusedNoBackup: 'इस Drive खाते पर अभी कोई बैकअप नहीं है।',
+    refusedBusy: 'एक बैकअप पहले से चल रहा है।',
+    selected: 'चुना गया',
   },
   group: {
     notFound: 'समूह नहीं मिला',
@@ -10199,42 +10409,102 @@ const ar: UiStrings = {
       '\u0627\u0644\u062a\u0631\u0642\u064a\u0629 \u0644\u063a\u064a\u0631 \u0645\u062d\u062f\u0648\u062f',
   },
   backup: {
-    connectFailed: 'تعذّر الاتصال. حاول مرة أخرى.',
-    title: 'التخزين',
-    subtitle: 'أين تُحفظ الإيصالات الممسوحة',
-    primaryTitle: 'انسخ الإيصالات احتياطيًا إلى',
-    primaryBody:
-      'تبقى الإيصالات الممسوحة دائمًا على هذا الجهاز. انسخها إلى سحابة تملكها — أو، مع Plus، إلى تخزين Waves المشفّر الخاص.',
-    off: 'إيقاف',
-    connect: 'اتصال',
-    disconnect: 'قطع الاتصال',
-    connected: 'متصل',
-    notConfigured: 'غير مُهيّأ في هذه النسخة',
-    wavesHint: 'مشفّر على Waves — ميزة Plus',
-    plus: 'Plus',
-    upgrade: 'ترقية',
-    networkTitle: 'الرفع عبر',
-    wifiOnly: 'واي‑فاي فقط',
-    wifiAndData: 'واي‑فاي وبيانات الجوال',
-    pending: {
-      zero: 'لا إيصالات بانتظار النسخ',
-      one: 'إيصال واحد بانتظار النسخ الاحتياطي',
-      two: 'إيصالان بانتظار النسخ',
-      few: '{n} إيصالات بانتظار النسخ',
-      many: '{n} إيصالًا بانتظار النسخ',
-      other: '{n} إيصال بانتظار النسخ',
+    title: 'النسخ الاحتياطي',
+    row: 'نسخ احتياطي إلى Google Drive',
+    intro:
+      'دفترك الخاص في تبويب "أنا"، يُنسخ إلى Google Drive الخاص بك ويُقفل بمفتاح لا يملكه سواك. لا يستطيع Waves ولا Google قراءته.',
+    unavailable: 'النسخ الاحتياطي غير متاح في هذه النسخة.',
+
+    accountSection: 'حساب Google',
+    notConnected: 'لم يُربط أي حساب بعد',
+    connect: 'اربط Google Drive',
+    connectFailed: 'تعذّر ربط هذا الحساب. حاول مرة أخرى.',
+    disconnect: 'إلغاء الربط',
+    disconnectTitle: 'إلغاء ربط Google Drive؟',
+    disconnectBody:
+      'يتوقف النسخ التلقائي وينسى هذا الهاتف مفتاحه. تبقى النسخة الموجودة على Drive كما هي، والمفتاح الذي كتبته ما زال يفتحها.',
+
+    backUpNow: 'انسخ الآن',
+    phaseCollecting: 'يجمع سجلاتك…',
+    phaseSealing: 'يقفل النسخة…',
+    phaseUploading: 'يرفع إلى Drive…',
+    backedUp: {
+      zero: 'لا سجلات لنسخها',
+      one: 'نُسخ سجل واحد',
+      two: 'نُسخ سجلان',
+      few: 'نُسخت {n} سجلات',
+      many: 'نُسخ {n} سجلًا',
+      other: 'نُسخ {n} سجل',
     },
-    allBackedUp: 'تم نسخ جميع الإيصالات احتياطيًا',
-    troubleTitle: 'لم تُرفع بعض الإيصالات',
-    troubleOffline: 'أنت غير متصل. ستُرفع تلقائيًا بمجرد عودتك إلى الشبكة.',
-    troublePolicy: 'الرفع مضبوط على واي‑فاي فقط. اتصل بواي‑فاي، أو اسمح ببيانات الجوال أعلاه.',
-    troubleReconnect:
-      'توقّفت الوجهة عن قبول الرفع — قد تكون صلاحية تسجيل دخولها انتهت، أو انتهت خطة Plus. أعد الاتصال أعلاه، أو اختر وجهة أخرى.',
-    troubleGeneric: 'فشلت المحاولة الأخيرة. عالج السبب ثم أعد المحاولة.',
-    troubleSafe: 'تبقى إيصالاتك آمنة على هذا الجهاز طوال الوقت — لا شيء يُفقد.',
-    retry: 'أعد المحاولة',
-    privacyNote:
-      'السحابة الخاصة تُبقي الصورة بعيدة عن Waves تمامًا. تخزين Waves ميزة Plus، مشفّر أثناء التخزين.',
+    backupFailed: 'لم يكتمل النسخ. حاول بعد قليل.',
+
+    lastSection: 'آخر نسخة احتياطية',
+    never: 'لم يحدث نسخ بعد',
+    lastLine: '{date} · {size}',
+
+    frequencySection: 'النسخ التلقائي',
+    freqOff: 'إيقاف',
+    freqDaily: 'يوميًا',
+    freqWeekly: 'أسبوعيًا',
+    freqMonthly: 'شهريًا',
+    frequencyNote: 'يعمل النسخ التلقائي عند فتحك للتطبيق، لا وهو مغلق.',
+
+    networkSection: 'النسخ عبر',
+    networkWifi: 'Wi‑Fi فقط',
+    networkAny: 'Wi‑Fi أو بيانات الجوال',
+
+    keySection: 'مفتاحك',
+    keyIntro:
+      'تُقفل النسخة بمفتاح من 64 حرفًا. اكتبه في مكان آمن: هو الطريق الوحيد لفتح النسخة على هاتف جديد، ولا أحد يستطيع إعادته لك — لا Waves ولا Google.',
+    keyPresent: 'هذا الهاتف يحمل مفتاحك',
+    keyAbsent: 'لا مفتاح على هذا الهاتف بعد',
+    keyCreate: 'أنشئ مفتاحًا',
+    keyShow: 'أظهر مفتاحي',
+    keyEnter: 'لديّ مفتاح بالفعل',
+    keyTitle: 'مفتاح النسخة الاحتياطية',
+    keyWarning: 'احفظه في مكان آمن. إن ضاع لن تُفتح النسخة أبدًا.',
+    keyCopy: 'نسخ',
+    keyCopied: 'تم النسخ',
+    keyConfirm: 'حفظته',
+    keyEnterTitle: 'أدخل مفتاح النسخة',
+    keyEnterBody: 'الأحرف الـ64 من الهاتف الذي أنشأ النسخة.',
+    keyEnterPlaceholder: '64 حرفًا',
+    keyEnterInvalid: 'هذا ليس مفتاح نسخة. المفتاح 64 حرفًا ورقمًا.',
+    keyEnterSave: 'استخدم هذا المفتاح',
+
+    restoreSection: 'الاستعادة',
+    restoreIntro: 'أعد السجلات من نسخة Drive. لا يتغيّر ولا يُحذف شيء موجود على هذا الهاتف.',
+    restoreCheck: 'ابحث عن نسخة',
+    restoreFound: {
+      zero: 'لا شيء لاستعادته',
+      one: 'سجل واحد يمكن استعادته',
+      two: 'سجلان يمكن استعادتهما',
+      few: '{n} سجلات يمكن استعادتها',
+      many: '{n} سجلًا يمكن استعادته',
+      other: '{n} سجل يمكن استعادته',
+    },
+    restoreFrom: 'نُسخت في {date}',
+    restoreNothingNew: 'لا تحوي تلك النسخة شيئًا ينقص هذا الهاتف.',
+    restoreConfirm: 'استعادة',
+    restoreDone: {
+      zero: 'لم يُستعَد شيء',
+      one: 'استُعيد سجل واحد',
+      two: 'استُعيد سجلان',
+      few: 'استُعيدت {n} سجلات',
+      many: 'استُعيد {n} سجلًا',
+      other: 'استُعيد {n} سجل',
+    },
+    restoreFailed: 'تعذّرت قراءة تلك النسخة. حاول بعد قليل.',
+    restoreWrongKey: 'هذا المفتاح لا يفتح هذه النسخة.',
+
+    refusedNotConnected: 'اربط حساب Google أولًا.',
+    refusedNoKey: 'أنشئ مفتاح النسخة أولًا.',
+    refusedOffline: 'لا اتصال. سيجري النسخ عند عودتك للاتصال.',
+    refusedNetwork: 'في انتظار Wi‑Fi. غيّر الإعداد لاستخدام بيانات الجوال.',
+    refusedAuth: 'طلب Google الإذن من جديد. أعد ربط الحساب.',
+    refusedNoBackup: 'لا توجد نسخة على حساب Drive هذا بعد.',
+    refusedBusy: 'هناك نسخ جارٍ بالفعل.',
+    selected: 'محدد',
   },
   group: {
     notFound: 'المجموعة غير موجودة',
