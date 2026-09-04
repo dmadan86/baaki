@@ -1,7 +1,7 @@
-# Baaki design system
+# Waves design system
 
 Derived from the two reference boards supplied at kickoff. Both share the same
-skeleton, and Baaki takes it wholesale: a lavender canvas, white cards with
+skeleton, and Waves takes it wholesale: a lavender canvas, white cards with
 generous corner radii and one soft shadow, a single saturated purple that owns
 every primary action and active state, and a pastel family for tinted
 category/stat cards. Navigation is a floating white pill; the active
@@ -89,7 +89,7 @@ middle was all that showed. The arithmetic and its three caps now live in
 `packages/ui/src/curve.ts`, on their own and tested, because nothing about that
 failure looked like a failure.
 
-## Meeting Baaki for the first time
+## Meeting Waves for the first time
 
 Three full-bleed pastel cards before the welcome — what you get for free, that
 the people you split with need no account, and that settling hands the amount to
@@ -134,7 +134,7 @@ of this page you are on — which is the point.
 
 The pill under the name is **what has actually changed hands through you** —
 settled settlements only, per currency, in both directions. The board this was
-drawn from puts a points total there, and Baaki has none: a score next to
+drawn from puts a points total there, and Waves has none: a score next to
 somebody's money is a number that means nothing sitting among numbers that mean
 everything. It is deliberately _not_ coloured like a balance, because paying and
 being paid are the same fact here — a debt closed. Currencies are counted rather
@@ -158,7 +158,7 @@ labelled in the language you are trying to escape is no help at all.
 Words change instantly. **Direction does not.** React Native decides
 right-to-left natively, before any JavaScript runs, and `forceRTL` says so
 itself — _changes take full effect on the next application start_. There is no
-reload to call. So the screen says "close and open Baaki again" in a banner that
+reload to call. So the screen says "close and open Waves again" in a banner that
 stays until it is true, rather than half-mirroring a screen and calling it done.
 
 The banner alone was not enough, twice over. A banner lives on one screen, and

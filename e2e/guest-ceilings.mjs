@@ -158,7 +158,7 @@ try {
   // ── a guest gets exactly one group of their own ───────────────────────────
   const asha = await named('Asha');
 
-  const { data: first, error: firstError } = await asha.c.rpc('baaki_create_group', {
+  const { data: first, error: firstError } = await asha.c.rpc('waves_create_group', {
     p_name: 'Goa trip',
     p_type: 'trip',
     p_currency: 'INR',
@@ -167,7 +167,7 @@ try {
   if (first) createdGroups.push(first);
   check('a guest can create their first group', !firstError && !!first, firstError?.message);
 
-  const { data: second, error: secondError } = await asha.c.rpc('baaki_create_group', {
+  const { data: second, error: secondError } = await asha.c.rpc('waves_create_group', {
     p_name: 'Second trip',
     p_type: 'trip',
     p_currency: 'INR',
@@ -184,7 +184,7 @@ try {
   // A separate organiser stands up a group nobody in this test belongs to yet,
   // and mints a link with room for every join attempt below.
   const organiser = await named('Bharat');
-  const { data: hostGroup } = await organiser.c.rpc('baaki_create_group', {
+  const { data: hostGroup } = await organiser.c.rpc('waves_create_group', {
     p_name: 'Flatmates',
     p_type: 'home',
     p_currency: 'INR',
@@ -227,7 +227,7 @@ try {
   // …and now that Chandra holds one group by joining, creating one of their own
   // is the second, which proves a joined group counts the same as a created one.
   const { data: chandraSecond, error: chandraSecondError } = await chandra.c.rpc(
-    'baaki_create_group',
+    'waves_create_group',
     { p_name: 'My own', p_type: 'other', p_currency: 'INR' },
   );
   if (chandraSecond) createdGroups.push(chandraSecond);
@@ -268,7 +268,7 @@ try {
       upgradeError ? await edgeCode(upgradeError) : 'account still anonymous after adding an email',
     );
   } else {
-    const { data: postUpgrade, error: postUpgradeError } = await asha.c.rpc('baaki_create_group', {
+    const { data: postUpgrade, error: postUpgradeError } = await asha.c.rpc('waves_create_group', {
       p_name: 'Second, as a member',
       p_type: 'trip',
       p_currency: 'INR',

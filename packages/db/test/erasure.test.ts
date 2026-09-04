@@ -76,7 +76,7 @@ describe('erasing an account', () => {
     expect(raviBefore).not.toBe(0n);
 
     await asProfile(profileIds[0]!, () =>
-      client.query('SELECT public.baaki_delete_my_account($1)', ['Leaving, thanks']),
+      client.query('SELECT public.waves_delete_my_account($1)', ['Leaving, thanks']),
     );
 
     const after = await balances(groupId);
@@ -94,7 +94,7 @@ describe('erasing an account', () => {
       [groupId],
     );
 
-    await asProfile(profileIds[0]!, () => client.query('SELECT public.baaki_delete_my_account()'));
+    await asProfile(profileIds[0]!, () => client.query('SELECT public.waves_delete_my_account()'));
 
     const countAfter = await client.query(
       'SELECT count(*)::int AS n FROM public.group_members WHERE group_id = $1',
@@ -132,7 +132,7 @@ describe('erasing an account', () => {
       [profileId, `promo:erasure:${profileId}`],
     );
 
-    await asProfile(profileId, () => client.query('SELECT public.baaki_delete_my_account()'));
+    await asProfile(profileId, () => client.query('SELECT public.waves_delete_my_account()'));
 
     for (const table of ['profiles', 'push_tokens', 'subscriptions']) {
       const column = table === 'profiles' ? 'id' : 'profile_id';
@@ -153,7 +153,7 @@ describe('erasing an account', () => {
     const words = `Too many notifications ${randomUUID().slice(0, 8)}`;
 
     await asProfile(profileId, () =>
-      client.query('SELECT public.baaki_delete_my_account($1)', [words]),
+      client.query('SELECT public.waves_delete_my_account($1)', [words]),
     );
 
     const { rows } = await client.query(
@@ -175,12 +175,12 @@ describe('erasing an account', () => {
     const profileId = profileIds[0]!;
 
     const first = await asProfile(profileId, () =>
-      client.query('SELECT public.baaki_delete_my_account() AS r'),
+      client.query('SELECT public.waves_delete_my_account() AS r'),
     );
     expect(first.rows[0].r.memberships_anonymised).toBe(1);
 
     const second = await asProfile(profileId, () =>
-      client.query('SELECT public.baaki_delete_my_account() AS r'),
+      client.query('SELECT public.waves_delete_my_account() AS r'),
     );
     expect(second.rows[0].r.ok).toBe(true);
     expect(second.rows[0].r.memberships_anonymised).toBe(0);
@@ -196,7 +196,7 @@ describe('erasing an account', () => {
     });
 
     const { rows } = await asProfile(profileIds[0]!, async () =>
-      client.query('SELECT * FROM public.baaki_my_erasure_preview()'),
+      client.query('SELECT * FROM public.waves_my_erasure_preview()'),
     );
     expect(Number(rows[0].groups_count)).toBeGreaterThanOrEqual(1);
     expect(Number(rows[0].expenses_authored)).toBeGreaterThanOrEqual(1);
@@ -205,7 +205,7 @@ describe('erasing an account', () => {
 
   it('refuses when nobody is signed in', async () => {
     const message = await expectDenied(
-      client.query('SELECT public.baaki_delete_my_account($1)', ['nope']),
+      client.query('SELECT public.waves_delete_my_account($1)', ['nope']),
     );
     expect(message).toMatch(/NOT_SIGNED_IN/);
   });
@@ -217,7 +217,7 @@ describe('feedback', () => {
     const message = `Lovely app ${randomUUID().slice(0, 8)}`;
 
     await asProfile(profileIds[0]!, () =>
-      client.query('SELECT public.baaki_submit_feedback($1, $2, $3)', [message, 'idea', 5]),
+      client.query('SELECT public.waves_submit_feedback($1, $2, $3)', [message, 'idea', 5]),
     );
 
     const { rows } = await client.query('SELECT * FROM public.feedback WHERE message = $1', [
@@ -232,11 +232,11 @@ describe('feedback', () => {
     const { profileIds } = await seedGroup(client, { memberCount: 1 });
     await asProfile(profileIds[0]!, async () => {
       expect(
-        await expectDenied(client.query('SELECT public.baaki_submit_feedback($1)', ['   '])),
+        await expectDenied(client.query('SELECT public.waves_submit_feedback($1)', ['   '])),
       ).toMatch(/EMPTY_MESSAGE/);
       expect(
         await expectDenied(
-          client.query('SELECT public.baaki_submit_feedback($1, $2)', ['hi', 'rubbish']),
+          client.query('SELECT public.waves_submit_feedback($1, $2)', ['hi', 'rubbish']),
         ),
       ).toMatch(/feedback_kind_known/);
     });
@@ -249,7 +249,7 @@ describe('feedback', () => {
     const secret = `Private note ${randomUUID().slice(0, 8)}`;
 
     await asProfile(theirs, () =>
-      client.query('SELECT public.baaki_submit_feedback($1)', [secret]),
+      client.query('SELECT public.waves_submit_feedback($1)', [secret]),
     );
 
     await client.query('BEGIN');
@@ -287,7 +287,7 @@ describe('feedback', () => {
       try {
         await client.query(`SET LOCAL ROLE ${role}`);
         const message = await expectDenied(
-          client.query('SELECT * FROM public.baaki_admin_feedback(10)'),
+          client.query('SELECT * FROM public.waves_admin_feedback(10)'),
         );
         expect(message, role).toMatch(/permission denied/i);
       } finally {

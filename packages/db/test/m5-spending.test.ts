@@ -43,7 +43,7 @@ function localDate(value: Date): string {
 async function spending(groupId: string): Promise<SpendingRow[]> {
   const result = await client.query(
     `SELECT member_id, currency, category, month, share_amount, expense_count
-       FROM baaki_group_spending($1)
+       FROM waves_group_spending($1)
       ORDER BY category, month, member_id`,
     [groupId],
   );
@@ -63,7 +63,7 @@ async function spending(groupId: string): Promise<SpendingRow[]> {
 
 const total = (rows: SpendingRow[]): bigint => rows.reduce((sum, row) => sum + row.shareAmount, 0n);
 
-describe('baaki_group_spending', () => {
+describe('waves_group_spending', () => {
   it('adds up to exactly what the group spent, split by category and month', async () => {
     const { groupId, memberIds } = await seedGroup(client, { memberCount: 3 });
 
@@ -241,7 +241,7 @@ describe('baaki_group_spending', () => {
     ]);
     await client.query(`SET ROLE authenticated`);
     try {
-      const result = await client.query(`SELECT * FROM baaki_group_spending($1)`, [groupId]);
+      const result = await client.query(`SELECT * FROM waves_group_spending($1)`, [groupId]);
       // RLS on the base tables, not an error: a stranger is told nothing about
       // the group, including whether it exists.
       expect(result.rows).toEqual([]);

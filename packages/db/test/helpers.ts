@@ -11,7 +11,7 @@ import { computeShares, type SplitParams } from '@waves/core';
  * deletes rows freely. It only ever talks to an explicitly-named test database.
  */
 export const CONNECTION_STRING =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54330/baaki';
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54330/waves';
 
 export async function connect(): Promise<Client> {
   const client = new Client({ connectionString: CONNECTION_STRING });
@@ -272,7 +272,7 @@ export async function readBalances(client: Client, groupId: string): Promise<Map
 
 export async function readTruth(client: Client, groupId: string): Promise<Map<string, bigint>> {
   const result = await client.query(
-    `SELECT member_id, balance FROM baaki_group_balances_truth($1)`,
+    `SELECT member_id, balance FROM waves_group_balances_truth($1)`,
     [groupId],
   );
   return new Map(result.rows.map((row) => [String(row.member_id), big(row.balance)]));

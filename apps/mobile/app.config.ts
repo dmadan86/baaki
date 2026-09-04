@@ -13,7 +13,7 @@
  * build can report crashes without uploading source maps, and reads them
  * minified.
  *
- * **FCM.** Android push goes Baaki → Expo → FCM → the phone, and FCM will not
+ * **FCM.** Android push goes Waves → Expo → FCM → the phone, and FCM will not
  * issue this app a token unless the binary was built with the Firebase
  * project's `google-services.json` in it. Setting `android.googleServicesFile`
  * is what puts it there. The file is not checked in — this repo is public, and

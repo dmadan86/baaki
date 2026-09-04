@@ -688,7 +688,7 @@ export default function GroupScreen() {
               a link to a group that has gone, where there is no back stack — so
               the primary action goes home for certain, the way join.tsx does. */}
           <Button
-            label={t.misc.goToBaaki}
+            label={t.misc.goToWaves}
             onPress={() => router.replace('/')}
             fullWidth
             style={{ marginBottom: theme.spacing.xl }}

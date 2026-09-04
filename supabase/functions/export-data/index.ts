@@ -141,7 +141,7 @@ serveWithCors(async (request) => {
 
     if (format === 'json') {
       return json({
-        filename: `baaki-export-${new Date().toISOString().slice(0, 10)}.json`,
+        filename: `waves-export-${new Date().toISOString().slice(0, 10)}.json`,
         contentType: 'application/json',
         content: JSON.stringify(
           {
@@ -162,7 +162,7 @@ serveWithCors(async (request) => {
     if (format === 'pdf') {
       const pdf = new PdfBuilder();
       const today = new Date().toISOString().slice(0, 10);
-      pdf.heading('Baaki - ledger export', 17);
+      pdf.heading('Waves - ledger export', 17);
       pdf.body(`Exported ${today}`, 9);
 
       for (const entry of exported) {
@@ -275,7 +275,7 @@ serveWithCors(async (request) => {
       }
 
       return json({
-        filename: `baaki-export-${today}.pdf`,
+        filename: `waves-export-${today}.pdf`,
         contentType: 'application/pdf',
         encoding: 'base64',
         content: btoa(pdf.build()),
@@ -363,7 +363,7 @@ serveWithCors(async (request) => {
     }
 
     return json({
-      filename: `baaki-export-${new Date().toISOString().slice(0, 10)}.csv`,
+      filename: `waves-export-${new Date().toISOString().slice(0, 10)}.csv`,
       contentType: 'text/csv',
       content: rows.map((row) => row.map(escape).join(separator)).join('\n'),
     });

@@ -43,7 +43,7 @@ async function record(
     JSON.stringify({ sub: group.profileIds[0], role: 'authenticated' }),
   ]);
   const { rows } = await client.query(
-    `SELECT baaki_record_settlement($1, $2, $3, 5000, $4, 'AED', NULL, '[]'::jsonb, $5, $6) AS id`,
+    `SELECT waves_record_settlement($1, $2, $3, 5000, $4, 'AED', NULL, '[]'::jsonb, $5, $6) AS id`,
     [group.groupId, group.memberIds[0], group.memberIds[1], method, mutationId, rail],
   );
   const id = String(rows[0].id);
@@ -167,7 +167,7 @@ describe('creating a group somewhere', () => {
       JSON.stringify({ sub: profileId, role: 'authenticated' }),
     ]);
     const { rows } = await client.query(
-      `SELECT baaki_create_group('Trip', 'trip', 'AED', NULL, true, NULL, NULL, $1) AS id`,
+      `SELECT waves_create_group('Trip', 'trip', 'AED', NULL, true, NULL, NULL, $1) AS id`,
       [country],
     );
     return String(rows[0].id);
@@ -220,7 +220,7 @@ describe('creating a group somewhere', () => {
     await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
       JSON.stringify({ sub: group.profileIds[0], role: 'authenticated' }),
     ]);
-    const call = `SELECT baaki_create_group('Replayed', 'trip', 'AED', NULL, true, $1, NULL, 'AE') AS id`;
+    const call = `SELECT waves_create_group('Replayed', 'trip', 'AED', NULL, true, $1, NULL, 'AE') AS id`;
     const first = await client.query(call, [groupId]);
     const second = await client.query(call, [groupId]);
     expect(String(second.rows[0].id)).toBe(String(first.rows[0].id));

@@ -22,7 +22,7 @@ let client: Client;
 beforeAll(async () => {
   client = await connect();
   // CI runs against bare Postgres, which has no `auth` schema — Supabase owns
-  // it, and `baaki_email_for` returns NULL without it, which is correct and also
+  // it, and `waves_email_for` returns NULL without it, which is correct and also
   // untestable. The same shim `m4-email` uses: the three columns the function
   // reads and nothing else.
   await client.query(`CREATE SCHEMA IF NOT EXISTS auth`);
@@ -98,7 +98,7 @@ async function makeCampaign(
 // campaign. A small limit would truncate the batch and drop the profile the test
 // just made. In production the edge function caps itself; here we want everyone.
 async function claim(campaignId: string, limit = 100_000) {
-  const { rows } = await client.query('SELECT * FROM public.baaki_claim_campaign_emails($1, $2)', [
+  const { rows } = await client.query('SELECT * FROM public.waves_claim_campaign_emails($1, $2)', [
     campaignId,
     limit,
   ]);
@@ -106,13 +106,13 @@ async function claim(campaignId: string, limit = 100_000) {
 }
 
 async function finish(results: unknown[]): Promise<void> {
-  await client.query('SELECT public.baaki_finish_campaign_emails($1::jsonb)', [
+  await client.query('SELECT public.waves_finish_campaign_emails($1::jsonb)', [
     JSON.stringify(results),
   ]);
 }
 
 async function cohort(campaignId: string, profileId: string): Promise<string> {
-  const { rows } = await client.query('SELECT public.baaki_campaign_cohort($1, $2) AS c', [
+  const { rows } = await client.query('SELECT public.waves_campaign_cohort($1, $2) AS c', [
     campaignId,
     profileId,
   ]);
@@ -155,7 +155,7 @@ describe('who a campaign is claimed for', () => {
     const unconfirmed = await makeProfile({ confirmed: false });
     const optedOut = await makeProfile({ emailPref: false });
     const suppressed = await makeProfile();
-    await client.query(`SELECT public.baaki_suppress_email($1, 'bounced')`, [suppressed.address]);
+    await client.query(`SELECT public.waves_suppress_email($1, 'bounced')`, [suppressed.address]);
     const ok = await makeProfile();
 
     const claimed = new Set((await claim(campaignId)).map((row) => row.address));
@@ -264,9 +264,9 @@ describe('what a client may not do', () => {
 
   it('cannot claim or finish a broadcast, or read its stats', async () => {
     const calls: Array<[string, unknown[]]> = [
-      ['SELECT public.baaki_claim_campaign_emails($1, 10)', [randomUUID()]],
-      ['SELECT public.baaki_finish_campaign_emails($1::jsonb)', ['[]']],
-      ['SELECT * FROM public.baaki_admin_campaign_email_stats($1)', [randomUUID()]],
+      ['SELECT public.waves_claim_campaign_emails($1, 10)', [randomUUID()]],
+      ['SELECT public.waves_finish_campaign_emails($1::jsonb)', ['[]']],
+      ['SELECT * FROM public.waves_admin_campaign_email_stats($1)', [randomUUID()]],
     ];
 
     for (const role of ['anon', 'authenticated'] as const) {

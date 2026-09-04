@@ -1,7 +1,7 @@
 /**
  * The rule the group-photo control obeys: a real photo is a paid feature, a
  * cover emoji is free for everyone. The server answers "is this group (or its
- * creator) paid" over the `baaki_can_upload_group_photo` RPC; this module turns
+ * creator) paid" over the `waves_can_upload_group_photo` RPC; this module turns
  * that answer — and its loading state — into the small decisions the two photo
  * screens (new group, group settings) need, kept pure so they can be tested
  * without a renderer or the network.
@@ -43,7 +43,7 @@ export function photoTapAction(status: PhotoGateStatus): PhotoTapAction {
 }
 
 /**
- * The `p_group_id` argument for `baaki_can_upload_group_photo`: a group's id for
+ * The `p_group_id` argument for `waves_can_upload_group_photo`: a group's id for
  * an existing group, or `null` when creating one — a new group has only its
  * creator, so the server gates on the creator's own subscription.
  */

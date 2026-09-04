@@ -1,17 +1,20 @@
--- Squashed baseline (development history collapse).
+-- The schema, as one file.
 --
--- The 102 incremental migrations up to 20260825 were collapsed into this one
--- end-state schema: a fresh CI / dev database builds the whole thing in a
--- single step, with no redundant history (a column added then dropped, a
--- function replaced five times) to read through. This is the schema dump of a
--- database with every prior migration applied — minus Prisma's own
--- _prisma_migrations table — with the Supabase role bootstrap prepended
--- (pg_dump omits cluster-global roles) and the persisted reference data
--- appended (a schema-only dump drops it).
+-- Every routine, table, policy, trigger and grant this app has, in its current
+-- shape rather than in the order it was arrived at. A fresh database — CI, a
+-- laptop, a new environment — builds the whole thing in one step, and there is
+-- no history to read past: no column added and later dropped, no function
+-- replaced five times, and no trace of the name this app used to have.
 --
--- Production already has the original history applied, so it is baselined
--- against this file with `prisma migrate resolve --applied` rather than being
--- re-run. See the PR description for the exact commands.
+-- This is a schema dump of a database with every prior migration applied, minus
+-- Prisma's own `_prisma_migrations` table, with the Supabase role bootstrap
+-- prepended (pg_dump omits cluster-global roles) and the persisted reference
+-- data appended (a schema-only dump drops it, and both the app and the tests
+-- read it).
+--
+-- It replaces the whole previous history, including the earlier squashed
+-- baseline. There is no migration path from a database built by those files:
+-- the hosted database is rebuilt from this one.
 
 -- ─────────────────────────────────────────────────────── roles ──
 -- Supabase already has these; created here so the same baseline runs against a
@@ -55,7 +58,9 @@ SET row_security = off;
 -- Name: extensions; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA extensions;
+-- `IF NOT EXISTS` because a hosted Supabase project already has this schema and
+-- a plain Postgres does not. The same file has to build both.
+CREATE SCHEMA IF NOT EXISTS extensions;
 
 
 --
@@ -65,11 +70,6 @@ CREATE SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 
---
--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
 --
@@ -194,10 +194,47 @@ CREATE TYPE public."SplitType" AS ENUM (
 
 
 --
--- Name: baaki_add_expense_comment(uuid, uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: is_group_admin(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) RETURNS uuid
+CREATE FUNCTION public.is_group_admin(p_group_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = p_group_id
+      AND gm.profile_id = public.waves_current_profile_id()
+      AND gm.left_at IS NULL
+      AND gm.role = 'admin'
+  )
+$$;
+
+
+--
+-- Name: is_group_member(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.is_group_member(p_group_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.group_members gm
+    WHERE gm.group_id = p_group_id
+      AND gm.profile_id = public.waves_current_profile_id()
+      AND gm.left_at IS NULL
+  )
+$$;
+
+
+--
+-- Name: waves_add_expense_comment(uuid, uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -223,7 +260,7 @@ BEGIN
       USING ERRCODE = 'check_violation';
   END IF;
 
-  v_me := public.baaki_my_member_id(p_group_id);
+  v_me := public.waves_my_member_id(p_group_id);
 
   -- Replaying a create must return the same row, not a second one (ADR-005) —
   -- but only when the id really is a replay of THIS caller's THIS write. A
@@ -265,15 +302,15 @@ $$;
 
 
 --
--- Name: baaki_add_ghost_member(uuid, text, uuid, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_add_ghost_member(uuid, text, uuid, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid DEFAULT NULL::uuid, p_email text DEFAULT NULL::text, p_phone text DEFAULT NULL::text) RETURNS uuid
+CREATE FUNCTION public.waves_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid DEFAULT NULL::uuid, p_email text DEFAULT NULL::text, p_phone text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile_id uuid := public.baaki_current_profile_id();
+  v_profile_id uuid := public.waves_current_profile_id();
   v_member_id  uuid;
   v_email      text := nullif(btrim(lower(coalesce(p_email, ''))), '');
   v_phone      text := nullif(regexp_replace(coalesce(p_phone, ''), '[^0-9+]', '', 'g'), '');
@@ -373,7 +410,7 @@ BEGIN
       SELECT g.name INTO v_group_name FROM public.groups g WHERE g.id = p_group_id;
       SELECT p.display_name INTO v_actor_name FROM public.profiles p WHERE p.id = v_profile_id;
 
-      PERFORM public.baaki_notify(
+      PERFORM public.waves_notify(
         v_target,
         p_group_id,
         'group_added',
@@ -382,7 +419,7 @@ BEGIN
         -- is the fact `{actor}` reads from; `group` is `{group}`.
         coalesce(v_actor_name, 'Someone') || ' added you to ' || coalesce(v_group_name, 'a group'),
         'Tap to open the group',
-        'baaki://group/' || p_group_id::text,
+        'waves://group/' || p_group_id::text,
         jsonb_build_object(
           'counterparty', coalesce(v_actor_name, ''),
           'group',        coalesce(v_group_name, '')
@@ -398,10 +435,10 @@ $$;
 
 
 --
--- Name: baaki_add_plan_item(uuid, date, text, time without time zone, text, text, bigint, character, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_add_plan_item(uuid, date, text, time without time zone, text, text, bigint, character, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone DEFAULT NULL::time without time zone, p_note text DEFAULT NULL::text, p_category text DEFAULT NULL::text, p_planned_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar, p_item_id uuid DEFAULT NULL::uuid) RETURNS uuid
+CREATE FUNCTION public.waves_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone DEFAULT NULL::time without time zone, p_note text DEFAULT NULL::text, p_category text DEFAULT NULL::text, p_planned_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar, p_item_id uuid DEFAULT NULL::uuid) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -440,7 +477,7 @@ BEGIN
   VALUES
     (COALESCE(p_item_id, gen_random_uuid()), p_group_id, p_day, p_starts_at, btrim(p_title),
      p_note, p_category, p_planned_minor, upper(v_currency), v_position,
-     public.baaki_my_member_id(p_group_id))
+     public.waves_my_member_id(p_group_id))
   RETURNING id INTO v_id;
 
   RETURN v_id;
@@ -449,10 +486,10 @@ $$;
 
 
 --
--- Name: baaki_add_trip_photo(uuid, text, uuid, uuid, date, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_add_trip_photo(uuid, text, uuid, uuid, date, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid DEFAULT NULL::uuid, p_expense_id uuid DEFAULT NULL::uuid, p_day date DEFAULT NULL::date, p_caption text DEFAULT NULL::text) RETURNS uuid
+CREATE FUNCTION public.waves_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid DEFAULT NULL::uuid, p_expense_id uuid DEFAULT NULL::uuid, p_day date DEFAULT NULL::date, p_caption text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -489,7 +526,7 @@ BEGIN
   VALUES
     (COALESCE(p_photo_id, gen_random_uuid()), p_group_id, p_expense_id, p_day,
      btrim(p_storage_path), NULLIF(btrim(COALESCE(p_caption, '')), ''),
-     public.baaki_my_member_id(p_group_id))
+     public.waves_my_member_id(p_group_id))
   RETURNING id INTO v_id;
 
   RETURN v_id;
@@ -498,10 +535,10 @@ $$;
 
 
 --
--- Name: baaki_admin_ai_cost(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_ai_cost(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_ai_cost(p_days integer DEFAULT 30) RETURNS TABLE(day date, currency text, events bigint, input_tokens bigint, output_tokens bigint, cost_minor numeric)
+CREATE FUNCTION public.waves_admin_ai_cost(p_days integer DEFAULT 30) RETURNS TABLE(day date, currency text, events bigint, input_tokens bigint, output_tokens bigint, cost_minor numeric)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -520,10 +557,10 @@ $$;
 
 
 --
--- Name: baaki_admin_campaign_email_stats(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_campaign_email_stats(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_campaign_email_stats(p_campaign_id uuid) RETURNS TABLE(status text, count bigint)
+CREATE FUNCTION public.waves_admin_campaign_email_stats(p_campaign_id uuid) RETURNS TABLE(status text, count bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -536,10 +573,10 @@ $$;
 
 
 --
--- Name: baaki_admin_campaign_funnel(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_campaign_funnel(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_campaign_funnel(p_campaign_id uuid) RETURNS TABLE(cohort text, people bigint, seen bigint, redeemed bigint, paid bigint)
+CREATE FUNCTION public.waves_admin_campaign_funnel(p_campaign_id uuid) RETURNS TABLE(cohort text, people bigint, seen bigint, redeemed bigint, paid bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -548,7 +585,7 @@ CREATE FUNCTION public.baaki_admin_campaign_funnel(p_campaign_id uuid) RETURNS T
   ),
   audience AS (
     SELECT p.id AS profile_id,
-           public.baaki_campaign_cohort(c.id, p.id) AS cohort
+           public.waves_campaign_cohort(c.id, p.id) AS cohort
       FROM public.profiles p
       CROSS JOIN c
      WHERE (c.audience_countries IS NULL OR p.country_code = ANY (c.audience_countries))
@@ -591,10 +628,10 @@ $$;
 
 
 --
--- Name: baaki_admin_campaign_revenue(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_campaign_revenue(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_campaign_revenue(p_campaign_id uuid) RETURNS TABLE(cohort text, currency text, payers bigint, revenue_minor numeric)
+CREATE FUNCTION public.waves_admin_campaign_revenue(p_campaign_id uuid) RETURNS TABLE(cohort text, currency text, payers bigint, revenue_minor numeric)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -602,7 +639,7 @@ CREATE FUNCTION public.baaki_admin_campaign_revenue(p_campaign_id uuid) RETURNS 
     SELECT * FROM public.campaigns WHERE id = p_campaign_id
   )
   SELECT
-    public.baaki_campaign_cohort(c.id, s.profile_id),
+    public.waves_campaign_cohort(c.id, s.profile_id),
     s.currency::text,
     count(DISTINCT s.profile_id)::bigint,
     COALESCE(sum(s.price_minor), 0)
@@ -620,10 +657,10 @@ $$;
 
 
 --
--- Name: baaki_admin_daily(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_daily(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_daily(p_days integer DEFAULT 30) RETURNS TABLE(day date, new_profiles bigint, new_groups bigint, new_expenses bigint, active_profiles bigint)
+CREATE FUNCTION public.waves_admin_daily(p_days integer DEFAULT 30) RETURNS TABLE(day date, new_profiles bigint, new_groups bigint, new_expenses bigint, active_profiles bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -650,10 +687,10 @@ $$;
 
 
 --
--- Name: baaki_admin_feedback(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_feedback(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_feedback(p_limit integer DEFAULT 100) RETURNS TABLE(id uuid, kind text, message text, rating integer, app_version text, platform text, locale text, country_code text, from_deleted_account boolean, created_at timestamp with time zone)
+CREATE FUNCTION public.waves_admin_feedback(p_limit integer DEFAULT 100) RETURNS TABLE(id uuid, kind text, message text, rating integer, app_version text, platform text, locale text, country_code text, from_deleted_account boolean, created_at timestamp with time zone)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -667,17 +704,17 @@ $$;
 
 
 --
--- Name: baaki_admin_flag_results(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_flag_results(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_flag_results(p_key text) RETURNS TABLE(variant text, people bigint, expenses_created bigint, active_30d bigint)
+CREATE FUNCTION public.waves_admin_flag_results(p_key text) RETURNS TABLE(variant text, people bigint, expenses_created bigint, active_30d bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
   WITH enrolled AS (
-    SELECT p.id AS profile_id, public.baaki_variant(p_key, p.id) AS variant
+    SELECT p.id AS profile_id, public.waves_variant(p_key, p.id) AS variant
       FROM public.profiles p
-     WHERE public.baaki_variant(p_key, p.id) IS NOT NULL
+     WHERE public.waves_variant(p_key, p.id) IS NOT NULL
   ),
   per_person AS (
     SELECT
@@ -708,10 +745,10 @@ $$;
 
 
 --
--- Name: baaki_admin_geo(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_geo(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_geo() RETURNS TABLE(country_code text, profile_count bigint, group_count bigint, expense_count bigint)
+CREATE FUNCTION public.waves_admin_geo() RETURNS TABLE(country_code text, profile_count bigint, group_count bigint, expense_count bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -734,10 +771,10 @@ $$;
 
 
 --
--- Name: baaki_admin_grant_promo(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_grant_promo(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_grant_promo(p_profile_id uuid, p_days integer DEFAULT 30) RETURNS jsonb
+CREATE FUNCTION public.waves_admin_grant_promo(p_profile_id uuid, p_days integer DEFAULT 30) RETURNS jsonb
     LANGUAGE plpgsql
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -748,7 +785,7 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'NO_SUCH_PROFILE');
   END IF;
 
-  v_sub := public.baaki_grant_promo(
+  v_sub := public.waves_grant_promo(
     p_profile_id,
     GREATEST(COALESCE(p_days, 30), 1),
     'admin:' || p_profile_id::text || ':' || current_date::text
@@ -764,10 +801,10 @@ $$;
 
 
 --
--- Name: baaki_admin_logins(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_logins(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_logins(p_days integer DEFAULT 30) RETURNS TABLE(day date, sign_ins bigint)
+CREATE FUNCTION public.waves_admin_logins(p_days integer DEFAULT 30) RETURNS TABLE(day date, sign_ins bigint)
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $_$
@@ -792,10 +829,10 @@ $_$;
 
 
 --
--- Name: baaki_admin_money(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_money(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_money() RETURNS TABLE(currency text, expense_count bigint, expense_minor numeric, settlement_count bigint, settlement_minor numeric)
+CREATE FUNCTION public.waves_admin_money() RETURNS TABLE(currency text, expense_count bigint, expense_minor numeric, settlement_count bigint, settlement_minor numeric)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -825,10 +862,10 @@ $$;
 
 
 --
--- Name: baaki_admin_overview(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_overview(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_overview() RETURNS TABLE(profiles_total bigint, profiles_new_7d bigint, profiles_new_30d bigint, groups_total bigint, groups_new_30d bigint, groups_active_30d bigint, expenses_total bigint, expenses_new_30d bigint, expenses_deleted bigint, settlements_total bigint, settlements_confirmed bigint, active_profiles_7d bigint, active_profiles_30d bigint)
+CREATE FUNCTION public.waves_admin_overview() RETURNS TABLE(profiles_total bigint, profiles_new_7d bigint, profiles_new_30d bigint, groups_total bigint, groups_new_30d bigint, groups_active_30d bigint, expenses_total bigint, expenses_new_30d bigint, expenses_deleted bigint, settlements_total bigint, settlements_confirmed bigint, active_profiles_7d bigint, active_profiles_30d bigint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -858,10 +895,10 @@ $$;
 
 
 --
--- Name: baaki_admin_promo_codes(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_promo_codes(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_promo_codes() RETURNS TABLE(code text, tier text, days integer, max_redemptions integer, redeemed_count integer, expires_at timestamp with time zone, note text, created_at timestamp with time zone)
+CREATE FUNCTION public.waves_admin_promo_codes() RETURNS TABLE(code text, tier text, days integer, max_redemptions integer, redeemed_count integer, expires_at timestamp with time zone, note text, created_at timestamp with time zone)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -872,10 +909,10 @@ $$;
 
 
 --
--- Name: baaki_admin_users(integer, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_users(integer, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_admin_users(p_limit integer DEFAULT 25, p_offset integer DEFAULT 0, p_name_prefix text DEFAULT NULL::text, p_country text DEFAULT NULL::text) RETURNS jsonb
+CREATE FUNCTION public.waves_admin_users(p_limit integer DEFAULT 25, p_offset integer DEFAULT 0, p_name_prefix text DEFAULT NULL::text, p_country text DEFAULT NULL::text) RETURNS jsonb
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $_$
@@ -947,10 +984,27 @@ $_$;
 
 
 --
--- Name: baaki_annotate_expense_attachment(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_admin_voice_attempts(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) RETURNS void
+CREATE FUNCTION public.waves_admin_voice_attempts(p_limit integer DEFAULT 100) RETURNS TABLE(id uuid, profile_id uuid, transcript text, locale text, used_model boolean, item_count integer, platform text, app_version text, client_at timestamp with time zone, created_at timestamp with time zone)
+    LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT
+    v.id, v.profile_id, v.transcript, v.locale, v.used_model, v.item_count,
+    v.platform, v.app_version, v.client_at, v.created_at
+  FROM public.voice_attempts v
+  ORDER BY v.created_at DESC
+  LIMIT GREATEST(COALESCE(p_limit, 100), 1);
+$$;
+
+
+--
+-- Name: waves_annotate_expense_attachment(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -964,7 +1018,7 @@ BEGIN
     RETURN;
   END IF;
 
-  IF NOT public.baaki_is_expense_party(v_expense_id) THEN
+  IF NOT public.waves_is_expense_party(v_expense_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a party may mark up this image'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -977,10 +1031,10 @@ $$;
 
 
 --
--- Name: baaki_apply_expense(uuid, uuid, uuid, text, text, date, character, bigint, text, jsonb, jsonb, jsonb, uuid, text, uuid, integer, jsonb, text, text, text, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_apply_expense(uuid, uuid, uuid, text, text, date, character, bigint, text, jsonb, jsonb, jsonb, uuid, text, uuid, integer, jsonb, text, text, text, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text DEFAULT NULL::text, p_receipt_id uuid DEFAULT NULL::uuid, p_base_version_no integer DEFAULT NULL::integer, p_fx jsonb DEFAULT NULL::jsonb, p_source text DEFAULT 'manual'::text, p_payment_method text DEFAULT NULL::text, p_receipt_share_url text DEFAULT NULL::text, p_category_meta jsonb DEFAULT NULL::jsonb, p_location jsonb DEFAULT NULL::jsonb) RETURNS jsonb
+CREATE FUNCTION public.waves_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text DEFAULT NULL::text, p_receipt_id uuid DEFAULT NULL::uuid, p_base_version_no integer DEFAULT NULL::integer, p_fx jsonb DEFAULT NULL::jsonb, p_source text DEFAULT 'manual'::text, p_payment_method text DEFAULT NULL::text, p_receipt_share_url text DEFAULT NULL::text, p_category_meta jsonb DEFAULT NULL::jsonb, p_location jsonb DEFAULT NULL::jsonb) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -999,7 +1053,7 @@ DECLARE
 BEGIN
   -- This function is SECURITY DEFINER: verify the caller is a live member of the
   -- group before it moves a balance (security hardening).
-  PERFORM public.baaki_assert_expense_caller(p_group_id, p_author_member_id);
+  PERFORM public.waves_assert_expense_caller(p_group_id, p_author_member_id);
 
   -- Replay of a mutation we already applied (ADR-005).
   IF p_client_mutation_id IS NOT NULL THEN
@@ -1019,7 +1073,7 @@ BEGIN
   -- A rate that converts the wrong way is worse than no rate: it converts
   -- confidently and wrongly. Checked before a single row is written.
   SELECT g.default_currency INTO v_group_currency FROM public.groups g WHERE g.id = p_group_id;
-  PERFORM public.baaki_assert_fx_valid(p_fx, upper(p_currency)::char(3), v_group_currency);
+  PERFORM public.waves_assert_fx_valid(p_fx, upper(p_currency)::char(3), v_group_currency);
 
   -- Every member referenced must belong to this group; a caller cannot smuggle
   -- in somebody else's member id (ADR-013).
@@ -1135,11 +1189,12 @@ $$;
 
 
 --
--- Name: baaki_array_is_distinct(text[]); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_array_is_distinct(text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_array_is_distinct(p_values text[]) RETURNS boolean
+CREATE FUNCTION public.waves_array_is_distinct(p_values text[]) RETURNS boolean
     LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT p_values IS NULL
       OR cardinality(p_values) = (SELECT count(DISTINCT v) FROM unnest(p_values) AS v);
@@ -1147,16 +1202,16 @@ $$;
 
 
 --
--- Name: baaki_assert_expense_caller(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_assert_expense_caller(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) RETURNS void
+CREATE FUNCTION public.waves_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) RETURNS void
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
   v_me      uuid;
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
 BEGIN
   IF v_profile IS NULL THEN
     RETURN;
@@ -1169,7 +1224,7 @@ BEGIN
 
   -- An expense records who wrote it, and the version rows are append-only, so
   -- a wrong name on one is permanent. A client may only ever write as itself.
-  v_me := public.baaki_my_member_id_for(p_group_id, v_profile);
+  v_me := public.waves_my_member_id_for(p_group_id, v_profile);
   IF p_author_member_id IS NOT NULL AND p_author_member_id IS DISTINCT FROM v_me THEN
     RAISE EXCEPTION 'NOT_THE_AUTHOR: an expense is recorded as written by whoever wrote it'
       USING ERRCODE = 'insufficient_privilege';
@@ -1179,11 +1234,12 @@ $$;
 
 
 --
--- Name: baaki_assert_fx_valid(jsonb, character, character); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_assert_fx_valid(jsonb, character, character); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) RETURNS void
+CREATE FUNCTION public.waves_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) RETURNS void
     LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $_$
 DECLARE
   v_num numeric;
@@ -1238,10 +1294,10 @@ $_$;
 
 
 --
--- Name: baaki_attach_expense_attachment(uuid, text, text, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_attach_expense_attachment(uuid, text, text, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text DEFAULT 'group'::text, p_attachment_id uuid DEFAULT NULL::uuid) RETURNS uuid
+CREATE FUNCTION public.waves_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text DEFAULT 'group'::text, p_attachment_id uuid DEFAULT NULL::uuid) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1270,7 +1326,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no such expense' USING ERRCODE = 'no_data_found';
   END IF;
 
-  IF NOT public.baaki_is_expense_party(p_expense_id) THEN
+  IF NOT public.waves_is_expense_party(p_expense_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a payer or the author may attach to this expense'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -1290,7 +1346,7 @@ BEGIN
   -- The bytes must really exist: a committed object at this key, in the
   -- attachments bucket. Blocks a phantom / never-uploaded / pending-only path
   -- from being recorded as an attachment. Checked for a genuinely new row only.
-  PERFORM public.baaki_require_committed_object('expense-attachments', btrim(p_storage_path));
+  PERFORM public.waves_require_committed_object('expense-attachments', btrim(p_storage_path));
 
   -- Serialize the count-then-insert against other attaches to THIS expense: a
   -- transaction-scoped advisory lock keyed on the expense id. Without it two
@@ -1304,17 +1360,17 @@ BEGIN
   -- The per-expense ceiling, enforced at the one insert path. A paid group is
   -- exempt; only live (non-deleted) attachments count, so removing one frees a
   -- slot.
-  IF NOT public.baaki_group_is_paid(v_group_id)
+  IF NOT public.waves_group_is_paid(v_group_id)
      AND (SELECT count(*) FROM public.expense_attachments
            WHERE expense_id = p_expense_id AND deleted_at IS NULL)
-         >= public.baaki_attachment_cap()
+         >= public.waves_attachment_cap()
   THEN
     RAISE EXCEPTION 'ATTACHMENT_CAP'
       USING ERRCODE = 'check_violation',
             HINT = 'This expense has reached its free receipt limit; upgrade to add more.';
   END IF;
 
-  v_member := public.baaki_my_member_id(v_group_id);
+  v_member := public.waves_my_member_id(v_group_id);
 
   INSERT INTO public.expense_attachments
     (id, expense_id, group_id, uploader_member_id, storage_path, visibility)
@@ -1334,10 +1390,10 @@ $$;
 
 
 --
--- Name: baaki_attach_settlement_proof(uuid, text, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_attach_settlement_proof(uuid, text, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid DEFAULT NULL::uuid) RETURNS uuid
+CREATE FUNCTION public.waves_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid DEFAULT NULL::uuid) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1366,7 +1422,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no such settlement' USING ERRCODE = 'no_data_found';
   END IF;
 
-  IF NOT public.baaki_is_settlement_party(p_settlement_id) THEN
+  IF NOT public.waves_is_settlement_party(p_settlement_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only the payer or payee may attach a proof'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -1385,7 +1441,7 @@ BEGIN
   -- The bytes must really exist: a committed object at this key, in the
   -- settlement-proofs bucket. Blocks a phantom / never-uploaded / pending-only
   -- path. Checked for a genuinely new row only (a replay returned above).
-  PERFORM public.baaki_require_committed_object('settlement-proofs', btrim(p_storage_path));
+  PERFORM public.waves_require_committed_object('settlement-proofs', btrim(p_storage_path));
 
   -- One live proof per settlement. A replay reuses the same id (caught above);
   -- a genuine second attach must remove the first — a proof is immutable.
@@ -1397,7 +1453,7 @@ BEGIN
       USING ERRCODE = 'unique_violation';
   END IF;
 
-  v_member := public.baaki_my_member_id(v_group_id);
+  v_member := public.waves_my_member_id(v_group_id);
 
   INSERT INTO public.settlement_proofs
     (id, settlement_id, group_id, uploader_member_id, storage_path)
@@ -1412,10 +1468,10 @@ $$;
 
 
 --
--- Name: baaki_attachment_cap(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_attachment_cap(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_attachment_cap() RETURNS integer
+CREATE FUNCTION public.waves_attachment_cap() RETURNS integer
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1424,10 +1480,10 @@ $$;
 
 
 --
--- Name: baaki_auto_archive_stale_groups(timestamp with time zone, interval); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_auto_archive_stale_groups(timestamp with time zone, interval); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_auto_archive_stale_groups(p_now timestamp with time zone DEFAULT now(), p_age interval DEFAULT '1 year 6 mons'::interval) RETURNS integer
+CREATE FUNCTION public.waves_auto_archive_stale_groups(p_now timestamp with time zone DEFAULT now(), p_age interval DEFAULT '1 year 6 mons'::interval) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1474,10 +1530,10 @@ $$;
 
 
 --
--- Name: baaki_auto_confirm_settlements(timestamp with time zone, interval); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_auto_confirm_settlements(timestamp with time zone, interval); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_auto_confirm_settlements(p_now timestamp with time zone DEFAULT now(), p_window interval DEFAULT '7 days'::interval) RETURNS integer
+CREATE FUNCTION public.waves_auto_confirm_settlements(p_now timestamp with time zone DEFAULT now(), p_window interval DEFAULT '7 days'::interval) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1527,22 +1583,22 @@ BEGIN
 
     -- Both people are told, and the wording differs because their positions
     -- do. The payee is the one who might want to dispute it.
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_row.payee_profile, v_row.group_id, 'settlement_confirmed',
       'Settled automatically',
       COALESCE(v_row.payer_name, 'Someone') || ' paid you, and nobody said otherwise for a week',
-      'baaki://group/' || v_row.group_id::text,
+      'waves://group/' || v_row.group_id::text,
       jsonb_build_object('settlementId', v_row.id, 'amount', v_amount,
                          'currency', v_row.currency, 'role', 'payee',
                          'counterparty', v_row.payer_name, 'group', v_row.group_name),
       'auto_confirm:' || v_row.id::text || ':payee'
     );
 
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_row.payer_profile, v_row.group_id, 'settlement_confirmed',
       'Settled automatically',
       'Your payment to ' || COALESCE(v_row.payee_name, 'them') || ' was confirmed after a week',
-      'baaki://group/' || v_row.group_id::text,
+      'waves://group/' || v_row.group_id::text,
       jsonb_build_object('settlementId', v_row.id, 'amount', v_amount,
                          'currency', v_row.currency, 'role', 'payer',
                          'counterparty', v_row.payee_name, 'group', v_row.group_name),
@@ -1558,10 +1614,10 @@ $$;
 
 
 --
--- Name: baaki_bucket(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_bucket(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_bucket(p_input text) RETURNS integer
+CREATE FUNCTION public.waves_bucket(p_input text) RETURNS integer
     LANGUAGE plpgsql IMMUTABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1580,16 +1636,16 @@ $$;
 
 
 --
--- Name: baaki_campaign_cohort(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_campaign_cohort(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) RETURNS text
+CREATE FUNCTION public.waves_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) RETURNS text
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT CASE
     WHEN p_profile_id IS NULL THEN NULL
-    WHEN public.baaki_bucket('campaign:' || p_campaign_id::text || ':' || p_profile_id::text)
+    WHEN public.waves_bucket('campaign:' || p_campaign_id::text || ':' || p_profile_id::text)
          < (SELECT holdout_percent FROM public.campaigns WHERE id = p_campaign_id)
       THEN 'holdout'
     ELSE 'targeted'
@@ -1598,15 +1654,15 @@ $$;
 
 
 --
--- Name: baaki_campaign_seen(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_campaign_seen(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_campaign_seen(p_campaign_id uuid, p_acted boolean DEFAULT false) RETURNS void
+CREATE FUNCTION public.waves_campaign_seen(p_campaign_id uuid, p_acted boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
 BEGIN
   IF v_profile IS NULL THEN
     RETURN;
@@ -1621,10 +1677,10 @@ $$;
 
 
 --
--- Name: baaki_can_add_expense_attachment(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_can_add_expense_attachment(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_can_add_expense_attachment(p_expense_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_can_add_expense_attachment(p_expense_id uuid) RETURNS boolean
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1641,32 +1697,32 @@ BEGIN
   END IF;
 
   -- Only a party may attach; a non-party gets no affordance and no count.
-  IF NOT public.baaki_is_expense_party(p_expense_id) THEN
+  IF NOT public.waves_is_expense_party(p_expense_id) THEN
     RETURN false;
   END IF;
 
-  IF public.baaki_group_is_paid(v_group_id) THEN
+  IF public.waves_group_is_paid(v_group_id) THEN
     RETURN true;
   END IF;
 
   RETURN (
     SELECT count(*) FROM public.expense_attachments
      WHERE expense_id = p_expense_id AND deleted_at IS NULL
-  ) < public.baaki_attachment_cap();
+  ) < public.waves_attachment_cap();
 END
 $$;
 
 
 --
--- Name: baaki_can_add_receipt(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_can_add_receipt(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_can_add_receipt(p_group_id uuid, p_receipt_id uuid DEFAULT NULL::uuid) RETURNS boolean
+CREATE FUNCTION public.waves_can_add_receipt(p_group_id uuid, p_receipt_id uuid DEFAULT NULL::uuid) RETURNS boolean
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
 BEGIN
   IF v_profile IS NULL OR p_group_id IS NULL THEN
     RETURN false;
@@ -1692,33 +1748,33 @@ BEGIN
     RETURN true;
   END IF;
 
-  IF public.baaki_group_is_paid(p_group_id) THEN
+  IF public.waves_group_is_paid(p_group_id) THEN
     RETURN true;
   END IF;
 
   RETURN (SELECT count(*) FROM public.receipts WHERE group_id = p_group_id)
-         < public.baaki_receipt_cap();
+         < public.waves_receipt_cap();
 END
 $$;
 
 
 --
--- Name: baaki_can_upload_group_photo(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_can_upload_group_photo(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_can_upload_group_photo(p_group_id uuid DEFAULT NULL::uuid) RETURNS boolean
+CREATE FUNCTION public.waves_can_upload_group_photo(p_group_id uuid DEFAULT NULL::uuid) RETURNS boolean
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
 BEGIN
   IF v_profile IS NULL THEN
     RETURN false;
   END IF;
 
   IF p_group_id IS NULL THEN
-    RETURN public.baaki_profile_is_paid(v_profile);
+    RETURN public.waves_profile_is_paid(v_profile);
   END IF;
 
   -- Only a member may ask about their group.
@@ -1736,7 +1792,7 @@ BEGIN
      WHERE gm.group_id = p_group_id
        AND gm.left_at IS NULL
        AND gm.profile_id IS NOT NULL
-       AND public.baaki_profile_is_paid(gm.profile_id)
+       AND public.waves_profile_is_paid(gm.profile_id)
   ) OR EXISTS (
     SELECT 1 FROM public.group_passes gp
      WHERE gp.group_id = p_group_id
@@ -1747,11 +1803,62 @@ $$;
 
 
 --
--- Name: baaki_check_expense_totals(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_cancel_settlement(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_check_expense_totals() RETURNS trigger
+CREATE FUNCTION public.waves_cancel_settlement(p_settlement_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_group_id uuid;
+  v_from     uuid;
+  v_status   public."SettlementStatus";
+  v_actor    uuid;
+BEGIN
+  SELECT group_id, from_member_id, status INTO v_group_id, v_from, v_status
+  FROM public.settlements WHERE id = p_settlement_id;
+  IF v_group_id IS NULL THEN
+    RAISE EXCEPTION 'NOT_FOUND: no such settlement' USING ERRCODE = 'no_data_found';
+  END IF;
+
+  v_actor := public.waves_my_member_id(v_group_id);
+  -- Only the payer withdraws their own claim. The payee's tool is dispute — the
+  -- mirror image, so neither party can silently erase the other's record.
+  IF v_actor IS NULL OR v_actor <> v_from THEN
+    RAISE EXCEPTION 'NOT_THE_PAYER: only the person who recorded the payment can cancel it'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Idempotent replay: an offline mutation that already landed cancels nothing
+  -- a second time. Returns rather than re-writing so the activity log stays at
+  -- one entry per real action.
+  IF v_status = 'cancelled' THEN
+    RETURN;
+  END IF;
+
+  -- Only a still-pending claim can be pulled. A confirmed settlement has cleared
+  -- a debt somebody agreed to; unwinding that is a new expense, not a cancel.
+  IF v_status <> 'initiated' THEN
+    RAISE EXCEPTION 'NOT_CANCELLABLE: only a pending settlement can be cancelled'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  UPDATE public.settlements SET status = 'cancelled' WHERE id = p_settlement_id;
+
+  INSERT INTO public.activity_log (group_id, actor_member_id, verb, object_type, object_id, payload)
+  VALUES (v_group_id, v_actor, 'cancelled', 'settlement', p_settlement_id, '{}'::jsonb);
+END
+$$;
+
+
+--
+-- Name: waves_check_expense_totals(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_check_expense_totals() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
   v_version_id uuid;
@@ -1799,11 +1906,12 @@ $$;
 
 
 --
--- Name: baaki_check_settlement_allocations(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_check_settlement_allocations(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_check_settlement_allocations() RETURNS trigger
+CREATE FUNCTION public.waves_check_settlement_allocations() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
   v_settlement_id uuid;
@@ -1835,10 +1943,10 @@ $$;
 
 
 --
--- Name: baaki_claim_campaign_emails(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_claim_campaign_emails(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_claim_campaign_emails(p_campaign_id uuid, p_limit integer DEFAULT 100) RETURNS TABLE(send_id uuid, address text, locale text, title text, body text, cta_label text, promo_code text, ends_at timestamp with time zone)
+CREATE FUNCTION public.waves_claim_campaign_emails(p_campaign_id uuid, p_limit integer DEFAULT 100) RETURNS TABLE(send_id uuid, address text, locale text, title text, body text, cta_label text, promo_code text, ends_at timestamp with time zone)
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1860,10 +1968,10 @@ BEGIN
     -- is a send the funnel cannot attribute, so it is not allowed to happen.
     WHERE now() BETWEEN c.starts_at AND c.ends_at
       AND (c.audience_countries IS NULL OR p.country_code = ANY (c.audience_countries))
-      AND public.baaki_campaign_cohort(c.id, p.id) = 'targeted'
+      AND public.waves_campaign_cohort(c.id, p.id) = 'targeted'
       AND COALESCE((p.notification_prefs ->> 'email')::boolean, TRUE)
-      AND public.baaki_email_for(p.id) IS NOT NULL
-      AND NOT public.baaki_email_suppressed(public.baaki_email_for(p.id))
+      AND public.waves_email_for(p.id) IS NOT NULL
+      AND NOT public.waves_email_suppressed(public.waves_email_for(p.id))
       AND NOT EXISTS (
         SELECT 1 FROM public.campaign_email_sends s
         WHERE s.campaign_id = c.id AND s.profile_id = p.id
@@ -1872,7 +1980,7 @@ BEGIN
   ),
   claimed AS (
     INSERT INTO public.campaign_email_sends (campaign_id, profile_id, address, status)
-    SELECT p_campaign_id, e.profile_id, public.baaki_email_for(e.profile_id), 'queued'
+    SELECT p_campaign_id, e.profile_id, public.waves_email_for(e.profile_id), 'queued'
     FROM eligible e
     ON CONFLICT (campaign_id, profile_id) DO NOTHING
     RETURNING id, profile_id, address
@@ -1887,10 +1995,10 @@ $$;
 
 
 --
--- Name: baaki_claim_email_notifications(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_claim_email_notifications(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_claim_email_notifications(p_limit integer DEFAULT 100) RETURNS TABLE(id uuid, kind text, title text, body text, deep_link text, payload jsonb, locale text, address text, group_name text)
+CREATE FUNCTION public.waves_claim_email_notifications(p_limit integer DEFAULT 100) RETURNS TABLE(id uuid, kind text, title text, body text, deep_link text, payload jsonb, locale text, address text, group_name text)
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -1901,11 +2009,25 @@ BEGIN
     SELECT n.id
     FROM public.notifications n
     WHERE n.email_status IS NULL
-      -- Same two days as push. A mail about a reminder from Tuesday is worse
-      -- than no mail, and a backlog that never expires is a backlog that will
-      -- one day all go out at once.
+      -- Same two days as push — a mail about a reminder from Tuesday is
+      -- worse than no mail.
       AND n.created_at > now() - interval '2 days'
-      AND n.kind IN ('settlement_initiated', 'settlement_confirm_request', 'digest_daily', 'nudge')
+      -- `group_added` is a fallback for when push never lands (no in-app
+      -- inbox to check instead, #565), not routine mail — the suppression
+      -- clause below is what keeps it rare.
+      AND n.kind IN ('settlement_initiated', 'settlement_confirm_request', 'digest_daily', 'nudge', 'group_added')
+      -- Every other kind on this list is decided the moment it is claimed —
+      -- a nudge only ever asks "is there a device", never "did the push
+      -- succeed". `group_added` asks the second question, and push can take
+      -- several fanout runs to answer it (the retry backoff above). Since
+      -- `email_status IS NULL` never lets a row be claimed twice, claiming
+      -- it before push is done would decide — wrongly, permanently — before
+      -- push had even tried once.
+      AND (
+        n.kind <> 'group_added'
+        OR n.push_status = 'sent'
+        OR (n.push_status = 'failed' AND n.push_next_retry_at IS NULL)
+      )
     ORDER BY n.created_at
     LIMIT p_limit
     FOR UPDATE SKIP LOCKED
@@ -1919,17 +2041,16 @@ BEGIN
   )
   SELECT COALESCE(array_agg(claimed.id), '{}') INTO v_ids FROM claimed;
 
-  -- Separate statements, because Postgres will not apply two updates to the
-  -- same row inside one statement — folding these into the CTE above would
-  -- silently do nothing at all.
+  -- Separate statements — Postgres will not apply two updates to the same
+  -- row inside one statement.
 
-  -- No address, no confirmed address, or the person turned email off. Not a
-  -- failure; a decision, and marked as one so it never gets retried.
+  -- No address, no confirmed address, or email turned off. Not a failure; a
+  -- decision, marked as one so it never gets retried.
   UPDATE public.notifications n
      SET email_status = 'suppressed'
    WHERE n.id = ANY(v_ids)
      AND (
-       public.baaki_email_for(n.profile_id) IS NULL
+       public.waves_email_for(n.profile_id) IS NULL
        OR NOT COALESCE(
             (SELECT (p.notification_prefs ->> 'email')::boolean
              FROM public.profiles p WHERE p.id = n.profile_id),
@@ -1942,11 +2063,10 @@ BEGIN
      SET email_status = 'suppressed'
    WHERE n.id = ANY(v_ids)
      AND n.email_status = 'queued'
-     AND public.baaki_email_suppressed(public.baaki_email_for(n.profile_id));
+     AND public.waves_email_suppressed(public.waves_email_for(n.profile_id));
 
-  -- TDR §7.4: a nudge goes by email only to somebody with no live device.
-  -- Everybody else already got a buzz about it, and a second copy in their
-  -- mailbox is the thing that makes a friendly reminder feel like dunning.
+  -- TDR §7.4: a nudge goes by email only to somebody with no live device —
+  -- everybody else already got a buzz about it.
   UPDATE public.notifications n
      SET email_status = 'suppressed'
    WHERE n.id = ANY(v_ids)
@@ -1957,10 +2077,33 @@ BEGIN
        WHERE t.profile_id = n.profile_id AND t.revoked_at IS NULL
      );
 
+  -- `group_added` suppresses on two different facts, checked in the order
+  -- that matters: a push that already succeeded is suppressed outright
+  -- (`push_status = 'sent'` cannot change again, unlike whether a device
+  -- happens to be live at the moment this runs — checking the token table
+  -- first would wrongly re-open a push that already landed). Short of that,
+  -- it suppresses exactly like a nudge: a live device and fewer than 3
+  -- failed attempts means push might still land, so no mail yet.
+  UPDATE public.notifications n
+     SET email_status = 'suppressed'
+   WHERE n.id = ANY(v_ids)
+     AND n.email_status = 'queued'
+     AND n.kind = 'group_added'
+     AND (
+       n.push_status = 'sent'
+       OR (
+         EXISTS (
+           SELECT 1 FROM public.push_tokens t
+           WHERE t.profile_id = n.profile_id AND t.revoked_at IS NULL
+         )
+         AND NOT (n.push_status = 'failed' AND n.push_attempts >= 3)
+       )
+     );
+
   RETURN QUERY
   SELECT n.id, n.kind, n.title, n.body, n.deep_link, n.payload,
          COALESCE(p.locale, 'en'),
-         public.baaki_email_for(n.profile_id),
+         public.waves_email_for(n.profile_id),
          g.name
   FROM public.notifications n
   LEFT JOIN public.profiles p ON p.id = n.profile_id
@@ -1971,23 +2114,31 @@ $$;
 
 
 --
--- Name: baaki_claim_push_notifications(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_claim_push_notifications(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_claim_push_notifications(p_limit integer DEFAULT 200) RETURNS TABLE(id uuid, kind text, title text, body text, deep_link text, payload jsonb, locale text, tokens text[])
+CREATE FUNCTION public.waves_claim_push_notifications(p_limit integer DEFAULT 200) RETURNS TABLE(id uuid, kind text, title text, body text, deep_link text, payload jsonb, locale text, tokens text[])
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
   v_ids UUID[];
 BEGIN
-  -- The claim, in one statement. `FOR UPDATE SKIP LOCKED` is what lets two
-  -- runs overlap harmlessly: the second finds the rows locked and moves on
-  -- rather than sending them again.
+  -- `FOR UPDATE SKIP LOCKED` is what lets two runs overlap harmlessly: the
+  -- second finds the rows locked and moves on rather than sending them
+  -- again. A first try (`push_status IS NULL`) and a retry (`failed`, under
+  -- 3 attempts, backoff elapsed) are the same claim, differing only in which
+  -- half of the WHERE let the row through.
   WITH picked AS (
     SELECT n.id
     FROM public.notifications n
-    WHERE n.push_status IS NULL
+    WHERE (
+            n.push_status IS NULL
+         OR (n.push_status = 'failed'
+             AND n.push_attempts < 3
+             AND n.push_next_retry_at IS NOT NULL
+             AND n.push_next_retry_at <= now())
+          )
       -- Anything older than this was missed while the fanout was down, and a
       -- buzz about a two-day-old reminder is worse than silence.
       AND n.created_at > now() - interval '2 days'
@@ -2004,14 +2155,18 @@ BEGIN
   )
   SELECT COALESCE(array_agg(claimed.id), '{}') INTO v_ids FROM claimed;
 
-  -- A separate statement on purpose: Postgres will not apply two updates to the
-  -- same row inside one statement, so closing these out in a CTE beside the
-  -- claim above would silently do nothing.
+  -- A separate statement: Postgres will not apply two updates to the same
+  -- row inside one statement, so folding this into the CTE above would
+  -- silently do nothing.
   --
-  -- Somebody with no device is not a failure to retry. Plenty of people only
-  -- ever read the inbox, and leaving their rows unsent grows the queue forever.
+  -- No device is a decision, not a failure — closed out terminally
+  -- (`push_next_retry_at` cleared, not just `push_status`) rather than left
+  -- retryable, or it would sit in the claim's way on every future run.
+  -- `push_attempts` is left alone: a new token showing up later is a
+  -- different signal than time passing, and not this branch's business.
   UPDATE public.notifications n
-     SET push_status = 'failed'
+     SET push_status = 'failed',
+         push_next_retry_at = NULL
    WHERE n.id = ANY(v_ids)
      AND NOT EXISTS (
        SELECT 1 FROM public.push_tokens t
@@ -2033,10 +2188,10 @@ $$;
 
 
 --
--- Name: baaki_clear_my_trip_budget(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_clear_my_trip_budget(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_clear_my_trip_budget(p_group_id uuid) RETURNS void
+CREATE FUNCTION public.waves_clear_my_trip_budget(p_group_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2047,7 +2202,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_A_MEMBER: you are not in that group'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
-  v_member := public.baaki_my_member_id(p_group_id);
+  v_member := public.waves_my_member_id(p_group_id);
   UPDATE public.trip_member_budgets
      SET deleted_at = now()
    WHERE group_id = p_group_id AND member_id = v_member AND deleted_at IS NULL;
@@ -2056,10 +2211,10 @@ $$;
 
 
 --
--- Name: baaki_close_disputes_on_new_version(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_close_disputes_on_new_version(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_close_disputes_on_new_version() RETURNS trigger
+CREATE FUNCTION public.waves_close_disputes_on_new_version() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2077,10 +2232,10 @@ $$;
 
 
 --
--- Name: baaki_confirm_settlement(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_confirm_settlement(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_confirm_settlement(p_settlement_id uuid) RETURNS void
+CREATE FUNCTION public.waves_confirm_settlement(p_settlement_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2095,7 +2250,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no such settlement' USING ERRCODE = 'no_data_found';
   END IF;
 
-  v_actor := public.baaki_my_member_id(v_group_id);
+  v_actor := public.waves_my_member_id(v_group_id);
   -- Only the payee confirms receipt. The payer saying "trust me" is exactly
   -- the hole the confirm step exists to close (ADR-007).
   IF v_actor IS NULL OR v_actor <> v_to THEN
@@ -2112,10 +2267,10 @@ $$;
 
 
 --
--- Name: baaki_consume_invite(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_consume_invite(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_consume_invite(p_invite_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_consume_invite(p_invite_id uuid) RETURNS boolean
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2130,15 +2285,15 @@ $$;
 
 
 --
--- Name: baaki_create_group(text, text, character, text, boolean, uuid, text, character, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_create_group(text, text, character, text, boolean, uuid, text, character, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_create_group(p_name text DEFAULT NULL::text, p_type text DEFAULT 'other'::text, p_currency character DEFAULT 'INR'::bpchar, p_emoji text DEFAULT NULL::text, p_simplify boolean DEFAULT true, p_group_id uuid DEFAULT NULL::uuid, p_photo_path text DEFAULT NULL::text, p_country character DEFAULT NULL::bpchar, p_creator_member_id uuid DEFAULT NULL::uuid) RETURNS uuid
+CREATE FUNCTION public.waves_create_group(p_name text DEFAULT NULL::text, p_type text DEFAULT 'other'::text, p_currency character DEFAULT 'INR'::bpchar, p_emoji text DEFAULT NULL::text, p_simplify boolean DEFAULT true, p_group_id uuid DEFAULT NULL::uuid, p_photo_path text DEFAULT NULL::text, p_country character DEFAULT NULL::bpchar, p_creator_member_id uuid DEFAULT NULL::uuid) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile_id uuid := public.baaki_current_profile_id();
+  v_profile_id uuid := public.waves_current_profile_id();
   v_group_id   uuid;
   v_member_id  uuid;
   v_name       text := nullif(btrim(coalesce(p_name, '')), '');
@@ -2196,7 +2351,7 @@ BEGIN
 
     IF coalesce(v_is_guest, false) THEN
       IF now() >= v_created_at + interval '10 days' THEN
-        RAISE EXCEPTION 'GUEST_TRIAL_EXPIRED: sign up to keep using Baaki'
+        RAISE EXCEPTION 'GUEST_TRIAL_EXPIRED: sign up to keep using Waves'
           USING ERRCODE = 'insufficient_privilege';
       END IF;
 
@@ -2237,11 +2392,12 @@ $$;
 
 
 --
--- Name: baaki_current_profile_id(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_current_profile_id(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_current_profile_id() RETURNS uuid
+CREATE FUNCTION public.waves_current_profile_id() RETURNS uuid
     LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT NULLIF(
     COALESCE(
@@ -2254,15 +2410,15 @@ $$;
 
 
 --
--- Name: baaki_decide_member_claim(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_decide_member_claim(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_decide_member_claim(p_claim_id uuid, p_approve boolean) RETURNS jsonb
+CREATE FUNCTION public.waves_decide_member_claim(p_claim_id uuid, p_approve boolean) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile   uuid := public.baaki_current_profile_id();
+  v_profile   uuid := public.waves_current_profile_id();
   v_claim     public.member_claims%ROWTYPE;
   v_admin_id  uuid;
   v_group     text;
@@ -2303,7 +2459,7 @@ BEGIN
        SET status = 'declined', decided_by = v_admin_id, decided_at = now()
      WHERE id = p_claim_id;
 
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_claim.requester_id,
       v_claim.group_id,
       'ghost_claim_declined',
@@ -2366,7 +2522,7 @@ BEGIN
      AND status = 'pending'
      AND id <> p_claim_id;
 
-  PERFORM public.baaki_notify(
+  PERFORM public.waves_notify(
     v_claim.requester_id,
     v_claim.group_id,
     'ghost_claim_approved',
@@ -2393,10 +2549,10 @@ $$;
 
 
 --
--- Name: baaki_delete_expense(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_delete_expense(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_delete_expense(p_expense_id uuid) RETURNS void
+CREATE FUNCTION public.waves_delete_expense(p_expense_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2413,7 +2569,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  v_member_id := public.baaki_my_member_id(v_group_id);
+  v_member_id := public.waves_my_member_id(v_group_id);
 
   UPDATE public.expenses
      SET deleted_at = now(), deleted_by = v_member_id
@@ -2426,10 +2582,10 @@ $$;
 
 
 --
--- Name: baaki_delete_expense_comment(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_delete_expense_comment(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_delete_expense_comment(p_comment_id uuid) RETURNS void
+CREATE FUNCTION public.waves_delete_expense_comment(p_comment_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2448,7 +2604,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  v_me := public.baaki_my_member_id(v_group_id);
+  v_me := public.waves_my_member_id(v_group_id);
   -- Own comment, or an admin reaching for anyone's. Nothing else.
   IF NOT (v_author = v_me OR public.is_group_admin(v_group_id)) THEN
     RAISE EXCEPTION 'CANNOT_DELETE: only the author or an admin can delete this'
@@ -2463,15 +2619,74 @@ $$;
 
 
 --
--- Name: baaki_delete_my_account(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_delete_group(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_delete_my_account(p_feedback text DEFAULT NULL::text) RETURNS jsonb
+CREATE FUNCTION public.waves_delete_group(p_group_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile_id uuid := public.waves_current_profile_id();
+  v_deleted_at timestamptz;
+BEGIN
+  IF v_profile_id IS NULL THEN
+    RAISE EXCEPTION 'NOT_AUTHENTICATED: sign in to delete a group'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Lock the group row up front (FOR UPDATE), before the settled check, so the
+  -- settlement validation and the tombstone that follows read and write the same
+  -- serialized view of the row. This closes the delete-vs-delete window and gives
+  -- a single coordination point a balance-mutating writer can share (take the
+  -- same row lock) to be serialized against a delete; on its own it does not stop
+  -- a writer that never locks this row (see A49 review notes).
+  SELECT deleted_at INTO v_deleted_at FROM public.groups WHERE id = p_group_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'NOT_FOUND: no such group' USING ERRCODE = 'no_data_found';
+  END IF;
+
+  -- Only an admin/owner may delete the group for everyone. The button hides for
+  -- everyone else, but the client gate is a courtesy — this is the boundary.
+  IF NOT public.is_group_admin(p_group_id) THEN
+    RAISE EXCEPTION 'NOT_ADMIN: only an admin deletes a group'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- Idempotent: deleting an already-deleted group is a no-op, so a retried queue
+  -- flush or a second tap lands cleanly rather than raising. Checked after the
+  -- admin gate so a re-delete still answers a non-admin with NOT_ADMIN.
+  IF v_deleted_at IS NOT NULL THEN
+    RETURN;
+  END IF;
+
+  -- The whole group must be square first — every member, in every currency.
+  -- `waves_group_balances_truth` returns only non-zero rows (ADR-004), so any row
+  -- at all means somebody is still owed and the group cannot be pulled out from
+  -- under them. Same source `waves_refresh_group_balances` derives from, so this
+  -- never disagrees with the stored balances.
+  IF EXISTS (SELECT 1 FROM public.waves_group_balances_truth(p_group_id)) THEN
+    RAISE EXCEPTION 'NOT_SETTLED: settle every balance before deleting the group'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  -- The tombstone. The stamp trigger bumps `updated_seq`, so the change reaches
+  -- every member's mirror on their next sync and the group leaves all their lists.
+  UPDATE public.groups SET deleted_at = now() WHERE id = p_group_id;
+END
+$$;
+
+
+--
+-- Name: waves_delete_my_account(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_delete_my_account(p_feedback text DEFAULT NULL::text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_profile uuid := public.waves_current_profile_id();
   v_memberships integer;
 BEGIN
   IF v_profile IS NULL THEN
@@ -2480,7 +2695,7 @@ BEGIN
 
   -- While there is still an author to attribute it to. It outlives the row.
   IF length(trim(COALESCE(p_feedback, ''))) > 0 THEN
-    PERFORM public.baaki_submit_feedback(p_feedback, 'deletion');
+    PERFORM public.waves_submit_feedback(p_feedback, 'deletion');
   END IF;
 
   -- Both columns in one UPDATE: the XOR check is evaluated per row, so setting
@@ -2507,10 +2722,10 @@ $$;
 
 
 --
--- Name: baaki_device_cap(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_device_cap(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_device_cap(p_profile_id uuid, p_is_plus boolean) RETURNS integer
+CREATE FUNCTION public.waves_device_cap(p_profile_id uuid, p_is_plus boolean) RETURNS integer
     LANGUAGE plpgsql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $_$
@@ -2521,7 +2736,7 @@ DECLARE
   v_arm      text;
 BEGIN
   IF p_profile_id IS NOT NULL THEN
-    v_arm := public.baaki_variant(v_flag_key, p_profile_id);
+    v_arm := public.waves_variant(v_flag_key, p_profile_id);
     IF v_arm ~ '^[0-9]+$' THEN
       RETURN v_arm::int;
     END IF;
@@ -2533,10 +2748,10 @@ $_$;
 
 
 --
--- Name: baaki_dispute_expense(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_dispute_expense(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_dispute_expense(p_expense_id uuid, p_reason text DEFAULT NULL::text) RETURNS uuid
+CREATE FUNCTION public.waves_dispute_expense(p_expense_id uuid, p_reason text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2561,7 +2776,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no such expense' USING ERRCODE = 'no_data_found';
   END IF;
 
-  v_actor := public.baaki_my_member_id(v_group_id);
+  v_actor := public.waves_my_member_id(v_group_id);
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'NOT_A_MEMBER: only a member of the group can dispute its expenses'
       USING ERRCODE = 'insufficient_privilege';
@@ -2603,11 +2818,11 @@ BEGIN
   -- The person who entered it is the person who can fix it.
   SELECT profile_id INTO v_author_pid FROM public.group_members WHERE id = v_author;
   IF v_author_pid IS NOT NULL AND v_author IS DISTINCT FROM v_actor THEN
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_author_pid, v_group_id, 'expense_disputed',
       COALESCE(v_actor_name, 'Someone') || ' says an expense is wrong',
       COALESCE(v_description, 'An expense') || ' — have a look',
-      'baaki://group/' || v_group_id::text || '/expense/' || p_expense_id::text,
+      'waves://group/' || v_group_id::text || '/expense/' || p_expense_id::text,
       jsonb_build_object('counterparty', v_actor_name, 'group', v_group_name,
                          'description', v_description, 'expenseId', p_expense_id),
       'dispute:' || v_dispute_id::text || ':raised:' || v_raised_at::text
@@ -2620,10 +2835,62 @@ $$;
 
 
 --
--- Name: baaki_edit_expense_comment(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_dispute_settlement(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_edit_expense_comment(p_comment_id uuid, p_body text) RETURNS void
+CREATE FUNCTION public.waves_dispute_settlement(p_settlement_id uuid, p_reason text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_group_id uuid;
+  v_to       uuid;
+  v_status   public."SettlementStatus";
+  v_actor    uuid;
+BEGIN
+  SELECT group_id, to_member_id, status INTO v_group_id, v_to, v_status
+  FROM public.settlements WHERE id = p_settlement_id;
+  IF v_group_id IS NULL THEN
+    RAISE EXCEPTION 'NOT_FOUND: no such settlement' USING ERRCODE = 'no_data_found';
+  END IF;
+
+  v_actor := public.waves_my_member_id(v_group_id);
+  -- Only the payee disputes: disputing is saying "the money never reached me",
+  -- which only the person who was supposed to receive it can honestly claim.
+  IF v_actor IS NULL OR v_actor <> v_to THEN
+    RAISE EXCEPTION 'NOT_THE_PAYEE: only the person who was paid can dispute this'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF v_status = 'disputed' THEN
+    RETURN;  -- idempotent replay
+  END IF;
+
+  -- The trigger permits initiated/auto_confirmed → disputed; a manually
+  -- confirmed or already-cancelled row is out of reach.
+  IF v_status NOT IN ('initiated', 'auto_confirmed') THEN
+    RAISE EXCEPTION 'NOT_DISPUTABLE: this settlement can no longer be disputed'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  UPDATE public.settlements SET status = 'disputed' WHERE id = p_settlement_id;
+
+  INSERT INTO public.activity_log (group_id, actor_member_id, verb, object_type, object_id, payload)
+  VALUES (
+    v_group_id, v_actor, 'settle_disputed', 'settlement', p_settlement_id,
+    CASE WHEN p_reason IS NULL OR btrim(p_reason) = ''
+         THEN '{}'::jsonb
+         ELSE jsonb_build_object('reason', btrim(p_reason)) END
+  );
+END
+$$;
+
+
+--
+-- Name: waves_edit_expense_comment(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_edit_expense_comment(p_comment_id uuid, p_body text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2640,7 +2907,7 @@ BEGIN
       USING ERRCODE = 'no_data_found';
   END IF;
 
-  IF v_author IS NULL OR v_author <> public.baaki_my_member_id(v_group_id) THEN
+  IF v_author IS NULL OR v_author <> public.waves_my_member_id(v_group_id) THEN
     RAISE EXCEPTION 'NOT_YOUR_COMMENT: you can only edit your own'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -2662,10 +2929,10 @@ $$;
 
 
 --
--- Name: baaki_email_for(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_email_for(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_email_for(p_profile_id uuid) RETURNS text
+CREATE FUNCTION public.waves_email_for(p_profile_id uuid) RETURNS text
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $_$
@@ -2693,10 +2960,10 @@ $_$;
 
 
 --
--- Name: baaki_email_suppressed(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_email_suppressed(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_email_suppressed(p_address text) RETURNS boolean
+CREATE FUNCTION public.waves_email_suppressed(p_address text) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2708,10 +2975,10 @@ $$;
 
 
 --
--- Name: baaki_ensure_group_join_token(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_ensure_group_join_token(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_ensure_group_join_token(p_group_id uuid) RETURNS text
+CREATE FUNCTION public.waves_ensure_group_join_token(p_group_id uuid) RETURNS text
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2739,17 +3006,18 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN public.baaki_new_group_join_token(p_group_id, false);
+  RETURN public.waves_new_group_join_token(p_group_id, false);
 END
 $$;
 
 
 --
--- Name: baaki_expense_restore_window(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_expense_restore_window(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_expense_restore_window() RETURNS trigger
+CREATE FUNCTION public.waves_expense_restore_window() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   IF OLD.deleted_at IS NOT NULL
@@ -2764,10 +3032,10 @@ $$;
 
 
 --
--- Name: baaki_finish_campaign_emails(jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_finish_campaign_emails(jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_finish_campaign_emails(p_results jsonb DEFAULT '[]'::jsonb) RETURNS integer
+CREATE FUNCTION public.waves_finish_campaign_emails(p_results jsonb DEFAULT '[]'::jsonb) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2814,10 +3082,10 @@ $$;
 
 
 --
--- Name: baaki_finish_email(jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_finish_email(jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_finish_email(p_results jsonb DEFAULT '[]'::jsonb) RETURNS integer
+CREATE FUNCTION public.waves_finish_email(p_results jsonb DEFAULT '[]'::jsonb) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2867,23 +3135,36 @@ $$;
 
 
 --
--- Name: baaki_finish_push(uuid[], uuid[], text[]); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_finish_push(uuid[], uuid[], text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_finish_push(p_delivered uuid[] DEFAULT '{}'::uuid[], p_failed uuid[] DEFAULT '{}'::uuid[], p_revoke text[] DEFAULT '{}'::text[]) RETURNS void
+CREATE FUNCTION public.waves_finish_push(p_delivered uuid[] DEFAULT '{}'::uuid[], p_failed uuid[] DEFAULT '{}'::uuid[], p_revoke text[] DEFAULT '{}'::text[]) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  -- 'sent' rather than 'delivered': Expo accepting a message is as much as this
-  -- layer can know. The phone may be off. Recording more than actually happened
-  -- is a lie the UI would go on to repeat.
+  -- 'sent' rather than 'delivered': Expo accepting a message is as much as
+  -- this layer can know. `push_next_retry_at` is cleared alongside it — a
+  -- terminal row should not still carry scheduling metadata for a retry
+  -- that will never run.
   UPDATE public.notifications
-     SET push_status = 'sent'
+     SET push_status = 'sent',
+         push_next_retry_at = NULL
    WHERE id = ANY(p_delivered);
 
+  -- A failure counts itself and, under 3 attempts, schedules the next one —
+  -- 3 minutes after the first, 9 after the second. The third leaves
+  -- `push_next_retry_at` null: `push_attempts < 3` alone would still be true
+  -- at attempt 3, so the claim above needs this to know there is no fourth
+  -- try coming.
   UPDATE public.notifications
-     SET push_status = 'failed'
+     SET push_status = 'failed',
+         push_attempts = push_attempts + 1,
+         push_next_retry_at = CASE
+           WHEN push_attempts + 1 < 3
+             THEN now() + (power(3, push_attempts + 1) * interval '1 minute')
+           ELSE NULL
+         END
    WHERE id = ANY(p_failed);
 
   -- Soft, not deleted: the row is evidence of a device that existed, and the
@@ -2896,10 +3177,10 @@ $$;
 
 
 --
--- Name: baaki_flag_expense_comment(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_flag_expense_comment(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_flag_expense_comment(p_comment_id uuid, p_flag boolean) RETURNS void
+CREATE FUNCTION public.waves_flag_expense_comment(p_comment_id uuid, p_flag boolean) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2920,7 +3201,7 @@ BEGIN
   IF p_flag THEN
     -- Any member reports; keep the first flagger (WHERE flagged_at IS NULL).
     UPDATE public.expense_comments
-       SET flagged_at = now(), flagged_by = public.baaki_my_member_id(v_group_id)
+       SET flagged_at = now(), flagged_by = public.waves_my_member_id(v_group_id)
      WHERE id = p_comment_id AND deleted_at IS NULL AND flagged_at IS NULL;
   ELSE
     -- Only an admin resolves a report.
@@ -2937,11 +3218,12 @@ $$;
 
 
 --
--- Name: baaki_forbid_mutation(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_forbid_mutation(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_forbid_mutation() RETURNS trigger
+CREATE FUNCTION public.waves_forbid_mutation() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   RAISE EXCEPTION
@@ -2953,10 +3235,10 @@ $$;
 
 
 --
--- Name: baaki_free_storage_cap(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_free_storage_cap(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_free_storage_cap() RETURNS bigint
+CREATE FUNCTION public.waves_free_storage_cap() RETURNS bigint
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2968,10 +3250,10 @@ $$;
 
 
 --
--- Name: baaki_grant_promo(uuid, integer, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_grant_promo(uuid, integer, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_grant_promo(p_profile_id uuid, p_days integer, p_source text) RETURNS uuid
+CREATE FUNCTION public.waves_grant_promo(p_profile_id uuid, p_days integer, p_source text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -2998,10 +3280,10 @@ $$;
 
 
 --
--- Name: baaki_gravatar_url(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_gravatar_url(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_gravatar_url(p_email text) RETURNS text
+CREATE FUNCTION public.waves_gravatar_url(p_email text) RETURNS text
     LANGUAGE sql IMMUTABLE
     SET search_path TO 'pg_catalog', 'pg_temp'
     AS $$
@@ -3013,11 +3295,12 @@ $$;
 
 
 --
--- Name: baaki_group_balances_truth(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_balances_truth(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_balances_truth(p_group_id uuid) RETURNS TABLE(member_id uuid, currency character, balance bigint)
+CREATE FUNCTION public.waves_group_balances_truth(p_group_id uuid) RETURNS TABLE(member_id uuid, currency character, balance bigint)
     LANGUAGE sql STABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $$
   WITH live_versions AS (
     SELECT ev.id, ev.currency
@@ -3051,11 +3334,12 @@ $$;
 
 
 --
--- Name: baaki_group_from_storage_path(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_from_storage_path(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_from_storage_path(p_path text) RETURNS uuid
+CREATE FUNCTION public.waves_group_from_storage_path(p_path text) RETURNS uuid
     LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public', 'pg_temp'
     AS $_$
   -- Objects are stored as "<group id>/cover.jpg". Anything that is not a UUID
   -- in the first segment returns NULL, which fails every policy below rather
@@ -3069,10 +3353,10 @@ $_$;
 
 
 --
--- Name: baaki_group_is_paid(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_is_paid(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_is_paid(p_group_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_group_is_paid(p_group_id uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3081,7 +3365,7 @@ CREATE FUNCTION public.baaki_group_is_paid(p_group_id uuid) RETURNS boolean
      WHERE gm.group_id = p_group_id
        AND gm.left_at IS NULL
        AND gm.profile_id IS NOT NULL
-       AND public.baaki_profile_is_paid(gm.profile_id)
+       AND public.waves_profile_is_paid(gm.profile_id)
   ) OR EXISTS (
     SELECT 1 FROM public.group_passes gp
      WHERE gp.group_id = p_group_id
@@ -3091,10 +3375,10 @@ $$;
 
 
 --
--- Name: baaki_group_member_claims(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_member_claims(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_member_claims(p_group_id uuid) RETURNS TABLE(id uuid, member_id uuid, ghost_name text, requester_name text, requested_name text, created_at timestamp with time zone)
+CREATE FUNCTION public.waves_group_member_claims(p_group_id uuid) RETURNS TABLE(id uuid, member_id uuid, ghost_name text, requester_name text, requested_name text, created_at timestamp with time zone)
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3112,7 +3396,7 @@ CREATE FUNCTION public.baaki_group_member_claims(p_group_id uuid) RETURNS TABLE(
      AND EXISTS (
        SELECT 1 FROM public.group_members gm
         WHERE gm.group_id = p_group_id
-          AND gm.profile_id = public.baaki_current_profile_id()
+          AND gm.profile_id = public.waves_current_profile_id()
           AND gm.role = 'admin'
           AND gm.left_at IS NULL
      )
@@ -3121,11 +3405,12 @@ $$;
 
 
 --
--- Name: baaki_group_pairwise_truth(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_pairwise_truth(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_pairwise_truth(p_group_id uuid) RETURNS TABLE(from_member_id uuid, to_member_id uuid, currency character, amount bigint)
+CREATE FUNCTION public.waves_group_pairwise_truth(p_group_id uuid) RETURNS TABLE(from_member_id uuid, to_member_id uuid, currency character, amount bigint)
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 #variable_conflict use_column
 DECLARE
@@ -3137,10 +3422,10 @@ DECLARE
   d int; c int;
   v_take bigint;
 BEGIN
-  CREATE TEMP TABLE IF NOT EXISTS baaki_pairwise_scratch (
+  CREATE TEMP TABLE IF NOT EXISTS waves_pairwise_scratch (
     a uuid, b uuid, cur char(3), amt bigint
   ) ON COMMIT DROP;
-  DELETE FROM baaki_pairwise_scratch WHERE true;
+  DELETE FROM waves_pairwise_scratch WHERE true;
 
   FOR v_version IN
     SELECT ev.id, ev.currency
@@ -3185,7 +3470,7 @@ BEGIN
     WHILE d <= array_length(v_debtor_ids, 1) AND c <= array_length(v_credit_ids, 1) LOOP
       v_take := LEAST(v_debtor_amts[d], v_credit_amts[c]);
       IF v_take > 0 THEN
-        INSERT INTO baaki_pairwise_scratch
+        INSERT INTO waves_pairwise_scratch
         VALUES (v_debtor_ids[d], v_credit_ids[c], v_version.currency, v_take);
         v_debtor_amts[d] := v_debtor_amts[d] - v_take;
         v_credit_amts[c] := v_credit_amts[c] - v_take;
@@ -3196,7 +3481,7 @@ BEGIN
   END LOOP;
 
   -- Settlements pay debt down: `from` paying `to` cancels what `from` owes `to`.
-  INSERT INTO baaki_pairwise_scratch
+  INSERT INTO waves_pairwise_scratch
   SELECT st.to_member_id, st.from_member_id, st.currency, -st.amount
   FROM public.settlements st
   WHERE st.group_id = p_group_id AND st.status IN ('confirmed', 'auto_confirmed');
@@ -3208,7 +3493,7 @@ BEGIN
       GREATEST(a, b) AS hi,
       cur,
       SUM(CASE WHEN a < b THEN amt ELSE -amt END)::bigint AS net
-    FROM baaki_pairwise_scratch
+    FROM waves_pairwise_scratch
     GROUP BY 1, 2, 3
   )
   SELECT
@@ -3223,15 +3508,15 @@ $$;
 
 
 --
--- Name: baaki_group_plan(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_plan(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_plan(p_group_id uuid) RETURNS jsonb
+CREATE FUNCTION public.waves_group_plan(p_group_id uuid) RETURNS jsonb
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_mine    jsonb := public.baaki_my_plan();
+  v_mine    jsonb := public.waves_my_plan();
   v_expires timestamptz;
 BEGIN
   IF NOT public.is_group_member(p_group_id) THEN
@@ -3259,10 +3544,10 @@ $$;
 
 
 --
--- Name: baaki_group_spending(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_group_spending(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_group_spending(p_group_id uuid) RETURNS TABLE(member_id uuid, currency character, category text, month date, share_amount bigint, expense_count integer)
+CREATE FUNCTION public.waves_group_spending(p_group_id uuid) RETURNS TABLE(member_id uuid, currency character, category text, month date, share_amount bigint, expense_count integer)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3289,18 +3574,19 @@ $$;
 
 
 --
--- Name: FUNCTION baaki_group_spending(p_group_id uuid); Type: COMMENT; Schema: public; Owner: -
+-- Name: FUNCTION waves_group_spending(p_group_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.baaki_group_spending(p_group_id uuid) IS 'M5 analytics (TDR §8): per-member, per-category, per-month spending for one group, in minor units, one row per currency.';
+COMMENT ON FUNCTION public.waves_group_spending(p_group_id uuid) IS 'M5 analytics (TDR §8): per-member, per-category, per-month spending for one group, in minor units, one row per currency.';
 
 
 --
--- Name: baaki_guard_group_columns(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_guard_group_columns(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_guard_group_columns() RETURNS trigger
+CREATE FUNCTION public.waves_guard_group_columns() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   IF current_user NOT IN ('anon', 'authenticated') THEN
@@ -3329,18 +3615,23 @@ BEGIN
 
   IF NEW.photo_path IS DISTINCT FROM OLD.photo_path
      AND NEW.photo_path IS NOT NULL
-     AND NOT public.baaki_can_upload_group_photo(NEW.id) THEN
+     AND NOT public.waves_can_upload_group_photo(NEW.id) THEN
     RAISE EXCEPTION 'PHOTO_GATE: a group photo is a paid feature'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
   IF NEW.category_budgets IS DISTINCT FROM OLD.category_budgets THEN
-    RAISE EXCEPTION 'FORBIDDEN_COLUMN: category budgets are set through baaki_set_category_budget, not a direct write'
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: category budgets are set through waves_set_category_budget, not a direct write'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.fx_rates IS DISTINCT FROM OLD.fx_rates THEN
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: trip rates are set through waves_set_group_fx_rate, not a direct write'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
   IF NEW.join_token IS DISTINCT FROM OLD.join_token THEN
-    RAISE EXCEPTION 'FORBIDDEN_COLUMN: the join link is set through baaki_ensure_group_join_token / baaki_reset_group_join_token, not a direct write'
+    RAISE EXCEPTION 'FORBIDDEN_COLUMN: the join link is set through waves_ensure_group_join_token / waves_reset_group_join_token, not a direct write'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
@@ -3350,11 +3641,12 @@ $$;
 
 
 --
--- Name: baaki_guard_membership_columns(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_guard_membership_columns(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_guard_membership_columns() RETURNS trigger
+CREATE FUNCTION public.waves_guard_membership_columns() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   IF current_user NOT IN ('anon', 'authenticated') THEN
@@ -3382,10 +3674,10 @@ $$;
 
 
 --
--- Name: baaki_handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_handle_new_user() RETURNS trigger
+CREATE FUNCTION public.waves_handle_new_user() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3410,15 +3702,15 @@ $$;
 
 
 --
--- Name: baaki_import_ledger(uuid, jsonb, jsonb, jsonb, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_import_ledger(uuid, jsonb, jsonb, jsonb, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb DEFAULT '[]'::jsonb, p_origin text DEFAULT 'splitwise'::text) RETURNS jsonb
+CREATE FUNCTION public.waves_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb DEFAULT '[]'::jsonb, p_origin text DEFAULT 'splitwise'::text) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile_id  uuid := public.baaki_current_profile_id();
+  v_profile_id  uuid := public.waves_current_profile_id();
   v_author      uuid;
   v_person      jsonb;
   v_expense     jsonb;
@@ -3432,8 +3724,16 @@ DECLARE
   v_created     int := 0;
   v_ghosts      int := 0;
   v_settled     int := 0;
+  v_pending     int := 0;
   v_mutation    uuid;
   v_result      jsonb;
+  v_from        uuid;
+  v_to          uuid;
+  v_from_real   boolean;
+  v_to_real     boolean;
+  v_file_status text;
+  v_status      "SettlementStatus";
+  v_at          timestamptz;
 BEGIN
   IF v_profile_id IS NULL OR NOT EXISTS (
     SELECT 1 FROM public.group_members gm
@@ -3443,7 +3743,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  v_author := public.baaki_my_member_id_for(p_group_id, v_profile_id);
+  v_author := public.waves_my_member_id_for(p_group_id, v_profile_id);
 
   IF jsonb_typeof(p_people) <> 'array' OR jsonb_array_length(p_people) = 0 THEN
     RAISE EXCEPTION 'NO_PEOPLE: the import named nobody' USING ERRCODE = 'check_violation';
@@ -3504,7 +3804,7 @@ BEGIN
       END IF;
     END LOOP;
 
-    v_result := public.baaki_apply_expense(
+    v_result := public.waves_apply_expense(
       p_group_id           => p_group_id,
       p_expense_id         => NULL,
       p_author_member_id   => v_author,
@@ -3516,7 +3816,10 @@ BEGIN
       -- 'exact' regardless of how the split was originally expressed: the
       -- participants are new members with new ids, so a percentage or a set of
       -- weights would have to be re-divided and could land a paisa somewhere
-      -- the file did not. The amounts are the amounts.
+      -- the file did not. The amounts are the amounts — and with an exact
+      -- split the shares ARE the split params, so there is nothing for the
+      -- server to recompute; `waves_check_expense_totals` still refuses a
+      -- version whose payers or shares do not sum to the amount.
       p_split_type         => 'exact',
       p_split_params       => jsonb_build_object('kind', 'exact', 'amounts', (
         SELECT COALESCE(jsonb_object_agg(v_names ->> entry.key, entry.value), '{}'::jsonb)
@@ -3542,6 +3845,9 @@ BEGIN
         USING ERRCODE = 'foreign_key_violation';
     END IF;
 
+    v_from := (v_names ->> (v_settlement ->> 'from'))::uuid;
+    v_to   := (v_names ->> (v_settlement ->> 'to'))::uuid;
+
     v_mutation := (v_settlement ->> 'clientMutationId')::uuid;
     -- Same idempotency rule as the expenses: a replayed import must not pay
     -- somebody twice.
@@ -3549,25 +3855,61 @@ BEGIN
       SELECT 1 FROM public.settlements s WHERE s.client_mutation_id = v_mutation
     );
 
+    -- The file's word on the row, before anybody's consent is considered. A
+    -- status the ledger has no name for is refused rather than cast blind.
+    v_file_status := lower(COALESCE(v_settlement ->> 'status', 'confirmed'));
+    IF v_file_status NOT IN ('confirmed', 'auto_confirmed', 'initiated', 'disputed', 'cancelled') THEN
+      RAISE EXCEPTION 'INVALID_STATUS: a settlement cannot be imported as "%"', v_file_status
+        USING ERRCODE = 'check_violation';
+    END IF;
+
+    SELECT gm.profile_id IS NOT NULL INTO v_from_real
+      FROM public.group_members gm WHERE gm.id = v_from;
+    SELECT gm.profile_id IS NOT NULL INTO v_to_real
+      FROM public.group_members gm WHERE gm.id = v_to;
+
+    IF v_file_status IN ('confirmed', 'auto_confirmed') THEN
+      -- Settled, says the file. It stays settled only if the person doing the
+      -- import can vouch for the receipt: they are the payee, or the payee is
+      -- a ghost and the payer is nobody else on Waves. Otherwise the member it
+      -- names gets to confirm it, the way they would any settle-up (ADR-007).
+      IF v_to = v_author OR (NOT v_to_real AND (v_from = v_author OR NOT v_from_real)) THEN
+        v_status := 'confirmed';
+      ELSE
+        v_status := 'initiated';
+      END IF;
+    ELSE
+      v_status := v_file_status::"SettlementStatus";
+    END IF;
+
+    -- A confirmed row keeps the file's date. A pending one is dated now, so the
+    -- auto-confirm window starts when the people on Waves can first see it —
+    -- not years ago in the file.
+    v_at := CASE
+      WHEN v_status = 'initiated' THEN now()
+      ELSE COALESCE((v_settlement ->> 'at')::timestamptz, now())
+    END;
+
     INSERT INTO public.settlements
       (group_id, from_member_id, to_member_id, currency, amount, method, status, note,
        initiated_at, confirmed_at, client_mutation_id)
     VALUES (
       p_group_id,
-      (v_names ->> (v_settlement ->> 'from'))::uuid,
-      (v_names ->> (v_settlement ->> 'to'))::uuid,
+      v_from,
+      v_to,
       upper(COALESCE(v_settlement ->> 'currency', 'INR'))::char(3),
       (v_settlement ->> 'amount')::bigint,
       COALESCE(v_settlement ->> 'method', 'other')::"SettlementMethod",
-      COALESCE(v_settlement ->> 'status', 'confirmed')::"SettlementStatus",
+      v_status,
       v_settlement ->> 'note',
-      COALESCE((v_settlement ->> 'at')::timestamptz, now()),
-      CASE
-        WHEN COALESCE(v_settlement ->> 'status', 'confirmed') IN ('confirmed', 'auto_confirmed')
-        THEN COALESCE((v_settlement ->> 'at')::timestamptz, now())
-      END,
+      v_at,
+      CASE WHEN v_status = 'confirmed' THEN v_at END,
       v_mutation
     );
+
+    IF v_status = 'initiated' THEN
+      v_pending := v_pending + 1;
+    END IF;
     v_settled := v_settled + 1;
   END LOOP;
 
@@ -3575,7 +3917,8 @@ BEGIN
   VALUES (
     p_group_id, v_author, 'imported', 'group', p_group_id,
     jsonb_build_object(
-      'expenses', v_created, 'ghosts', v_ghosts, 'settlements', v_settled, 'from', p_origin
+      'expenses', v_created, 'ghosts', v_ghosts, 'settlements', v_settled,
+      'settlementsPending', v_pending, 'from', p_origin
     )
   );
 
@@ -3584,6 +3927,7 @@ BEGIN
     'expenses', v_created,
     'ghosts', v_ghosts,
     'settlements', v_settled,
+    'settlementsPending', v_pending,
     'members', v_names
   );
 END
@@ -3591,22 +3935,22 @@ $$;
 
 
 --
--- Name: baaki_import_splitwise(uuid, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_import_splitwise(uuid, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) RETURNS jsonb
+CREATE FUNCTION public.waves_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) RETURNS jsonb
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
-  SELECT public.baaki_import_ledger(p_group_id, p_people, p_expenses, '[]'::jsonb, 'splitwise');
+  SELECT public.waves_import_ledger(p_group_id, p_people, p_expenses, '[]'::jsonb, 'splitwise');
 $$;
 
 
 --
--- Name: baaki_is_expense_party(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_is_expense_party(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_is_expense_party(p_expense_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_is_expense_party(p_expense_id uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3618,17 +3962,17 @@ CREATE FUNCTION public.baaki_is_expense_party(p_expense_id uuid) RETURNS boolean
     JOIN public.group_members gm
       ON gm.id = ep.member_id OR gm.id = v.author_member_id
     WHERE e.id = p_expense_id
-      AND gm.profile_id = public.baaki_current_profile_id()
+      AND gm.profile_id = public.waves_current_profile_id()
       AND gm.left_at IS NULL
   )
 $$;
 
 
 --
--- Name: baaki_is_settlement_party(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_is_settlement_party(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_is_settlement_party(p_settlement_id uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3638,17 +3982,17 @@ CREATE FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) RETURNS b
     JOIN public.group_members gm
       ON gm.id IN (s.from_member_id, s.to_member_id)
     WHERE s.id = p_settlement_id
-      AND gm.profile_id = public.baaki_current_profile_id()
+      AND gm.profile_id = public.waves_current_profile_id()
       AND gm.left_at IS NULL
   )
 $$;
 
 
 --
--- Name: baaki_item_claims(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_item_claims(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_item_claims(p_receipt_id uuid) RETURNS TABLE(item_index integer, member_id uuid, revision integer)
+CREATE FUNCTION public.waves_item_claims(p_receipt_id uuid) RETURNS TABLE(item_index integer, member_id uuid, revision integer)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3660,10 +4004,10 @@ $$;
 
 
 --
--- Name: baaki_list_devices(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_list_devices(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_list_devices() RETURNS jsonb
+CREATE FUNCTION public.waves_list_devices() RETURNS jsonb
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3683,16 +4027,16 @@ CREATE FUNCTION public.baaki_list_devices() RETURNS jsonb
     '[]'::jsonb
   )
   FROM public.device_sessions
-  WHERE profile_id = public.baaki_current_profile_id()
+  WHERE profile_id = public.waves_current_profile_id()
     AND last_seen_at > now() - interval '90 days';
 $$;
 
 
 --
--- Name: baaki_log_receipt_event(uuid, uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_log_receipt_event(uuid, uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) RETURNS void
+CREATE FUNCTION public.waves_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3711,7 +4055,7 @@ BEGIN
 
   -- Membership is the authorisation: only a member of the group may write a line
   -- about it, and their identity is the session's, not a client argument.
-  v_member := public.baaki_my_member_id(p_group_id);
+  v_member := public.waves_my_member_id(p_group_id);
   IF v_member IS NULL THEN
     RAISE EXCEPTION 'NOT_A_MEMBER: only a group member may log this'
       USING ERRCODE = 'insufficient_privilege';
@@ -3727,10 +4071,41 @@ $$;
 
 
 --
--- Name: baaki_mark_notifications_read(uuid[]); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_log_voice_attempt(text, text, boolean, integer, text, text, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_mark_notifications_read(p_ids uuid[]) RETURNS integer
+CREATE FUNCTION public.waves_log_voice_attempt(p_transcript text, p_locale text DEFAULT NULL::text, p_used_model boolean DEFAULT false, p_item_count integer DEFAULT 0, p_platform text DEFAULT NULL::text, p_app_version text DEFAULT NULL::text, p_client_at timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_profile uuid := public.waves_current_profile_id();
+  v_transcript text := left(trim(COALESCE(p_transcript, '')), 4000);
+  v_id uuid;
+BEGIN
+  -- No session, or nothing to log: say nothing. This is a fire-and-forget
+  -- reporter, so a null return is the quiet "not stored" the client expects.
+  IF v_profile IS NULL OR length(v_transcript) = 0 THEN
+    RETURN NULL;
+  END IF;
+
+  INSERT INTO public.voice_attempts
+    (profile_id, transcript, locale, used_model, item_count, platform, app_version, client_at)
+  VALUES
+    (v_profile, v_transcript, p_locale, COALESCE(p_used_model, false),
+     GREATEST(COALESCE(p_item_count, 0), 0), p_platform, p_app_version, p_client_at)
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END
+$$;
+
+
+--
+-- Name: waves_mark_notifications_read(uuid[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_mark_notifications_read(p_ids uuid[]) RETURNS integer
     LANGUAGE sql
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3747,10 +4122,10 @@ $$;
 
 
 --
--- Name: baaki_member_group_id(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_member_group_id(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_member_group_id(p_member_id uuid) RETURNS uuid
+CREATE FUNCTION public.waves_member_group_id(p_member_id uuid) RETURNS uuid
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3759,15 +4134,15 @@ $$;
 
 
 --
--- Name: baaki_merge_ghosts(uuid[], text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_merge_ghosts(uuid[], text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_merge_ghosts(p_member_ids uuid[], p_name text) RETURNS uuid
+CREATE FUNCTION public.waves_merge_ghosts(p_member_ids uuid[], p_name text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile_id uuid := public.baaki_current_profile_id();
+  v_profile_id uuid := public.waves_current_profile_id();
   v_name       text := nullif(btrim(coalesce(p_name, '')), '');
   v_canonical  uuid;
   v_count      int;
@@ -3781,7 +4156,7 @@ BEGIN
   -- Serialise this owner's merges for the rest of the transaction, so the
   -- canonical lookup below and the write that follows it are atomic against a
   -- concurrent merge that shares a member. Released on commit/rollback.
-  PERFORM pg_advisory_xact_lock(hashtext('baaki_merge_ghosts:' || v_profile_id::text)::bigint);
+  PERFORM pg_advisory_xact_lock(hashtext('waves_merge_ghosts:' || v_profile_id::text)::bigint);
 
   IF v_name IS NULL THEN
     RAISE EXCEPTION 'NAME_REQUIRED: the merged person needs a name'
@@ -3872,19 +4247,19 @@ $$;
 
 
 --
--- Name: baaki_my_campaign(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_campaign(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_campaign() RETURNS TABLE(id uuid, title text, body text, cta_label text, promo_code text, ends_at timestamp with time zone)
+CREATE FUNCTION public.waves_my_campaign() RETURNS TABLE(id uuid, title text, body text, cta_label text, promo_code text, ends_at timestamp with time zone)
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT c.id, c.title, c.body, c.cta_label, c.promo_code, c.ends_at
     FROM public.campaigns c
-    JOIN public.profiles p ON p.id = public.baaki_current_profile_id()
+    JOIN public.profiles p ON p.id = public.waves_current_profile_id()
    WHERE now() BETWEEN c.starts_at AND c.ends_at
      AND (c.audience_countries IS NULL OR p.country_code = ANY (c.audience_countries))
-     AND public.baaki_campaign_cohort(c.id, p.id) = 'targeted'
+     AND public.waves_campaign_cohort(c.id, p.id) = 'targeted'
      AND NOT EXISTS (
        SELECT 1 FROM public.campaign_impressions i
         WHERE i.campaign_id = c.id AND i.profile_id = p.id
@@ -3895,16 +4270,16 @@ $$;
 
 
 --
--- Name: baaki_my_erasure_preview(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_erasure_preview(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_erasure_preview() RETURNS TABLE(groups_count bigint, expenses_authored bigint, settlements_involved bigint, outstanding_currencies text[])
+CREATE FUNCTION public.waves_my_erasure_preview() RETURNS TABLE(groups_count bigint, expenses_authored bigint, settlements_involved bigint, outstanding_currencies text[])
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   WITH me AS (
     SELECT id FROM public.group_members
-     WHERE profile_id = public.baaki_current_profile_id()
+     WHERE profile_id = public.waves_current_profile_id()
   )
   SELECT
     (SELECT count(*) FROM me),
@@ -3923,10 +4298,10 @@ $$;
 
 
 --
--- Name: baaki_my_member_claims(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_member_claims(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_member_claims() RETURNS TABLE(id uuid, group_id uuid, group_name text, ghost_name text, status text, created_at timestamp with time zone, decided_at timestamp with time zone)
+CREATE FUNCTION public.waves_my_member_claims() RETURNS TABLE(id uuid, group_id uuid, group_name text, ghost_name text, status text, created_at timestamp with time zone, decided_at timestamp with time zone)
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3934,33 +4309,33 @@ CREATE FUNCTION public.baaki_my_member_claims() RETURNS TABLE(id uuid, group_id 
     FROM public.member_claims c
     JOIN public.groups g        ON g.id = c.group_id
     JOIN public.group_members m ON m.id = c.member_id
-   WHERE c.requester_id = public.baaki_current_profile_id()
+   WHERE c.requester_id = public.waves_current_profile_id()
    ORDER BY c.created_at DESC;
 $$;
 
 
 --
--- Name: baaki_my_member_id(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_member_id(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_member_id(p_group_id uuid) RETURNS uuid
+CREATE FUNCTION public.waves_my_member_id(p_group_id uuid) RETURNS uuid
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT gm.id
   FROM public.group_members gm
   WHERE gm.group_id = p_group_id
-    AND gm.profile_id = public.baaki_current_profile_id()
+    AND gm.profile_id = public.waves_current_profile_id()
     AND gm.left_at IS NULL
   LIMIT 1
 $$;
 
 
 --
--- Name: baaki_my_member_id_for(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_member_id_for(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_member_id_for(p_group_id uuid, p_profile_id uuid) RETURNS uuid
+CREATE FUNCTION public.waves_my_member_id_for(p_group_id uuid, p_profile_id uuid) RETURNS uuid
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -3971,15 +4346,15 @@ $$;
 
 
 --
--- Name: baaki_my_plan(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_plan(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_plan(p_profile_id uuid DEFAULT NULL::uuid) RETURNS jsonb
+CREATE FUNCTION public.waves_my_plan(p_profile_id uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := COALESCE(p_profile_id, public.baaki_current_profile_id());
+  v_profile uuid := COALESCE(p_profile_id, public.waves_current_profile_id());
   v_row     record;
 BEGIN
   IF v_profile IS NULL THEN
@@ -4014,15 +4389,15 @@ $$;
 
 
 --
--- Name: baaki_my_storage_usage(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_storage_usage(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_storage_usage() RETURNS TABLE(used_bytes bigint, cap_bytes bigint)
+CREATE FUNCTION public.waves_my_storage_usage() RETURNS TABLE(used_bytes bigint, cap_bytes bigint)
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
 BEGIN
   IF v_profile IS NULL THEN
     RETURN;
@@ -4030,7 +4405,7 @@ BEGIN
 
   RETURN QUERY
     SELECT COALESCE(SUM(bytes), 0)::bigint,
-           public.baaki_free_storage_cap()
+           public.waves_free_storage_cap()
       FROM public.storage_objects
      WHERE owner_profile_id = v_profile
        AND counted;
@@ -4039,15 +4414,15 @@ $$;
 
 
 --
--- Name: baaki_my_voice_access(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_my_voice_access(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_my_voice_access() RETURNS jsonb
+CREATE FUNCTION public.waves_my_voice_access() RETURNS jsonb
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
   v_period  text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
   v_paid    boolean;
   v_free    integer;
@@ -4059,8 +4434,8 @@ BEGIN
       'remainingSeconds', 0, 'period', v_period);
   END IF;
 
-  v_paid := public.baaki_profile_is_paid(v_profile);
-  v_free := public.baaki_voice_stt_free_seconds();
+  v_paid := public.waves_profile_is_paid(v_profile);
+  v_free := public.waves_voice_stt_free_seconds();
   SELECT seconds INTO v_used
     FROM public.voice_stt_usage
    WHERE profile_id = v_profile AND period = v_period;
@@ -4078,10 +4453,10 @@ $$;
 
 
 --
--- Name: baaki_new_group_join_token(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_new_group_join_token(uuid, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) RETURNS text
+CREATE FUNCTION public.waves_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) RETURNS text
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4107,7 +4482,7 @@ BEGIN
   VALUES (
     p_group_id,
     encode(extensions.digest(v_token, 'sha256'), 'hex'),
-    public.baaki_current_profile_id(),
+    public.waves_current_profile_id(),
     now() + interval '100 years',
     1000000
   );
@@ -4119,10 +4494,10 @@ $$;
 
 
 --
--- Name: baaki_next_capture_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_next_capture_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_next_capture_seq(p_owner uuid) RETURNS bigint
+CREATE FUNCTION public.waves_next_capture_seq(p_owner uuid) RETURNS bigint
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4139,10 +4514,10 @@ $$;
 
 
 --
--- Name: baaki_next_category_tag_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_next_category_tag_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_next_category_tag_seq(p_owner uuid) RETURNS bigint
+CREATE FUNCTION public.waves_next_category_tag_seq(p_owner uuid) RETURNS bigint
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4159,10 +4534,10 @@ $$;
 
 
 --
--- Name: baaki_next_ghost_merge_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_next_ghost_merge_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_next_ghost_merge_seq(p_owner uuid) RETURNS bigint
+CREATE FUNCTION public.waves_next_ghost_merge_seq(p_owner uuid) RETURNS bigint
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4179,10 +4554,10 @@ $$;
 
 
 --
--- Name: baaki_next_group_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_next_group_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_next_group_seq(p_group_id uuid) RETURNS bigint
+CREATE FUNCTION public.waves_next_group_seq(p_group_id uuid) RETURNS bigint
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4199,10 +4574,30 @@ $$;
 
 
 --
--- Name: baaki_notify(uuid, uuid, text, text, text, text, jsonb, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_next_personal_seq(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) RETURNS uuid
+CREATE FUNCTION public.waves_next_personal_seq(p_owner uuid) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_seq bigint;
+BEGIN
+  UPDATE public.profiles
+     SET personal_seq = personal_seq + 1
+   WHERE id = p_owner
+   RETURNING personal_seq INTO v_seq;
+  RETURN COALESCE(v_seq, 0);
+END
+$$;
+
+
+--
+-- Name: waves_notify(uuid, uuid, text, text, text, text, jsonb, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4229,11 +4624,51 @@ $$;
 
 
 --
--- Name: baaki_nudge_rate_limit(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_notify_fanout_trigger(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_nudge_rate_limit() RETURNS trigger
+CREATE FUNCTION public.waves_notify_fanout_trigger() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_key text;
+BEGIN
+  -- Never let a delivery hiccup roll back the write that created the
+  -- notification — an expense, a settlement, a group-add. Whatever goes
+  -- wrong here (no Vault secret yet, `pg_net` unavailable, anything else)
+  -- is swallowed; the row stays in `notifications` and the cron still
+  -- reaches it within five minutes regardless of what this trigger did.
+  BEGIN
+    SELECT decrypted_secret INTO v_key
+      FROM vault.decrypted_secrets WHERE name = 'service_role_key';
+
+    IF v_key IS NOT NULL THEN
+      PERFORM net.http_post(
+        url     := 'https://xvjzbpgcmotoahtqcxve.supabase.co/functions/v1/notify-fanout',
+        headers := jsonb_build_object(
+          'Authorization', 'Bearer ' || v_key,
+          'Content-Type',  'application/json'
+        ),
+        body    := '{}'::jsonb
+      );
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN NULL; -- ignored on an AFTER trigger
+END
+$$;
+
+
+--
+-- Name: waves_nudge_rate_limit(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_nudge_rate_limit() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   IF NEW.last_nudged_at IS NOT NULL
@@ -4249,10 +4684,10 @@ $$;
 
 
 --
--- Name: baaki_nudge_to_settle(uuid, uuid, character); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_nudge_to_settle(uuid, uuid, character); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) RETURNS uuid
+CREATE FUNCTION public.waves_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4272,7 +4707,7 @@ BEGIN
     FROM public.group_members gm
     JOIN public.profiles p ON p.id = gm.profile_id
    WHERE gm.group_id = p_group_id
-     AND gm.profile_id = public.baaki_current_profile_id()
+     AND gm.profile_id = public.waves_current_profile_id()
      AND gm.left_at IS NULL;
 
   IF v_me IS NULL THEN
@@ -4342,13 +4777,13 @@ BEGIN
   -- `counterparty`/`amount`/`currency`/`group` facts are what actually matter.
   -- The dedupe key is per pair per day — a belt to the rate limit's braces, so
   -- even a retried call is a no-op rather than a second buzz.
-  v_notification := public.baaki_notify(
+  v_notification := public.waves_notify(
     v_their_profile,
     p_group_id,
     'nudge',
     'A gentle nudge from ' || v_my_name,
-    'You have a pending baaki in ' || v_group_name,
-    'baaki://group/' || p_group_id::text,
+    'You have a pending balance in ' || v_group_name,
+    'waves://group/' || p_group_id::text,
     jsonb_build_object(
       'counterparty', v_my_name,
       'amount',       v_amount::text,
@@ -4365,10 +4800,10 @@ $$;
 
 
 --
--- Name: baaki_open_receipts(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_open_receipts(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_open_receipts(p_group_id uuid) RETURNS TABLE(id uuid, created_at timestamp with time zone, parsed jsonb, claimed integer, items integer)
+CREATE FUNCTION public.waves_open_receipts(p_group_id uuid) RETURNS TABLE(id uuid, created_at timestamp with time zone, parsed jsonb, claimed integer, items integer)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4396,17 +4831,17 @@ $$;
 
 
 --
--- Name: baaki_people_i_owe(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_people_i_owe(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_people_i_owe() RETURNS TABLE(person_key text, profile_id uuid, member_id uuid, display_name text, avatar_url text, is_ghost boolean, currency character, net bigint, group_count integer, only_group_id uuid, last_activity_at timestamp with time zone)
+CREATE FUNCTION public.waves_people_i_owe() RETURNS TABLE(person_key text, profile_id uuid, member_id uuid, display_name text, avatar_url text, is_ghost boolean, currency character, net bigint, group_count integer, only_group_id uuid, last_activity_at timestamp with time zone)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
   WITH me AS (
     SELECT gm.id AS member_id, gm.group_id
       FROM public.group_members gm
-     WHERE gm.profile_id = public.baaki_current_profile_id()
+     WHERE gm.profile_id = public.waves_current_profile_id()
        AND gm.left_at IS NULL
   ),
   edges AS (
@@ -4450,7 +4885,7 @@ CREATE FUNCTION public.baaki_people_i_owe() RETURNS TABLE(person_key text, profi
       -- proof; failing both, a ghost stays keyed to its own group.
       COALESCE(gm.profile_id::text, mrg.person_id::text, gm.id::text) AS person_key,
       COALESCE(p.display_name, mrg.display_name, gm.ghost_name, 'Someone') AS display_name,
-      COALESCE(p.avatar_url, public.baaki_gravatar_url(gm.invite_email)) AS avatar_url,
+      COALESCE(p.avatar_url, public.waves_gravatar_url(gm.invite_email)) AS avatar_url,
       gm.profile_id IS NULL AS is_ghost,
       ma.last_activity_at
     FROM edges e
@@ -4459,7 +4894,7 @@ CREATE FUNCTION public.baaki_people_i_owe() RETURNS TABLE(person_key text, profi
     LEFT JOIN member_activity ma ON ma.member_id = gm.id
     LEFT JOIN public.ghost_merges mrg
       ON mrg.member_id = gm.id
-     AND mrg.owner = public.baaki_current_profile_id()
+     AND mrg.owner = public.waves_current_profile_id()
   )
   SELECT
     n.person_key,
@@ -4482,17 +4917,17 @@ $$;
 
 
 --
--- Name: baaki_person_group_balances(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_person_group_balances(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_person_group_balances(p_person_key text) RETURNS TABLE(group_id uuid, group_name text, cover_emoji text, currency character, net bigint, is_ghost boolean, display_name text)
+CREATE FUNCTION public.waves_person_group_balances(p_person_key text) RETURNS TABLE(group_id uuid, group_name text, cover_emoji text, currency character, net bigint, is_ghost boolean, display_name text)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
   WITH me AS (
     SELECT gm.id AS member_id, gm.group_id
       FROM public.group_members gm
-     WHERE gm.profile_id = public.baaki_current_profile_id()
+     WHERE gm.profile_id = public.waves_current_profile_id()
        AND gm.left_at IS NULL
   ),
   edges AS (
@@ -4520,7 +4955,7 @@ CREATE FUNCTION public.baaki_person_group_balances(p_person_key text) RETURNS TA
     LEFT JOIN public.profiles p ON p.id = gm.profile_id
     LEFT JOIN public.ghost_merges mrg
       ON mrg.member_id = gm.id
-     AND mrg.owner = public.baaki_current_profile_id()
+     AND mrg.owner = public.waves_current_profile_id()
   )
   SELECT
     n.group_id,
@@ -4540,10 +4975,10 @@ $$;
 
 
 --
--- Name: baaki_profile_is_paid(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_profile_is_paid(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_profile_is_paid(p_profile uuid) RETURNS boolean
+CREATE FUNCTION public.waves_profile_is_paid(p_profile uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4558,10 +4993,10 @@ $$;
 
 
 --
--- Name: baaki_profiles_share_group(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_profiles_share_group(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_profiles_share_group(p_a uuid, p_b uuid) RETURNS boolean
+CREATE FUNCTION public.waves_profiles_share_group(p_a uuid, p_b uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4576,10 +5011,10 @@ $$;
 
 
 --
--- Name: baaki_publish_receipt_items(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_publish_receipt_items(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_publish_receipt_items(p_receipt_id uuid, p_items jsonb) RETURNS void
+CREATE FUNCTION public.waves_publish_receipt_items(p_receipt_id uuid, p_items jsonb) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4613,10 +5048,10 @@ $$;
 
 
 --
--- Name: baaki_rate_limit(text, text, integer, integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_rate_limit(text, text, integer, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) RETURNS jsonb
+CREATE FUNCTION public.waves_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4632,7 +5067,7 @@ DECLARE
   v_rule_window  integer;
 BEGIN
   IF p_subject IS NULL OR p_subject = '' OR p_bucket IS NULL OR p_bucket = '' THEN
-    RAISE EXCEPTION 'baaki_rate_limit needs a subject and a bucket';
+    RAISE EXCEPTION 'waves_rate_limit needs a subject and a bucket';
   END IF;
 
   -- Master off, or this bucket switched off: let it straight through. Nothing is
@@ -4700,10 +5135,10 @@ $$;
 
 
 --
--- Name: baaki_receipt_cap(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_receipt_cap(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_receipt_cap() RETURNS integer
+CREATE FUNCTION public.waves_receipt_cap() RETURNS integer
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4712,30 +5147,30 @@ $$;
 
 
 --
--- Name: baaki_receipt_scan_quota(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_receipt_scan_quota(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_receipt_scan_quota() RETURNS jsonb
+CREATE FUNCTION public.waves_receipt_scan_quota() RETURNS jsonb
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT jsonb_build_object(
-    'used', public.baaki_scans_used_this_month(),
-    'limit', (public.baaki_my_plan() ->> 'scanLimit')::int,
+    'used', public.waves_scans_used_this_month(),
+    'limit', (public.waves_my_plan() ->> 'scanLimit')::int,
     'remaining', greatest(
       0,
-      (public.baaki_my_plan() ->> 'scanLimit')::int - public.baaki_scans_used_this_month()
+      (public.waves_my_plan() ->> 'scanLimit')::int - public.waves_scans_used_this_month()
     ),
-    'tier', public.baaki_my_plan() ->> 'tier'
+    'tier', public.waves_my_plan() ->> 'tier'
   );
 $$;
 
 
 --
--- Name: baaki_record_email_event(text, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_record_email_event(text, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_record_email_event(p_resend_email_id text, p_event text, p_address text DEFAULT NULL::text, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS jsonb
+CREATE FUNCTION public.waves_record_email_event(p_resend_email_id text, p_event text, p_address text DEFAULT NULL::text, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4746,7 +5181,7 @@ DECLARE
   v_suppressed  boolean := FALSE;
 BEGIN
   IF p_event IS NULL OR p_event = '' THEN
-    RAISE EXCEPTION 'baaki_record_email_event needs an event';
+    RAISE EXCEPTION 'waves_record_email_event needs an event';
   END IF;
 
   SELECT e.notification_id, e.profile_id, e.template
@@ -4774,9 +5209,9 @@ BEGIN
   END IF;
 
   IF p_event = 'complained' THEN
-    v_suppressed := public.baaki_suppress_email(v_address, 'complained', COALESCE(p_payload, '{}'::jsonb));
+    v_suppressed := public.waves_suppress_email(v_address, 'complained', COALESCE(p_payload, '{}'::jsonb));
   ELSIF p_event = 'bounced' AND COALESCE(v_bounce_type, '') <> 'Transient' THEN
-    v_suppressed := public.baaki_suppress_email(v_address, 'bounced', COALESCE(p_payload, '{}'::jsonb));
+    v_suppressed := public.waves_suppress_email(v_address, 'bounced', COALESCE(p_payload, '{}'::jsonb));
   END IF;
 
   RETURN jsonb_build_object(
@@ -4788,10 +5223,10 @@ $$;
 
 
 --
--- Name: baaki_record_receipt(uuid, uuid, uuid, text, text, text, jsonb, text, integer, integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_record_receipt(uuid, uuid, uuid, text, text, text, jsonb, text, integer, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer DEFAULT 0, p_output_tokens integer DEFAULT 0) RETURNS uuid
+CREATE FUNCTION public.waves_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer DEFAULT 0, p_output_tokens integer DEFAULT 0) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4802,7 +5237,7 @@ BEGIN
   -- atomic against a concurrent recorder for the same group (TOCTOU). Keyed on
   -- the group, released on commit/rollback. Same device as the ghost-merge
   -- serialization (20260816150000).
-  PERFORM pg_advisory_xact_lock(hashtext('baaki_record_receipt:' || p_group_id::text)::bigint);
+  PERFORM pg_advisory_xact_lock(hashtext('waves_record_receipt:' || p_group_id::text)::bigint);
 
   -- The group question first: a non-null id that already exists in a DIFFERENT
   -- group is neither a new receipt for this group nor a valid update of one, so
@@ -4820,14 +5255,14 @@ BEGIN
   -- The ceiling, enforced at the one insert path. A paid group is exempt; an
   -- update of a receipt that already exists IN THIS GROUP is not a new receipt
   -- and is exempt.
-  IF NOT public.baaki_group_is_paid(p_group_id)
+  IF NOT public.waves_group_is_paid(p_group_id)
      AND (p_receipt_id IS NULL
           OR NOT EXISTS (
             SELECT 1 FROM public.receipts
              WHERE id = p_receipt_id AND group_id = p_group_id
           ))
      AND (SELECT count(*) FROM public.receipts WHERE group_id = p_group_id)
-         >= public.baaki_receipt_cap()
+         >= public.waves_receipt_cap()
   THEN
     RAISE EXCEPTION 'RECEIPT_CAP'
       USING ERRCODE = 'check_violation',
@@ -4841,7 +5276,7 @@ BEGIN
   VALUES
     (COALESCE(p_receipt_id, gen_random_uuid()), p_group_id, p_storage_path,
      p_source::"ReceiptSource", p_raw_text, p_status::"ParseStatus", p_parsed,
-     public.baaki_my_member_id_for(p_group_id, p_profile_id))
+     public.waves_my_member_id_for(p_group_id, p_profile_id))
   ON CONFLICT (id) DO UPDATE
     SET parsed = excluded.parsed,
         parse_status = excluded.parse_status,
@@ -4869,10 +5304,10 @@ $$;
 
 
 --
--- Name: baaki_record_settlement(uuid, uuid, uuid, bigint, text, character, text, jsonb, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_record_settlement(uuid, uuid, uuid, bigint, text, character, text, jsonb, uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character DEFAULT NULL::bpchar, p_note text DEFAULT NULL::text, p_allocations jsonb DEFAULT '[]'::jsonb, p_client_mutation_id uuid DEFAULT NULL::uuid, p_rail text DEFAULT NULL::text) RETURNS uuid
+CREATE FUNCTION public.waves_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character DEFAULT NULL::bpchar, p_note text DEFAULT NULL::text, p_allocations jsonb DEFAULT '[]'::jsonb, p_client_mutation_id uuid DEFAULT NULL::uuid, p_rail text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -4890,7 +5325,7 @@ BEGIN
 
   -- Resolve the caller's own member id up front: it is both the authorization
   -- check below and the actor on the activity entry further down.
-  v_actor := public.baaki_my_member_id(p_group_id);
+  v_actor := public.waves_my_member_id(p_group_id);
   IF v_actor IS NULL OR v_actor NOT IN (p_from_member_id, p_to_member_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: you can only record a settlement you are part of'
       USING ERRCODE = 'insufficient_privilege';
@@ -4962,15 +5397,15 @@ $$;
 
 
 --
--- Name: baaki_redeem_promo(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_redeem_promo(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_redeem_promo(p_code text) RETURNS jsonb
+CREATE FUNCTION public.waves_redeem_promo(p_code text) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
   v_code    public.promo_codes%ROWTYPE;
   v_sub     uuid;
 BEGIN
@@ -5002,7 +5437,7 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'reason', 'ALREADY_REDEEMED');
   END IF;
 
-  v_sub := public.baaki_grant_promo(
+  v_sub := public.waves_grant_promo(
     v_profile,
     v_code.days,
     'promo:' || v_code.code || ':' || v_profile::text
@@ -5031,10 +5466,10 @@ $$;
 
 
 --
--- Name: baaki_refresh_group_balances(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_refresh_group_balances(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_refresh_group_balances(p_group_id uuid) RETURNS void
+CREATE FUNCTION public.waves_refresh_group_balances(p_group_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5042,28 +5477,28 @@ BEGIN
   DELETE FROM public.group_balances WHERE group_id = p_group_id;
   INSERT INTO public.group_balances (group_id, member_id, currency, balance, updated_at)
   SELECT p_group_id, t.member_id, t.currency, t.balance, now()
-  FROM public.baaki_group_balances_truth(p_group_id) t;
+  FROM public.waves_group_balances_truth(p_group_id) t;
 
   DELETE FROM public.pairwise_balances WHERE group_id = p_group_id;
   INSERT INTO public.pairwise_balances
     (group_id, from_member_id, to_member_id, currency, amount, updated_at)
   SELECT p_group_id, t.from_member_id, t.to_member_id, t.currency, t.amount, now()
-  FROM public.baaki_group_pairwise_truth(p_group_id) t;
+  FROM public.waves_group_pairwise_truth(p_group_id) t;
 END
 $$;
 
 
 --
--- Name: baaki_register_device(text, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_register_device(text, text, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_register_device(p_device_id text, p_label text DEFAULT 'This device'::text, p_platform text DEFAULT 'unknown'::text, p_app_version text DEFAULT NULL::text) RETURNS jsonb
+CREATE FUNCTION public.waves_register_device(p_device_id text, p_label text DEFAULT 'This device'::text, p_platform text DEFAULT 'unknown'::text, p_app_version text DEFAULT NULL::text) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
-  v_tier    text := public.baaki_my_plan() ->> 'tier';
+  v_profile uuid := public.waves_current_profile_id();
+  v_tier    text := public.waves_my_plan() ->> 'tier';
   v_limit   int;
   v_active  int;
 BEGIN
@@ -5089,7 +5524,7 @@ BEGIN
         last_seen_at = now(),
         revoked_at   = NULL;
 
-  v_limit := public.baaki_device_cap(v_profile, v_tier = 'plus');
+  v_limit := public.waves_device_cap(v_profile, v_tier = 'plus');
 
   SELECT count(*) INTO v_active
   FROM public.device_sessions
@@ -5108,10 +5543,10 @@ $$;
 
 
 --
--- Name: baaki_remove_expense_attachment(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_remove_expense_attachment(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_remove_expense_attachment(p_attachment_id uuid) RETURNS void
+CREATE FUNCTION public.waves_remove_expense_attachment(p_attachment_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5126,7 +5561,7 @@ BEGIN
   IF v_expense_id IS NULL THEN
     RETURN;
   END IF;
-  IF NOT public.baaki_is_expense_party(v_expense_id) THEN
+  IF NOT public.waves_is_expense_party(v_expense_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a party may remove this attachment'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -5140,17 +5575,17 @@ BEGIN
       (id, group_id, expense_id, actor_member_id, kind, action, visibility)
     VALUES
       (gen_random_uuid(), v_group_id, v_expense_id,
-       public.baaki_my_member_id(v_group_id), 'attachment', 'removed', v_visibility);
+       public.waves_my_member_id(v_group_id), 'attachment', 'removed', v_visibility);
   END IF;
 END
 $$;
 
 
 --
--- Name: baaki_remove_plan_item(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_remove_plan_item(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_remove_plan_item(p_item_id uuid) RETURNS void
+CREATE FUNCTION public.waves_remove_plan_item(p_item_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5175,10 +5610,10 @@ $$;
 
 
 --
--- Name: baaki_remove_settlement_proof(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_remove_settlement_proof(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_remove_settlement_proof(p_proof_id uuid) RETURNS void
+CREATE FUNCTION public.waves_remove_settlement_proof(p_proof_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5190,7 +5625,7 @@ BEGIN
   IF v_settlement_id IS NULL THEN
     RETURN; -- Already gone.
   END IF;
-  IF NOT public.baaki_is_settlement_party(v_settlement_id) THEN
+  IF NOT public.waves_is_settlement_party(v_settlement_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a party may remove a proof'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -5203,10 +5638,10 @@ $$;
 
 
 --
--- Name: baaki_remove_trip_photo(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_remove_trip_photo(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_remove_trip_photo(p_photo_id uuid) RETURNS void
+CREATE FUNCTION public.waves_remove_trip_photo(p_photo_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5231,10 +5666,10 @@ $$;
 
 
 --
--- Name: baaki_replace_expense_attachment_image(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_replace_expense_attachment_image(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) RETURNS void
+CREATE FUNCTION public.waves_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5259,7 +5694,7 @@ BEGIN
       USING ERRCODE = 'check_violation';
   END IF;
 
-  IF NOT public.baaki_is_expense_party(v_expense_id) THEN
+  IF NOT public.waves_is_expense_party(v_expense_id) THEN
     RAISE EXCEPTION 'NOT_A_PARTY: only a party may adjust this image'
       USING ERRCODE = 'insufficient_privilege';
   END IF;
@@ -5267,7 +5702,7 @@ BEGIN
   -- The replacement bytes must really exist: a committed object at the new key.
   -- Without this the row could be repointed at a never-uploaded path, and the
   -- markup would be cleared, leaving the attachment pointing at nothing.
-  PERFORM public.baaki_require_committed_object('expense-attachments', btrim(p_new_path));
+  PERFORM public.waves_require_committed_object('expense-attachments', btrim(p_new_path));
 
   UPDATE public.expense_attachments
      SET storage_path = btrim(p_new_path),
@@ -5278,10 +5713,10 @@ $$;
 
 
 --
--- Name: baaki_request_member_claim(uuid, uuid, uuid, text, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_request_member_claim(uuid, uuid, uuid, text, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text DEFAULT NULL::text, p_invite_id uuid DEFAULT NULL::uuid) RETURNS jsonb
+CREATE FUNCTION public.waves_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text DEFAULT NULL::text, p_invite_id uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5333,7 +5768,7 @@ BEGIN
   -- has filled up — including a direct join or another new claim winning the
   -- last slot in a concurrent race — this claim is refused and no row is written.
   IF p_invite_id IS NOT NULL THEN
-    SELECT public.baaki_consume_invite(p_invite_id) INTO v_consumed;
+    SELECT public.waves_consume_invite(p_invite_id) INTO v_consumed;
     IF v_consumed IS NOT TRUE THEN
       RETURN jsonb_build_object('ok', false, 'reason', 'INVITE_INVALID');
     END IF;
@@ -5352,7 +5787,7 @@ BEGIN
      WHERE group_id = p_group_id AND role = 'admin'
        AND profile_id IS NOT NULL AND left_at IS NULL
   LOOP
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_admin.profile_id,
       p_group_id,
       'ghost_claim_requested',
@@ -5375,10 +5810,10 @@ $$;
 
 
 --
--- Name: baaki_require_committed_object(text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_require_committed_object(text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_require_committed_object(p_logical_bucket text, p_path text) RETURNS void
+CREATE FUNCTION public.waves_require_committed_object(p_logical_bucket text, p_path text) RETURNS void
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5399,10 +5834,10 @@ $$;
 
 
 --
--- Name: baaki_reset_group_join_token(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_reset_group_join_token(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_reset_group_join_token(p_group_id uuid) RETURNS text
+CREATE FUNCTION public.waves_reset_group_join_token(p_group_id uuid) RETURNS text
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5412,16 +5847,16 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  RETURN public.baaki_new_group_join_token(p_group_id, true);
+  RETURN public.waves_new_group_join_token(p_group_id, true);
 END
 $$;
 
 
 --
--- Name: baaki_resolve_dispute(uuid, boolean, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_resolve_dispute(uuid, boolean, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text DEFAULT NULL::text) RETURNS void
+CREATE FUNCTION public.waves_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text DEFAULT NULL::text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5446,7 +5881,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no open dispute with that id' USING ERRCODE = 'no_data_found';
   END IF;
 
-  v_actor := public.baaki_my_member_id(v_group_id);
+  v_actor := public.waves_my_member_id(v_group_id);
 
   -- The person who entered the expense, or an admin. Not the disputer: nobody
   -- gets to rule on their own complaint, in either direction.
@@ -5478,11 +5913,11 @@ BEGIN
 
   SELECT profile_id INTO v_disputer_pid FROM public.group_members WHERE id = v_disputer;
   IF v_disputer_pid IS NOT NULL THEN
-    PERFORM public.baaki_notify(
+    PERFORM public.waves_notify(
       v_disputer_pid, v_group_id, 'expense_dispute_resolved',
       CASE WHEN p_accept THEN 'Your correction was accepted' ELSE 'Your correction was declined' END,
       COALESCE(v_description, 'An expense'),
-      'baaki://group/' || v_group_id::text || '/expense/' || v_expense_id::text,
+      'waves://group/' || v_group_id::text || '/expense/' || v_expense_id::text,
       jsonb_build_object('group', v_group_name, 'description', v_description,
                          'accepted', p_accept, 'note', NULLIF(btrim(p_note), '')),
       'dispute:' || p_dispute_id::text || ':resolved'
@@ -5493,10 +5928,10 @@ $$;
 
 
 --
--- Name: baaki_restore_expense(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_restore_expense(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_restore_expense(p_expense_id uuid) RETURNS void
+CREATE FUNCTION public.waves_restore_expense(p_expense_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5513,7 +5948,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  v_member_id := public.baaki_my_member_id(v_group_id);
+  v_member_id := public.waves_my_member_id(v_group_id);
 
   -- The 30-day window is enforced by the expenses_restore_window trigger.
   UPDATE public.expenses
@@ -5527,26 +5962,26 @@ $$;
 
 
 --
--- Name: baaki_scans_used_this_month(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_scans_used_this_month(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_scans_used_this_month(p_profile_id uuid DEFAULT NULL::uuid) RETURNS integer
+CREATE FUNCTION public.waves_scans_used_this_month(p_profile_id uuid DEFAULT NULL::uuid) RETURNS integer
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT count(*)::int
   FROM public.usage_events ue
-  WHERE ue.profile_id = COALESCE(p_profile_id, public.baaki_current_profile_id())
+  WHERE ue.profile_id = COALESCE(p_profile_id, public.waves_current_profile_id())
     AND ue.kind = 'receipt_scan'
     AND ue.created_at >= date_trunc('month', now());
 $$;
 
 
 --
--- Name: baaki_set_category_budget(uuid, text, bigint, character); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_set_category_budget(uuid, text, bigint, character); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar) RETURNS void
+CREATE FUNCTION public.waves_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5597,10 +6032,10 @@ $$;
 
 
 --
--- Name: baaki_set_group_budget(uuid, bigint, character); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_set_group_budget(uuid, bigint, character); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_set_group_budget(p_group_id uuid, p_amount_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar) RETURNS void
+CREATE FUNCTION public.waves_set_group_budget(p_group_id uuid, p_amount_minor bigint DEFAULT NULL::bigint, p_currency character DEFAULT NULL::bpchar) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5630,10 +6065,75 @@ $$;
 
 
 --
--- Name: baaki_set_item_claim(uuid, integer, boolean, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_set_group_fx_rate(uuid, character, bigint, bigint, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid DEFAULT NULL::uuid) RETURNS jsonb
+CREATE FUNCTION public.waves_set_group_fx_rate(p_group_id uuid, p_from character, p_num bigint DEFAULT NULL::bigint, p_den bigint DEFAULT NULL::bigint, p_source text DEFAULT 'manual'::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_default char(3);
+  v_from    char(3);
+BEGIN
+  IF NOT public.is_group_admin(p_group_id) THEN
+    RAISE EXCEPTION 'NOT_AN_ADMIN: only an admin sets a trip rate'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  v_from := upper(p_from);
+
+  SELECT default_currency INTO v_default FROM public.groups WHERE id = p_group_id;
+  IF v_default IS NULL THEN
+    RAISE EXCEPTION 'NO_SUCH_GROUP' USING ERRCODE = 'no_data_found';
+  END IF;
+
+  -- A group never converts its own settle currency: that "rate" is always 1 and
+  -- storing it would only give the resolver a wrong-direction entry to trip on.
+  IF v_from = v_default THEN
+    RAISE EXCEPTION 'SAME_CURRENCY: a trip rate converts a foreign currency into %, not itself', v_default
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  IF p_num IS NULL OR p_den IS NULL THEN
+    -- Clear this currency's entry, leaving an empty object rather than NULL so
+    -- the column's type stays an object.
+    UPDATE public.groups SET
+      fx_rates   = COALESCE(fx_rates, '{}'::jsonb) - v_from,
+      updated_at = now()
+    WHERE id = p_group_id;
+    RETURN;
+  END IF;
+
+  -- A rate is two positive integers; anything else is not a rate.
+  IF p_num <= 0 OR p_den <= 0 THEN
+    RAISE EXCEPTION 'INVALID_RATE: a rate is a ratio of two positive integers'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  UPDATE public.groups SET
+    fx_rates = jsonb_set(
+      COALESCE(fx_rates, '{}'::jsonb),
+      ARRAY[v_from],
+      jsonb_build_object(
+        'num', p_num::text,
+        'den', p_den::text,
+        'ts', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+        'source', COALESCE(NULLIF(btrim(p_source), ''), 'manual')
+      ),
+      true
+    ),
+    updated_at = now()
+  WHERE id = p_group_id;
+END
+$$;
+
+
+--
+-- Name: waves_set_item_claim(uuid, integer, boolean, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5659,7 +6159,7 @@ BEGIN
   END IF;
 
   IF p_for_member_id IS NULL THEN
-    v_member := public.baaki_my_member_id(v_group_id);
+    v_member := public.waves_my_member_id(v_group_id);
     IF v_member IS NULL THEN
       RAISE EXCEPTION 'NOT_A_MEMBER: you are not in that group'
         USING ERRCODE = 'insufficient_privilege';
@@ -5678,7 +6178,7 @@ BEGIN
       -- Letting one phone claim for another is how a set of facts turns back
       -- into one person's opinion, and it is the `actor_member_id` bug wearing
       -- a different hat.
-      RAISE EXCEPTION 'NOT_YOURS: they are on Baaki — they claim their own lines'
+      RAISE EXCEPTION 'NOT_YOURS: they are on Waves — they claim their own lines'
         USING ERRCODE = 'insufficient_privilege';
     END IF;
     v_member := p_for_member_id;
@@ -5710,10 +6210,10 @@ $$;
 
 
 --
--- Name: baaki_set_member_role(uuid, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_set_member_role(uuid, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_set_member_role(p_member_id uuid, p_role text) RETURNS void
+CREATE FUNCTION public.waves_set_member_role(p_member_id uuid, p_role text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5766,10 +6266,10 @@ $$;
 
 
 --
--- Name: baaki_set_my_trip_budget(uuid, bigint, character, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_set_my_trip_budget(uuid, bigint, character, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character DEFAULT NULL::bpchar, p_visibility text DEFAULT 'private'::text) RETURNS uuid
+CREATE FUNCTION public.waves_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character DEFAULT NULL::bpchar, p_visibility text DEFAULT 'private'::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -5783,7 +6283,7 @@ BEGIN
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  v_member := public.baaki_my_member_id(p_group_id);
+  v_member := public.waves_my_member_id(p_group_id);
   IF v_member IS NULL THEN
     RAISE EXCEPTION 'NOT_A_MEMBER: you have no membership here'
       USING ERRCODE = 'insufficient_privilege';
@@ -5820,11 +6320,12 @@ $$;
 
 
 --
--- Name: baaki_settlement_transition(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_settlement_transition(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_settlement_transition() RETURNS trigger
+CREATE FUNCTION public.waves_settlement_transition() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
   IF NEW.status = OLD.status THEN
@@ -5850,22 +6351,22 @@ $$;
 
 
 --
--- Name: baaki_shares_a_group_with(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_shares_a_group_with(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_shares_a_group_with(p_profile_id uuid) RETURNS boolean
+CREATE FUNCTION public.waves_shares_a_group_with(p_profile_id uuid) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
   SELECT p_profile_id IS NOT NULL
      AND (
        -- Your own face, always.
-       p_profile_id = public.baaki_current_profile_id()
+       p_profile_id = public.waves_current_profile_id()
        OR EXISTS (
          SELECT 1
          FROM public.group_members mine
          JOIN public.group_members theirs ON theirs.group_id = mine.group_id
-         WHERE mine.profile_id = public.baaki_current_profile_id()
+         WHERE mine.profile_id = public.waves_current_profile_id()
            AND theirs.profile_id = p_profile_id
            AND mine.left_at IS NULL
        )
@@ -5874,15 +6375,15 @@ $$;
 
 
 --
--- Name: baaki_sign_out_other_devices(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_sign_out_other_devices(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_sign_out_other_devices(p_device_id text) RETURNS integer
+CREATE FUNCTION public.waves_sign_out_other_devices(p_device_id text) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
   v_count   int;
 BEGIN
   IF v_profile IS NULL THEN
@@ -5903,56 +6404,60 @@ $$;
 
 
 --
--- Name: baaki_stamp_capture_seq(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_capture_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_stamp_capture_seq() RETURNS trigger
-    LANGUAGE plpgsql
+CREATE FUNCTION public.waves_stamp_capture_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  NEW.updated_seq := public.baaki_next_capture_seq(NEW.owner_user_id);
+  NEW.updated_seq := public.waves_next_capture_seq(NEW.owner_user_id);
   RETURN NEW;
 END
 $$;
 
 
 --
--- Name: baaki_stamp_category_tag_seq(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_category_tag_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_stamp_category_tag_seq() RETURNS trigger
-    LANGUAGE plpgsql
+CREATE FUNCTION public.waves_stamp_category_tag_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  NEW.updated_seq := public.baaki_next_category_tag_seq(NEW.owner_user_id);
+  NEW.updated_seq := public.waves_next_category_tag_seq(NEW.owner_user_id);
   RETURN NEW;
 END
 $$;
 
 
 --
--- Name: baaki_stamp_ghost_merge_seq(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_ghost_merge_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_stamp_ghost_merge_seq() RETURNS trigger
-    LANGUAGE plpgsql
+CREATE FUNCTION public.waves_stamp_ghost_merge_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  NEW.updated_seq := public.baaki_next_ghost_merge_seq(NEW.owner);
+  NEW.updated_seq := public.waves_next_ghost_merge_seq(NEW.owner);
   RETURN NEW;
 END
 $$;
 
 
 --
--- Name: baaki_stamp_group_seq(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_group_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_stamp_group_seq() RETURNS trigger
-    LANGUAGE plpgsql
+CREATE FUNCTION public.waves_stamp_group_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  -- `baaki_next_group_seq` bumps this column directly; when it does, NEW is
+  -- `waves_next_group_seq` bumps this column directly; when it does, NEW is
   -- already ahead of OLD and there is nothing left to do. Any other update —
   -- a rename, an archive — arrives with the two equal and needs a bump.
   IF NEW.updated_seq IS NOT DISTINCT FROM OLD.updated_seq THEN
@@ -5964,37 +6469,53 @@ $$;
 
 
 --
--- Name: baaki_stamp_seq(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_personal_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_stamp_seq() RETURNS trigger
-    LANGUAGE plpgsql
+CREATE FUNCTION public.waves_stamp_personal_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 BEGIN
-  NEW.updated_seq := public.baaki_next_group_seq(NEW.group_id);
+  NEW.updated_seq := public.waves_next_personal_seq(NEW.owner_user_id);
   RETURN NEW;
 END
 $$;
 
 
 --
--- Name: baaki_storage_counts(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_stamp_seq(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_counts(p_profile_id uuid, p_group_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
+CREATE FUNCTION public.waves_stamp_seq() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
-  SELECT NOT public.baaki_profile_is_paid(p_profile_id)
-     AND NOT (p_group_id IS NOT NULL AND public.baaki_group_is_paid(p_group_id));
+BEGIN
+  NEW.updated_seq := public.waves_next_group_seq(NEW.group_id);
+  RETURN NEW;
+END
 $$;
 
 
 --
--- Name: baaki_storage_enqueue_orphan(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_counts(uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_enqueue_orphan() RETURNS trigger
+CREATE FUNCTION public.waves_storage_counts(p_profile_id uuid, p_group_id uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+  SELECT NOT public.waves_profile_is_paid(p_profile_id)
+     AND NOT (p_group_id IS NOT NULL AND public.waves_group_is_paid(p_group_id));
+$$;
+
+
+--
+-- Name: waves_storage_enqueue_orphan(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.waves_storage_enqueue_orphan() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6008,10 +6529,10 @@ $$;
 
 
 --
--- Name: baaki_storage_expire_pending(interval); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_expire_pending(interval); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_expire_pending(p_age interval DEFAULT '00:30:00'::interval) RETURNS integer
+CREATE FUNCTION public.waves_storage_expire_pending(p_age interval DEFAULT '00:30:00'::interval) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6030,10 +6551,10 @@ $$;
 
 
 --
--- Name: baaki_storage_orphan_clear(text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_orphan_clear(text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_orphan_clear(p_logical_bucket text, p_path text) RETURNS void
+CREATE FUNCTION public.waves_storage_orphan_clear(p_logical_bucket text, p_path text) RETURNS void
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6043,10 +6564,10 @@ $$;
 
 
 --
--- Name: baaki_storage_orphans(integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_orphans(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_orphans(p_limit integer DEFAULT 100) RETURNS TABLE(logical_bucket text, path text)
+CREATE FUNCTION public.waves_storage_orphans(p_limit integer DEFAULT 100) RETURNS TABLE(logical_bucket text, path text)
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6058,10 +6579,10 @@ $$;
 
 
 --
--- Name: baaki_storage_record(uuid, uuid, text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_record(uuid, uuid, text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
+CREATE FUNCTION public.waves_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6075,7 +6596,7 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtextextended(p_profile_id::text, 0));
 
-  v_counted := public.baaki_storage_counts(p_profile_id, p_group_id);
+  v_counted := public.waves_storage_counts(p_profile_id, p_group_id);
 
   IF v_counted THEN
     -- The true-size cap check, excluding this same object so a replacement
@@ -6093,7 +6614,7 @@ BEGIN
     -- may then sit over the cap, which blocks any *further* upload) is safer than
     -- rejecting — which would leave a readable object the cap cannot see. A
     -- replacement adds no new object, so this cannot be a fill vector.
-    IF v_used + p_bytes > public.baaki_free_storage_cap()
+    IF v_used + p_bytes > public.waves_free_storage_cap()
        AND NOT EXISTS (
          SELECT 1 FROM public.storage_objects
           WHERE logical_bucket = p_logical_bucket AND path = p_path AND NOT pending
@@ -6122,10 +6643,10 @@ $$;
 
 
 --
--- Name: baaki_storage_recount(text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_recount(text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
+CREATE FUNCTION public.waves_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6137,7 +6658,7 @@ BEGIN
   UPDATE public.storage_objects
      SET bytes        = p_bytes,
          content_type = p_content_type,
-         counted      = public.baaki_storage_counts(owner_profile_id, group_id),
+         counted      = public.waves_storage_counts(owner_profile_id, group_id),
          updated_at   = now()
    WHERE logical_bucket = p_logical_bucket
      AND path = p_path
@@ -6147,10 +6668,10 @@ $$;
 
 
 --
--- Name: baaki_storage_release(text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_release(text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_release(p_logical_bucket text, p_path text) RETURNS void
+CREATE FUNCTION public.waves_storage_release(p_logical_bucket text, p_path text) RETURNS void
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6160,10 +6681,10 @@ $$;
 
 
 --
--- Name: baaki_storage_release_reservation(text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_release_reservation(text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_release_reservation(p_logical_bucket text, p_path text) RETURNS boolean
+CREATE FUNCTION public.waves_storage_release_reservation(p_logical_bucket text, p_path text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6179,10 +6700,10 @@ $$;
 
 
 --
--- Name: baaki_storage_reserve(uuid, uuid, text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_storage_reserve(uuid, uuid, text, text, bigint, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
+CREATE FUNCTION public.waves_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text DEFAULT 'image/webp'::text) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6199,7 +6720,7 @@ BEGIN
   -- are one indivisible step.
   PERFORM pg_advisory_xact_lock(hashtextextended(p_profile_id::text, 0));
 
-  v_counted := public.baaki_storage_counts(p_profile_id, p_group_id);
+  v_counted := public.waves_storage_counts(p_profile_id, p_group_id);
 
   IF v_counted THEN
     -- Bound abandoned reservations (see the note above). A re-reservation of the
@@ -6221,7 +6742,7 @@ BEGIN
        AND counted
        AND NOT (logical_bucket = p_logical_bucket AND path = p_path);
 
-    IF v_used + p_bytes > public.baaki_free_storage_cap() THEN
+    IF v_used + p_bytes > public.waves_free_storage_cap() THEN
       RAISE EXCEPTION 'STORAGE_CAP'
         USING ERRCODE = 'check_violation',
               HINT = 'You have reached your free storage limit; upgrade to add more.';
@@ -6252,15 +6773,15 @@ $$;
 
 
 --
--- Name: baaki_submit_feedback(text, text, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_submit_feedback(text, text, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_submit_feedback(p_message text, p_kind text DEFAULT 'general'::text, p_rating integer DEFAULT NULL::integer, p_app_version text DEFAULT NULL::text, p_platform text DEFAULT NULL::text) RETURNS uuid
+CREATE FUNCTION public.waves_submit_feedback(p_message text, p_kind text DEFAULT 'general'::text, p_rating integer DEFAULT NULL::integer, p_app_version text DEFAULT NULL::text, p_platform text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
   v_id uuid;
 BEGIN
   IF v_profile IS NULL THEN
@@ -6291,10 +6812,10 @@ $$;
 
 
 --
--- Name: baaki_suppress_email(text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_suppress_email(text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_suppress_email(p_address text, p_reason text, p_detail jsonb DEFAULT '{}'::jsonb) RETURNS boolean
+CREATE FUNCTION public.waves_suppress_email(p_address text, p_reason text, p_detail jsonb DEFAULT '{}'::jsonb) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6318,10 +6839,10 @@ $$;
 
 
 --
--- Name: baaki_sweep_rate_limits(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_sweep_rate_limits(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_sweep_rate_limits() RETURNS integer
+CREATE FUNCTION public.waves_sweep_rate_limits() RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6337,10 +6858,10 @@ $$;
 
 
 --
--- Name: baaki_touch_balances(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_touch_balances(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_touch_balances() RETURNS trigger
+CREATE FUNCTION public.waves_touch_balances() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6355,14 +6876,14 @@ BEGIN
     END IF;
   ELSIF TG_TABLE_NAME IN ('expense_payers', 'expense_shares') THEN
     IF TG_OP = 'DELETE' THEN
-      v_group_id := public.baaki_version_group_id(OLD.expense_version_id);
+      v_group_id := public.waves_version_group_id(OLD.expense_version_id);
     ELSE
-      v_group_id := public.baaki_version_group_id(NEW.expense_version_id);
+      v_group_id := public.waves_version_group_id(NEW.expense_version_id);
     END IF;
   END IF;
 
   IF v_group_id IS NOT NULL THEN
-    PERFORM public.baaki_refresh_group_balances(v_group_id);
+    PERFORM public.waves_refresh_group_balances(v_group_id);
   END IF;
   RETURN NULL;
 END
@@ -6370,10 +6891,10 @@ $$;
 
 
 --
--- Name: baaki_trip_nudges(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_trip_nudges(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_trip_nudges(p_now timestamp with time zone DEFAULT now()) RETURNS integer
+CREATE FUNCTION public.waves_trip_nudges(p_now timestamp with time zone DEFAULT now()) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6442,7 +6963,7 @@ BEGIN
           AND v.expense_date = v_subject
       );
 
-      v_id := public.baaki_notify(
+      v_id := public.waves_notify(
         v_member.profile_id,
         v_group.id,
         CASE v_slot WHEN 'morning' THEN 'trip_nudge_morning' ELSE 'trip_nudge_evening' END,
@@ -6454,7 +6975,7 @@ BEGIN
           WHEN 'morning' THEN 'Add what you spent yesterday while you still remember it'
           ELSE 'What did you pay for today?'
         END,
-        'baaki://group/' || v_group.id::text || '/add-expense',
+        'waves://group/' || v_group.id::text || '/add-expense',
         jsonb_build_object('group', v_group.name, 'date', v_subject::text, 'slot', v_slot),
         'trip_nudge:' || v_group.id::text || ':' || v_subject::text || ':' || v_slot
           || ':' || v_member.profile_id::text
@@ -6473,10 +6994,10 @@ $$;
 
 
 --
--- Name: baaki_update_plan_item(uuid, date, time without time zone, text, text, text, bigint, boolean, uuid, text[]); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_update_plan_item(uuid, date, time without time zone, text, text, text, bigint, boolean, uuid, text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_update_plan_item(p_item_id uuid, p_day date DEFAULT NULL::date, p_starts_at time without time zone DEFAULT NULL::time without time zone, p_title text DEFAULT NULL::text, p_note text DEFAULT NULL::text, p_category text DEFAULT NULL::text, p_planned_minor bigint DEFAULT NULL::bigint, p_done boolean DEFAULT NULL::boolean, p_expense_id uuid DEFAULT NULL::uuid, p_clear text[] DEFAULT '{}'::text[]) RETURNS void
+CREATE FUNCTION public.waves_update_plan_item(p_item_id uuid, p_day date DEFAULT NULL::date, p_starts_at time without time zone DEFAULT NULL::time without time zone, p_title text DEFAULT NULL::text, p_note text DEFAULT NULL::text, p_category text DEFAULT NULL::text, p_planned_minor bigint DEFAULT NULL::bigint, p_done boolean DEFAULT NULL::boolean, p_expense_id uuid DEFAULT NULL::uuid, p_clear text[] DEFAULT '{}'::text[]) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6524,10 +7045,10 @@ $$;
 
 
 --
--- Name: baaki_variant(text, uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_variant(text, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_variant(p_key text, p_profile_id uuid) RETURNS text
+CREATE FUNCTION public.waves_variant(p_key text, p_profile_id uuid) RETURNS text
     LANGUAGE plpgsql STABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6545,23 +7066,23 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  IF public.baaki_bucket(p_key || ':' || p_profile_id::text) >= v_flag.rollout_percent THEN
+  IF public.waves_bucket(p_key || ':' || p_profile_id::text) >= v_flag.rollout_percent THEN
     RETURN NULL;
   END IF;
 
   -- 1-based, so this matches the TypeScript's `variants[bucket % length]`.
   RETURN v_flag.variants[
-    1 + (public.baaki_bucket(p_key || ':' || p_profile_id::text || ':variant') % v_arms)
+    1 + (public.waves_bucket(p_key || ':' || p_profile_id::text || ':variant') % v_arms)
   ];
 END
 $$;
 
 
 --
--- Name: baaki_version_group_id(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_version_group_id(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_version_group_id(p_version_id uuid) RETURNS uuid
+CREATE FUNCTION public.waves_version_group_id(p_version_id uuid) RETURNS uuid
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6573,11 +7094,12 @@ $$;
 
 
 --
--- Name: baaki_version_key(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_version_key(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_version_key(p_version text) RETURNS integer[]
+CREATE FUNCTION public.waves_version_key(p_version text) RETURNS integer[]
     LANGUAGE sql IMMUTABLE STRICT
+    SET search_path TO 'public', 'pg_temp'
     AS $$
   -- Padded to four segments so `1.2` and `1.2.0.0` compare equal, matching
   -- `compareVersions` in @waves/core. Postgres compares int[] element-wise.
@@ -6586,17 +7108,17 @@ $$;
 
 
 --
--- Name: FUNCTION baaki_version_key(p_version text); Type: COMMENT; Schema: public; Owner: -
+-- Name: FUNCTION waves_version_key(p_version text); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.baaki_version_key(p_version text) IS 'Dotted version as a comparable int[]. Mirrors compareVersions in @waves/core.';
+COMMENT ON FUNCTION public.waves_version_key(p_version text) IS 'Dotted version as a comparable int[]. Mirrors compareVersions in @waves/core.';
 
 
 --
--- Name: baaki_voice_stt_free_seconds(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_voice_stt_free_seconds(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_voice_stt_free_seconds() RETURNS integer
+CREATE FUNCTION public.waves_voice_stt_free_seconds() RETURNS integer
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6605,10 +7127,10 @@ $$;
 
 
 --
--- Name: baaki_voice_stt_record(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_voice_stt_record(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_voice_stt_record(p_profile uuid, p_seconds integer) RETURNS integer
+CREATE FUNCTION public.waves_voice_stt_record(p_profile uuid, p_seconds integer) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6631,10 +7153,10 @@ $$;
 
 
 --
--- Name: baaki_voice_stt_remaining_seconds(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_voice_stt_remaining_seconds(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_voice_stt_remaining_seconds(p_profile uuid) RETURNS integer
+CREATE FUNCTION public.waves_voice_stt_remaining_seconds(p_profile uuid) RETURNS integer
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6643,10 +7165,10 @@ DECLARE
   v_free   integer;
   v_used   integer;
 BEGIN
-  IF public.baaki_profile_is_paid(p_profile) THEN
+  IF public.waves_profile_is_paid(p_profile) THEN
     RETURN NULL; -- unlimited
   END IF;
-  v_free := public.baaki_voice_stt_free_seconds();
+  v_free := public.waves_voice_stt_free_seconds();
   SELECT seconds INTO v_used
     FROM public.voice_stt_usage
    WHERE profile_id = p_profile AND period = v_period;
@@ -6656,10 +7178,10 @@ $$;
 
 
 --
--- Name: baaki_withdraw_dispute(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_withdraw_dispute(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_withdraw_dispute(p_expense_id uuid) RETURNS void
+CREATE FUNCTION public.waves_withdraw_dispute(p_expense_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -6673,7 +7195,7 @@ BEGIN
     RAISE EXCEPTION 'NOT_FOUND: no such expense' USING ERRCODE = 'no_data_found';
   END IF;
 
-  v_actor := public.baaki_my_member_id(v_group_id);
+  v_actor := public.waves_my_member_id(v_group_id);
 
   UPDATE public.expense_disputes
      SET status = 'withdrawn', resolved_at = now(), updated_at = now(),
@@ -6694,15 +7216,15 @@ $$;
 
 
 --
--- Name: baaki_withdraw_member_claim(uuid); Type: FUNCTION; Schema: public; Owner: -
+-- Name: waves_withdraw_member_claim(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.baaki_withdraw_member_claim(p_claim_id uuid) RETURNS jsonb
+CREATE FUNCTION public.waves_withdraw_member_claim(p_claim_id uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
-  v_profile uuid := public.baaki_current_profile_id();
+  v_profile uuid := public.waves_current_profile_id();
   v_rows    integer;
 BEGIN
   IF v_profile IS NULL THEN
@@ -6721,51 +7243,9 @@ END
 $$;
 
 
---
--- Name: is_group_admin(uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.is_group_admin(p_group_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public', 'pg_temp'
-    AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.group_members gm
-    WHERE gm.group_id = p_group_id
-      AND gm.profile_id = public.baaki_current_profile_id()
-      AND gm.left_at IS NULL
-      AND gm.role = 'admin'
-  )
-$$;
-
-
---
--- Name: is_group_member(uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.is_group_member(p_group_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public', 'pg_temp'
-    AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.group_members gm
-    WHERE gm.group_id = p_group_id
-      AND gm.profile_id = public.baaki_current_profile_id()
-      AND gm.left_at IS NULL
-  )
-$$;
-
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
-
---
---
-
-
 
 --
 -- Name: activity_log; Type: TABLE; Schema: public; Owner: -
@@ -6810,7 +7290,7 @@ CREATE TABLE public.app_releases (
     message text,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT app_releases_latest_version_check CHECK ((latest_version ~ '^[0-9]+(\.[0-9]+){0,3}$'::text)),
-    CONSTRAINT app_releases_minimum_not_above_latest CHECK ((public.baaki_version_key(minimum_version) <= public.baaki_version_key(latest_version))),
+    CONSTRAINT app_releases_minimum_not_above_latest CHECK ((public.waves_version_key(minimum_version) <= public.waves_version_key(latest_version))),
     CONSTRAINT app_releases_minimum_version_check CHECK ((minimum_version ~ '^[0-9]+(\.[0-9]+){0,3}$'::text)),
     CONSTRAINT app_releases_platform_check CHECK ((platform = ANY (ARRAY['ios'::text, 'android'::text]))),
     CONSTRAINT app_releases_store_url_check CHECK ((length(store_url) > 0))
@@ -7172,7 +7652,7 @@ CREATE TABLE public.feature_flags (
     CONSTRAINT feature_flags_key_shape CHECK ((key ~ '^[a-z][a-z0-9_]{1,60}$'::text)),
     CONSTRAINT feature_flags_rollout_range CHECK (((rollout_percent >= 0) AND (rollout_percent <= 100))),
     CONSTRAINT feature_flags_variant_count CHECK (((array_length(variants, 1) >= 2) AND (array_length(variants, 1) <= 8))),
-    CONSTRAINT feature_flags_variants_distinct CHECK (public.baaki_array_is_distinct(variants))
+    CONSTRAINT feature_flags_variants_distinct CHECK (public.waves_array_is_distinct(variants))
 );
 
 
@@ -7314,6 +7794,8 @@ CREATE TABLE public.groups (
     budget_currency character(3),
     category_budgets jsonb,
     join_token text,
+    deleted_at timestamp(6) with time zone,
+    fx_rates jsonb,
     CONSTRAINT groups_budget_sane CHECK (((budget_minor IS NULL) OR (budget_minor >= 0))),
     CONSTRAINT groups_category_budgets_object CHECK (((category_budgets IS NULL) OR (jsonb_typeof(category_budgets) = 'object'::text))),
     CONSTRAINT groups_country_code_shape CHECK (((country_code IS NULL) OR (country_code ~ '^[A-Z]{2}$'::text))),
@@ -7391,7 +7873,9 @@ CREATE TABLE public.notifications (
     email_status public."DeliveryStatus",
     read_at timestamp(6) with time zone,
     created_at timestamp(6) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    dedupe_key text
+    dedupe_key text,
+    push_attempts integer DEFAULT 0 NOT NULL,
+    push_next_retry_at timestamp with time zone
 );
 
 
@@ -7417,6 +7901,23 @@ CREATE TABLE public.pairwise_balances (
 
 
 --
+-- Name: personal_records; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.personal_records (
+    id uuid NOT NULL,
+    owner_user_id uuid NOT NULL,
+    record_kind text NOT NULL,
+    data jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_seq bigint DEFAULT 0 NOT NULL,
+    created_at timestamp(6) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp(6) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_at timestamp(6) with time zone,
+    CONSTRAINT personal_records_kind_known CHECK ((record_kind = ANY (ARRAY['txn'::text, 'recurring'::text, 'loan'::text, 'budget'::text])))
+);
+
+
+--
 -- Name: profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7437,6 +7938,7 @@ CREATE TABLE public.profiles (
     ghost_merges_seq bigint DEFAULT 0 NOT NULL,
     address text,
     category_tags_seq bigint DEFAULT 0 NOT NULL,
+    personal_seq bigint DEFAULT 0 NOT NULL,
     CONSTRAINT profiles_country_code_shape CHECK (((country_code IS NULL) OR (country_code ~ '^[A-Z]{2}$'::text))),
     CONSTRAINT profiles_payment_rail_known CHECK (((payment_rail IS NULL) OR (payment_rail = ANY (ARRAY['upi'::text, 'pix'::text, 'paynow'::text, 'promptpay'::text, 'qris'::text, 'aani'::text, 'payid'::text, 'zelle'::text, 'venmo'::text, 'cashapp'::text, 'interac'::text, 'wise'::text, 'revolut'::text, 'paypal'::text, 'bank'::text, 'cash'::text, 'other'::text]))))
 );
@@ -7818,6 +8320,26 @@ CREATE TABLE public.usage_events (
 
 
 --
+-- Name: voice_attempts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.voice_attempts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    profile_id uuid,
+    transcript text NOT NULL,
+    locale text,
+    used_model boolean DEFAULT false NOT NULL,
+    item_count integer DEFAULT 0 NOT NULL,
+    platform text,
+    app_version text,
+    client_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT voice_attempts_item_count_nonneg CHECK ((item_count >= 0)),
+    CONSTRAINT voice_attempts_transcript_present CHECK (((length(TRIM(BOTH FROM transcript)) >= 1) AND (length(TRIM(BOTH FROM transcript)) <= 4000)))
+);
+
+
+--
 -- Name: voice_stt_usage; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -7828,11 +8350,6 @@ CREATE TABLE public.voice_stt_usage (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT voice_stt_usage_seconds_nonneg CHECK ((seconds >= 0))
 );
-
-
---
---
-
 
 
 --
@@ -8124,6 +8641,14 @@ ALTER TABLE ONLY public.pairwise_balances
 
 
 --
+-- Name: personal_records personal_records_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.personal_records
+    ADD CONSTRAINT personal_records_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: profiles profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8321,6 +8846,14 @@ ALTER TABLE ONLY public.trip_plan_items
 
 ALTER TABLE ONLY public.usage_events
     ADD CONSTRAINT usage_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: voice_attempts voice_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.voice_attempts
+    ADD CONSTRAINT voice_attempts_pkey PRIMARY KEY (id);
 
 
 --
@@ -8619,6 +9152,13 @@ CREATE INDEX notifications_profile_id_read_at_idx ON public.notifications USING 
 
 
 --
+-- Name: personal_records_owner_user_id_updated_seq_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX personal_records_owner_user_id_updated_seq_idx ON public.personal_records USING btree (owner_user_id, updated_seq);
+
+
+--
 -- Name: promo_redemptions_profile_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8794,255 +9334,276 @@ CREATE INDEX usage_events_profile_id_created_at_idx ON public.usage_events USING
 
 
 --
+-- Name: voice_attempts_recent_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX voice_attempts_recent_idx ON public.voice_attempts USING btree (created_at DESC);
+
+
+--
 -- Name: activity_log activity_log_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER activity_log_append_only BEFORE DELETE OR UPDATE ON public.activity_log FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER activity_log_append_only BEFORE DELETE OR UPDATE ON public.activity_log FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: activity_log activity_log_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER activity_log_stamp_seq BEFORE INSERT ON public.activity_log FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER activity_log_stamp_seq BEFORE INSERT ON public.activity_log FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: captures captures_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER captures_stamp_seq BEFORE INSERT OR UPDATE ON public.captures FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_capture_seq();
+CREATE TRIGGER captures_stamp_seq BEFORE INSERT OR UPDATE ON public.captures FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_capture_seq();
 
 
 --
 -- Name: category_tags category_tags_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER category_tags_stamp_seq BEFORE INSERT OR UPDATE ON public.category_tags FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_category_tag_seq();
+CREATE TRIGGER category_tags_stamp_seq BEFORE INSERT OR UPDATE ON public.category_tags FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_category_tag_seq();
 
 
 --
 -- Name: expense_attachments expense_attachments_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_attachments_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_attachments FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER expense_attachments_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_attachments FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: expense_comments expense_comments_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_comments_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_comments FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER expense_comments_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_comments FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: expense_image_events expense_image_events_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_image_events_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_image_events FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER expense_image_events_stamp_seq BEFORE INSERT OR UPDATE ON public.expense_image_events FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: expense_payers expense_payers_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_payers_append_only BEFORE UPDATE ON public.expense_payers FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER expense_payers_append_only BEFORE UPDATE ON public.expense_payers FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: expense_payers expense_payers_refresh_balances; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expense_payers_refresh_balances AFTER INSERT OR DELETE ON public.expense_payers DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_touch_balances();
+CREATE CONSTRAINT TRIGGER expense_payers_refresh_balances AFTER INSERT OR DELETE ON public.expense_payers DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_touch_balances();
 
 
 --
 -- Name: expense_payers expense_payers_totals_match; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expense_payers_totals_match AFTER INSERT OR DELETE ON public.expense_payers DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_check_expense_totals();
+CREATE CONSTRAINT TRIGGER expense_payers_totals_match AFTER INSERT OR DELETE ON public.expense_payers DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_check_expense_totals();
 
 
 --
 -- Name: expense_shares expense_shares_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_shares_append_only BEFORE UPDATE ON public.expense_shares FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER expense_shares_append_only BEFORE UPDATE ON public.expense_shares FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: expense_shares expense_shares_refresh_balances; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expense_shares_refresh_balances AFTER INSERT OR DELETE ON public.expense_shares DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_touch_balances();
+CREATE CONSTRAINT TRIGGER expense_shares_refresh_balances AFTER INSERT OR DELETE ON public.expense_shares DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_touch_balances();
 
 
 --
 -- Name: expense_shares expense_shares_totals_match; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expense_shares_totals_match AFTER INSERT OR DELETE ON public.expense_shares DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_check_expense_totals();
+CREATE CONSTRAINT TRIGGER expense_shares_totals_match AFTER INSERT OR DELETE ON public.expense_shares DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_check_expense_totals();
 
 
 --
 -- Name: expense_versions expense_versions_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_versions_append_only BEFORE DELETE OR UPDATE ON public.expense_versions FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER expense_versions_append_only BEFORE DELETE OR UPDATE ON public.expense_versions FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: expense_versions expense_versions_close_disputes; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expense_versions_close_disputes AFTER INSERT ON public.expense_versions FOR EACH ROW WHEN ((new.version_no > 1)) EXECUTE FUNCTION public.baaki_close_disputes_on_new_version();
+CREATE TRIGGER expense_versions_close_disputes AFTER INSERT ON public.expense_versions FOR EACH ROW WHEN ((new.version_no > 1)) EXECUTE FUNCTION public.waves_close_disputes_on_new_version();
 
 
 --
 -- Name: expense_versions expense_versions_totals_match; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expense_versions_totals_match AFTER INSERT ON public.expense_versions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_check_expense_totals();
+CREATE CONSTRAINT TRIGGER expense_versions_totals_match AFTER INSERT ON public.expense_versions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_check_expense_totals();
 
 
 --
 -- Name: expenses expenses_no_hard_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expenses_no_hard_delete BEFORE DELETE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER expenses_no_hard_delete BEFORE DELETE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: expenses expenses_refresh_balances; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER expenses_refresh_balances AFTER INSERT OR UPDATE ON public.expenses DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_touch_balances();
+CREATE CONSTRAINT TRIGGER expenses_refresh_balances AFTER INSERT OR UPDATE ON public.expenses DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_touch_balances();
 
 
 --
 -- Name: expenses expenses_restore_window; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expenses_restore_window BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.baaki_expense_restore_window();
+CREATE TRIGGER expenses_restore_window BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.waves_expense_restore_window();
 
 
 --
 -- Name: expenses expenses_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER expenses_stamp_seq BEFORE INSERT OR UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER expenses_stamp_seq BEFORE INSERT OR UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: ghost_merges ghost_merges_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER ghost_merges_stamp_seq BEFORE INSERT OR UPDATE ON public.ghost_merges FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_ghost_merge_seq();
+CREATE TRIGGER ghost_merges_stamp_seq BEFORE INSERT OR UPDATE ON public.ghost_merges FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_ghost_merge_seq();
 
 
 --
 -- Name: group_members group_members_guard_columns; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER group_members_guard_columns BEFORE UPDATE ON public.group_members FOR EACH ROW EXECUTE FUNCTION public.baaki_guard_membership_columns();
+CREATE TRIGGER group_members_guard_columns BEFORE UPDATE ON public.group_members FOR EACH ROW EXECUTE FUNCTION public.waves_guard_membership_columns();
 
 
 --
 -- Name: group_members group_members_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER group_members_stamp_seq BEFORE INSERT OR UPDATE ON public.group_members FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER group_members_stamp_seq BEFORE INSERT OR UPDATE ON public.group_members FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: groups groups_guard_columns; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER groups_guard_columns BEFORE UPDATE ON public.groups FOR EACH ROW EXECUTE FUNCTION public.baaki_guard_group_columns();
+CREATE TRIGGER groups_guard_columns BEFORE UPDATE ON public.groups FOR EACH ROW EXECUTE FUNCTION public.waves_guard_group_columns();
 
 
 --
 -- Name: groups groups_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER groups_stamp_seq BEFORE UPDATE ON public.groups FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_group_seq();
+CREATE TRIGGER groups_stamp_seq BEFORE UPDATE ON public.groups FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_group_seq();
+
+
+--
+-- Name: personal_records personal_records_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER personal_records_stamp_seq BEFORE INSERT OR UPDATE ON public.personal_records FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_personal_seq();
 
 
 --
 -- Name: reminders reminders_nudge_rate_limit; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER reminders_nudge_rate_limit BEFORE UPDATE ON public.reminders FOR EACH ROW EXECUTE FUNCTION public.baaki_nudge_rate_limit();
+CREATE TRIGGER reminders_nudge_rate_limit BEFORE UPDATE ON public.reminders FOR EACH ROW EXECUTE FUNCTION public.waves_nudge_rate_limit();
 
 
 --
 -- Name: settlement_allocations settlement_allocations_within_settlement; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER settlement_allocations_within_settlement AFTER INSERT OR DELETE OR UPDATE ON public.settlement_allocations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_check_settlement_allocations();
+CREATE CONSTRAINT TRIGGER settlement_allocations_within_settlement AFTER INSERT OR DELETE OR UPDATE ON public.settlement_allocations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_check_settlement_allocations();
 
 
 --
 -- Name: settlement_proofs settlement_proofs_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER settlement_proofs_stamp_seq BEFORE INSERT OR UPDATE ON public.settlement_proofs FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER settlement_proofs_stamp_seq BEFORE INSERT OR UPDATE ON public.settlement_proofs FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: settlements settlements_no_hard_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER settlements_no_hard_delete BEFORE DELETE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.baaki_forbid_mutation();
+CREATE TRIGGER settlements_no_hard_delete BEFORE DELETE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.waves_forbid_mutation();
 
 
 --
 -- Name: settlements settlements_refresh_balances; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE CONSTRAINT TRIGGER settlements_refresh_balances AFTER INSERT OR UPDATE ON public.settlements DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.baaki_touch_balances();
+CREATE CONSTRAINT TRIGGER settlements_refresh_balances AFTER INSERT OR UPDATE ON public.settlements DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.waves_touch_balances();
 
 
 --
 -- Name: settlements settlements_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER settlements_stamp_seq BEFORE INSERT OR UPDATE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER settlements_stamp_seq BEFORE INSERT OR UPDATE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: settlements settlements_transition_guard; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER settlements_transition_guard BEFORE UPDATE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.baaki_settlement_transition();
+CREATE TRIGGER settlements_transition_guard BEFORE UPDATE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.waves_settlement_transition();
 
 
 --
 -- Name: storage_objects storage_objects_enqueue_orphan; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER storage_objects_enqueue_orphan BEFORE DELETE ON public.storage_objects FOR EACH ROW EXECUTE FUNCTION public.baaki_storage_enqueue_orphan();
+CREATE TRIGGER storage_objects_enqueue_orphan BEFORE DELETE ON public.storage_objects FOR EACH ROW EXECUTE FUNCTION public.waves_storage_enqueue_orphan();
 
 
 --
 -- Name: trip_member_budgets trip_member_budgets_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trip_member_budgets_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_member_budgets FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER trip_member_budgets_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_member_budgets FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: trip_photos trip_photos_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trip_photos_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_photos FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER trip_photos_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_photos FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
 
 
 --
 -- Name: trip_plan_items trip_plan_items_stamp_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trip_plan_items_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_plan_items FOR EACH ROW EXECUTE FUNCTION public.baaki_stamp_seq();
+CREATE TRIGGER trip_plan_items_stamp_seq BEFORE INSERT OR UPDATE ON public.trip_plan_items FOR EACH ROW EXECUTE FUNCTION public.waves_stamp_seq();
+
+
+--
+-- Name: notifications waves_notify_fanout_on_insert; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER waves_notify_fanout_on_insert AFTER INSERT ON public.notifications FOR EACH STATEMENT EXECUTE FUNCTION public.waves_notify_fanout_trigger();
 
 
 --
@@ -9502,6 +10063,14 @@ ALTER TABLE ONLY public.pairwise_balances
 
 
 --
+-- Name: personal_records personal_records_owner_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.personal_records
+    ADD CONSTRAINT personal_records_owner_user_id_fkey FOREIGN KEY (owner_user_id) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: promo_redemptions promo_redemptions_code_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9766,15 +10335,19 @@ ALTER TABLE ONLY public.usage_events
 
 
 --
+-- Name: voice_attempts voice_attempts_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.voice_attempts
+    ADD CONSTRAINT voice_attempts_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: voice_stt_usage voice_stt_usage_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.voice_stt_usage
     ADD CONSTRAINT voice_stt_usage_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
---
 
 
 --
@@ -9832,7 +10405,7 @@ ALTER TABLE public.campaign_impressions ENABLE ROW LEVEL SECURITY;
 -- Name: campaign_impressions campaign_impressions_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY campaign_impressions_own ON public.campaign_impressions FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY campaign_impressions_own ON public.campaign_impressions FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -9851,7 +10424,7 @@ ALTER TABLE public.captures ENABLE ROW LEVEL SECURITY;
 -- Name: captures captures_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY captures_own ON public.captures TO authenticated USING ((owner_user_id = public.baaki_current_profile_id())) WITH CHECK ((owner_user_id = public.baaki_current_profile_id()));
+CREATE POLICY captures_own ON public.captures TO authenticated USING ((owner_user_id = public.waves_current_profile_id())) WITH CHECK ((owner_user_id = public.waves_current_profile_id()));
 
 
 --
@@ -9864,7 +10437,7 @@ ALTER TABLE public.category_tags ENABLE ROW LEVEL SECURITY;
 -- Name: category_tags category_tags_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY category_tags_own ON public.category_tags TO authenticated USING ((owner_user_id = public.baaki_current_profile_id())) WITH CHECK ((owner_user_id = public.baaki_current_profile_id()));
+CREATE POLICY category_tags_own ON public.category_tags TO authenticated USING ((owner_user_id = public.waves_current_profile_id())) WITH CHECK ((owner_user_id = public.waves_current_profile_id()));
 
 
 --
@@ -9890,7 +10463,7 @@ ALTER TABLE public.device_sessions ENABLE ROW LEVEL SECURITY;
 -- Name: device_sessions device_sessions_own_read; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY device_sessions_own_read ON public.device_sessions FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY device_sessions_own_read ON public.device_sessions FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -9903,7 +10476,7 @@ ALTER TABLE public.email_events ENABLE ROW LEVEL SECURITY;
 -- Name: email_events email_events_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY email_events_select_own ON public.email_events FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY email_events_select_own ON public.email_events FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -9922,7 +10495,7 @@ ALTER TABLE public.expense_attachments ENABLE ROW LEVEL SECURITY;
 -- Name: expense_attachments expense_attachments_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY expense_attachments_select ON public.expense_attachments FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR public.baaki_is_expense_party(expense_id))));
+CREATE POLICY expense_attachments_select ON public.expense_attachments FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR public.waves_is_expense_party(expense_id))));
 
 
 --
@@ -9963,7 +10536,7 @@ ALTER TABLE public.expense_image_events ENABLE ROW LEVEL SECURITY;
 -- Name: expense_image_events expense_image_events_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY expense_image_events_select ON public.expense_image_events FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR public.baaki_is_expense_party(expense_id))));
+CREATE POLICY expense_image_events_select ON public.expense_image_events FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR public.waves_is_expense_party(expense_id))));
 
 
 --
@@ -9976,7 +10549,7 @@ ALTER TABLE public.expense_payers ENABLE ROW LEVEL SECURITY;
 -- Name: expense_payers expense_payers_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY expense_payers_select ON public.expense_payers FOR SELECT TO anon, authenticated USING (public.is_group_member(public.baaki_version_group_id(expense_version_id)));
+CREATE POLICY expense_payers_select ON public.expense_payers FOR SELECT TO anon, authenticated USING (public.is_group_member(public.waves_version_group_id(expense_version_id)));
 
 
 --
@@ -9989,7 +10562,7 @@ ALTER TABLE public.expense_shares ENABLE ROW LEVEL SECURITY;
 -- Name: expense_shares expense_shares_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY expense_shares_select ON public.expense_shares FOR SELECT TO anon, authenticated USING (public.is_group_member(public.baaki_version_group_id(expense_version_id)));
+CREATE POLICY expense_shares_select ON public.expense_shares FOR SELECT TO anon, authenticated USING (public.is_group_member(public.waves_version_group_id(expense_version_id)));
 
 
 --
@@ -10002,7 +10575,7 @@ ALTER TABLE public.expense_versions ENABLE ROW LEVEL SECURITY;
 -- Name: expense_versions expense_versions_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY expense_versions_select ON public.expense_versions FOR SELECT TO anon, authenticated USING (public.is_group_member(public.baaki_version_group_id(id)));
+CREATE POLICY expense_versions_select ON public.expense_versions FOR SELECT TO anon, authenticated USING (public.is_group_member(public.waves_version_group_id(id)));
 
 
 --
@@ -10041,7 +10614,7 @@ ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 -- Name: feedback feedback_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY feedback_own ON public.feedback FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY feedback_own ON public.feedback FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10054,28 +10627,28 @@ ALTER TABLE public.ghost_merges ENABLE ROW LEVEL SECURITY;
 -- Name: ghost_merges ghost_merges_delete_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY ghost_merges_delete_own ON public.ghost_merges FOR DELETE TO anon, authenticated USING ((owner = public.baaki_current_profile_id()));
+CREATE POLICY ghost_merges_delete_own ON public.ghost_merges FOR DELETE TO anon, authenticated USING ((owner = public.waves_current_profile_id()));
 
 
 --
 -- Name: ghost_merges ghost_merges_insert_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY ghost_merges_insert_own ON public.ghost_merges FOR INSERT TO anon, authenticated WITH CHECK ((owner = public.baaki_current_profile_id()));
+CREATE POLICY ghost_merges_insert_own ON public.ghost_merges FOR INSERT TO anon, authenticated WITH CHECK ((owner = public.waves_current_profile_id()));
 
 
 --
 -- Name: ghost_merges ghost_merges_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY ghost_merges_select_own ON public.ghost_merges FOR SELECT TO anon, authenticated USING ((owner = public.baaki_current_profile_id()));
+CREATE POLICY ghost_merges_select_own ON public.ghost_merges FOR SELECT TO anon, authenticated USING ((owner = public.waves_current_profile_id()));
 
 
 --
 -- Name: ghost_merges ghost_merges_update_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY ghost_merges_update_own ON public.ghost_merges FOR UPDATE TO anon, authenticated USING ((owner = public.baaki_current_profile_id())) WITH CHECK ((owner = public.baaki_current_profile_id()));
+CREATE POLICY ghost_merges_update_own ON public.ghost_merges FOR UPDATE TO anon, authenticated USING ((owner = public.waves_current_profile_id())) WITH CHECK ((owner = public.waves_current_profile_id()));
 
 
 --
@@ -10122,7 +10695,7 @@ CREATE POLICY group_members_update ON public.group_members FOR UPDATE TO anon, a
 -- Name: group_members group_members_update_self; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY group_members_update_self ON public.group_members FOR UPDATE TO authenticated USING ((profile_id = public.baaki_current_profile_id())) WITH CHECK ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY group_members_update_self ON public.group_members FOR UPDATE TO authenticated USING ((profile_id = public.waves_current_profile_id())) WITH CHECK ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10148,7 +10721,7 @@ ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 -- Name: groups groups_insert; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY groups_insert ON public.groups FOR INSERT TO authenticated WITH CHECK ((created_by = public.baaki_current_profile_id()));
+CREATE POLICY groups_insert ON public.groups FOR INSERT TO authenticated WITH CHECK ((created_by = public.waves_current_profile_id()));
 
 
 --
@@ -10195,9 +10768,9 @@ ALTER TABLE public.member_claims ENABLE ROW LEVEL SECURITY;
 -- Name: member_claims member_claims_visible; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY member_claims_visible ON public.member_claims FOR SELECT TO authenticated USING (((requester_id = public.baaki_current_profile_id()) OR (EXISTS ( SELECT 1
+CREATE POLICY member_claims_visible ON public.member_claims FOR SELECT TO authenticated USING (((requester_id = public.waves_current_profile_id()) OR (EXISTS ( SELECT 1
    FROM public.group_members gm
-  WHERE ((gm.group_id = member_claims.group_id) AND (gm.profile_id = public.baaki_current_profile_id()) AND (gm.role = 'admin'::public."MemberRole") AND (gm.left_at IS NULL))))));
+  WHERE ((gm.group_id = member_claims.group_id) AND (gm.profile_id = public.waves_current_profile_id()) AND (gm.role = 'admin'::public."MemberRole") AND (gm.left_at IS NULL))))));
 
 
 --
@@ -10210,14 +10783,14 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 -- Name: notifications notifications_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY notifications_select_own ON public.notifications FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY notifications_select_own ON public.notifications FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
 -- Name: notifications notifications_update_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY notifications_update_own ON public.notifications FOR UPDATE TO authenticated USING ((profile_id = public.baaki_current_profile_id())) WITH CHECK ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY notifications_update_own ON public.notifications FOR UPDATE TO authenticated USING ((profile_id = public.waves_current_profile_id())) WITH CHECK ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10234,6 +10807,19 @@ CREATE POLICY pairwise_balances_select ON public.pairwise_balances FOR SELECT TO
 
 
 --
+-- Name: personal_records; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.personal_records ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: personal_records personal_records_own; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY personal_records_own ON public.personal_records TO authenticated USING ((owner_user_id = public.waves_current_profile_id())) WITH CHECK ((owner_user_id = public.waves_current_profile_id()));
+
+
+--
 -- Name: profiles; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10243,7 +10829,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 -- Name: profiles profiles_insert_self; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_insert_self ON public.profiles FOR INSERT TO anon, authenticated WITH CHECK ((id = public.baaki_current_profile_id()));
+CREATE POLICY profiles_insert_self ON public.profiles FOR INSERT TO anon, authenticated WITH CHECK ((id = public.waves_current_profile_id()));
 
 
 --
@@ -10253,21 +10839,21 @@ CREATE POLICY profiles_insert_self ON public.profiles FOR INSERT TO anon, authen
 CREATE POLICY profiles_select_co_members ON public.profiles FOR SELECT TO anon, authenticated USING ((EXISTS ( SELECT 1
    FROM (public.group_members mine
      JOIN public.group_members theirs ON ((theirs.group_id = mine.group_id)))
-  WHERE ((mine.profile_id = public.baaki_current_profile_id()) AND (mine.left_at IS NULL) AND (theirs.profile_id = profiles.id)))));
+  WHERE ((mine.profile_id = public.waves_current_profile_id()) AND (mine.left_at IS NULL) AND (theirs.profile_id = profiles.id)))));
 
 
 --
 -- Name: profiles profiles_select_self; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_select_self ON public.profiles FOR SELECT TO anon, authenticated USING ((id = public.baaki_current_profile_id()));
+CREATE POLICY profiles_select_self ON public.profiles FOR SELECT TO anon, authenticated USING ((id = public.waves_current_profile_id()));
 
 
 --
 -- Name: profiles profiles_update_self; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY profiles_update_self ON public.profiles FOR UPDATE TO anon, authenticated USING ((id = public.baaki_current_profile_id())) WITH CHECK ((id = public.baaki_current_profile_id()));
+CREATE POLICY profiles_update_self ON public.profiles FOR UPDATE TO anon, authenticated USING ((id = public.waves_current_profile_id())) WITH CHECK ((id = public.waves_current_profile_id()));
 
 
 --
@@ -10286,7 +10872,7 @@ ALTER TABLE public.promo_redemptions ENABLE ROW LEVEL SECURITY;
 -- Name: promo_redemptions promo_redemptions_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY promo_redemptions_own ON public.promo_redemptions FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY promo_redemptions_own ON public.promo_redemptions FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10299,7 +10885,7 @@ ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
 -- Name: push_tokens push_tokens_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY push_tokens_own ON public.push_tokens TO authenticated USING ((profile_id = public.baaki_current_profile_id())) WITH CHECK ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY push_tokens_own ON public.push_tokens TO authenticated USING ((profile_id = public.waves_current_profile_id())) WITH CHECK ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10385,7 +10971,7 @@ ALTER TABLE public.service_config ENABLE ROW LEVEL SECURITY;
 -- Name: service_config service_config_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY service_config_select ON public.service_config FOR SELECT USING (true);
+CREATE POLICY service_config_select ON public.service_config FOR SELECT TO authenticated USING (true);
 
 
 --
@@ -10413,7 +10999,7 @@ ALTER TABLE public.settlement_proofs ENABLE ROW LEVEL SECURITY;
 -- Name: settlement_proofs settlement_proofs_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY settlement_proofs_select ON public.settlement_proofs FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND public.baaki_is_settlement_party(settlement_id)));
+CREATE POLICY settlement_proofs_select ON public.settlement_proofs FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND public.waves_is_settlement_party(settlement_id)));
 
 
 --
@@ -10451,7 +11037,7 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 -- Name: subscriptions subscriptions_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY subscriptions_select_own ON public.subscriptions FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY subscriptions_select_own ON public.subscriptions FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10470,7 +11056,7 @@ ALTER TABLE public.trip_member_budgets ENABLE ROW LEVEL SECURITY;
 -- Name: trip_member_budgets trip_member_budgets_select; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY trip_member_budgets_select ON public.trip_member_budgets FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR (member_id = public.baaki_my_member_id(group_id)))));
+CREATE POLICY trip_member_budgets_select ON public.trip_member_budgets FOR SELECT TO anon, authenticated USING ((public.is_group_member(group_id) AND ((visibility = 'group'::text) OR (member_id = public.waves_my_member_id(group_id)))));
 
 
 --
@@ -10509,7 +11095,20 @@ ALTER TABLE public.usage_events ENABLE ROW LEVEL SECURITY;
 -- Name: usage_events usage_events_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY usage_events_select_own ON public.usage_events FOR SELECT TO authenticated USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY usage_events_select_own ON public.usage_events FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
+
+
+--
+-- Name: voice_attempts; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.voice_attempts ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: voice_attempts voice_attempts_insert_own; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY voice_attempts_insert_own ON public.voice_attempts FOR INSERT TO authenticated WITH CHECK ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10522,7 +11121,7 @@ ALTER TABLE public.voice_stt_usage ENABLE ROW LEVEL SECURITY;
 -- Name: voice_stt_usage voice_stt_usage_select_own; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY voice_stt_usage_select_own ON public.voice_stt_usage FOR SELECT USING ((profile_id = public.baaki_current_profile_id()));
+CREATE POLICY voice_stt_usage_select_own ON public.voice_stt_usage FOR SELECT TO authenticated USING ((profile_id = public.waves_current_profile_id()));
 
 
 --
@@ -10535,1310 +11134,6 @@ GRANT USAGE ON SCHEMA public TO service_role;
 
 
 --
--- Name: FUNCTION baaki_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_ai_cost(p_days integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_ai_cost(p_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_ai_cost(p_days integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_campaign_email_stats(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_campaign_email_stats(p_campaign_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_campaign_email_stats(p_campaign_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_campaign_funnel(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_campaign_funnel(p_campaign_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_campaign_funnel(p_campaign_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_campaign_revenue(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_campaign_revenue(p_campaign_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_campaign_revenue(p_campaign_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_daily(p_days integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_daily(p_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_daily(p_days integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_feedback(p_limit integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_feedback(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_feedback(p_limit integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_flag_results(p_key text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_flag_results(p_key text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_flag_results(p_key text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_geo(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_geo() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_geo() TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_grant_promo(p_profile_id uuid, p_days integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_grant_promo(p_profile_id uuid, p_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_grant_promo(p_profile_id uuid, p_days integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_logins(p_days integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_logins(p_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_logins(p_days integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_money(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_money() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_money() TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_overview(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_overview() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_overview() TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_promo_codes(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_promo_codes() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_promo_codes() TO service_role;
-
-
---
--- Name: FUNCTION baaki_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_array_is_distinct(p_values text[]); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_array_is_distinct(p_values text[]) TO anon;
-GRANT ALL ON FUNCTION public.baaki_array_is_distinct(p_values text[]) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_array_is_distinct(p_values text[]) TO service_role;
-
-
---
--- Name: FUNCTION baaki_assert_expense_caller(p_group_id uuid, p_author_member_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) TO anon;
-
-
---
--- Name: FUNCTION baaki_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_attachment_cap(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_attachment_cap() TO anon;
-GRANT ALL ON FUNCTION public.baaki_attachment_cap() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_attachment_cap() TO service_role;
-
-
---
--- Name: FUNCTION baaki_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval) TO service_role;
-
-
---
--- Name: FUNCTION baaki_auto_confirm_settlements(p_now timestamp with time zone, p_window interval); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_auto_confirm_settlements(p_now timestamp with time zone, p_window interval) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_auto_confirm_settlements(p_now timestamp with time zone, p_window interval) TO service_role;
-
-
---
--- Name: FUNCTION baaki_bucket(p_input text); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_bucket(p_input text) TO anon;
-GRANT ALL ON FUNCTION public.baaki_bucket(p_input text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_bucket(p_input text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_campaign_cohort(p_campaign_id uuid, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_campaign_seen(p_campaign_id uuid, p_acted boolean); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_campaign_seen(p_campaign_id uuid, p_acted boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_campaign_seen(p_campaign_id uuid, p_acted boolean) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_campaign_seen(p_campaign_id uuid, p_acted boolean) TO service_role;
-
-
---
--- Name: FUNCTION baaki_can_add_expense_attachment(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_can_add_expense_attachment(p_expense_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_can_add_expense_attachment(p_expense_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_can_add_expense_attachment(p_expense_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_can_add_receipt(p_group_id uuid, p_receipt_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_can_add_receipt(p_group_id uuid, p_receipt_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_can_add_receipt(p_group_id uuid, p_receipt_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_can_add_receipt(p_group_id uuid, p_receipt_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_can_upload_group_photo(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_can_upload_group_photo(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_can_upload_group_photo(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_can_upload_group_photo(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_claim_campaign_emails(p_campaign_id uuid, p_limit integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_claim_campaign_emails(p_campaign_id uuid, p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_claim_campaign_emails(p_campaign_id uuid, p_limit integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_claim_email_notifications(p_limit integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_claim_email_notifications(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_claim_email_notifications(p_limit integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_claim_push_notifications(p_limit integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_claim_push_notifications(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_claim_push_notifications(p_limit integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_clear_my_trip_budget(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_clear_my_trip_budget(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_clear_my_trip_budget(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_clear_my_trip_budget(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_close_disputes_on_new_version(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_close_disputes_on_new_version() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_close_disputes_on_new_version() TO service_role;
-
-
---
--- Name: FUNCTION baaki_confirm_settlement(p_settlement_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_confirm_settlement(p_settlement_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_confirm_settlement(p_settlement_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_confirm_settlement(p_settlement_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_consume_invite(p_invite_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_consume_invite(p_invite_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_consume_invite(p_invite_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_decide_member_claim(p_claim_id uuid, p_approve boolean); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_decide_member_claim(p_claim_id uuid, p_approve boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_decide_member_claim(p_claim_id uuid, p_approve boolean) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_decide_member_claim(p_claim_id uuid, p_approve boolean) TO service_role;
-
-
---
--- Name: FUNCTION baaki_delete_expense(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_delete_expense(p_expense_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_delete_expense(p_expense_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_delete_expense(p_expense_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_delete_expense_comment(p_comment_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_delete_expense_comment(p_comment_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_delete_expense_comment(p_comment_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_delete_expense_comment(p_comment_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_delete_my_account(p_feedback text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_delete_my_account(p_feedback text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_delete_my_account(p_feedback text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_delete_my_account(p_feedback text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_device_cap(p_profile_id uuid, p_is_plus boolean); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_device_cap(p_profile_id uuid, p_is_plus boolean) TO anon;
-GRANT ALL ON FUNCTION public.baaki_device_cap(p_profile_id uuid, p_is_plus boolean) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_device_cap(p_profile_id uuid, p_is_plus boolean) TO service_role;
-
-
---
--- Name: FUNCTION baaki_dispute_expense(p_expense_id uuid, p_reason text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_dispute_expense(p_expense_id uuid, p_reason text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_dispute_expense(p_expense_id uuid, p_reason text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_dispute_expense(p_expense_id uuid, p_reason text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_edit_expense_comment(p_comment_id uuid, p_body text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_edit_expense_comment(p_comment_id uuid, p_body text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_edit_expense_comment(p_comment_id uuid, p_body text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_edit_expense_comment(p_comment_id uuid, p_body text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_email_for(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_email_for(p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_email_for(p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_email_suppressed(p_address text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_email_suppressed(p_address text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_email_suppressed(p_address text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_ensure_group_join_token(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_ensure_group_join_token(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_ensure_group_join_token(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_ensure_group_join_token(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_finish_campaign_emails(p_results jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_finish_campaign_emails(p_results jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_finish_campaign_emails(p_results jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_finish_email(p_results jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_finish_email(p_results jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_finish_email(p_results jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]) TO service_role;
-
-
---
--- Name: FUNCTION baaki_flag_expense_comment(p_comment_id uuid, p_flag boolean); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_flag_expense_comment(p_comment_id uuid, p_flag boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_flag_expense_comment(p_comment_id uuid, p_flag boolean) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_flag_expense_comment(p_comment_id uuid, p_flag boolean) TO service_role;
-
-
---
--- Name: FUNCTION baaki_free_storage_cap(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_free_storage_cap() TO anon;
-GRANT ALL ON FUNCTION public.baaki_free_storage_cap() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_free_storage_cap() TO service_role;
-
-
---
--- Name: FUNCTION baaki_grant_promo(p_profile_id uuid, p_days integer, p_source text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_grant_promo(p_profile_id uuid, p_days integer, p_source text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_grant_promo(p_profile_id uuid, p_days integer, p_source text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_gravatar_url(p_email text); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_gravatar_url(p_email text) TO anon;
-GRANT ALL ON FUNCTION public.baaki_gravatar_url(p_email text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_gravatar_url(p_email text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_group_is_paid(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_group_is_paid(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_group_is_paid(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_group_is_paid(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_group_member_claims(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_group_member_claims(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_group_member_claims(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_group_member_claims(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_group_plan(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_group_plan(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_group_plan(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_group_plan(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_group_spending(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_group_spending(p_group_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_group_spending(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_group_spending(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_guard_group_columns(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_guard_group_columns() TO anon;
-GRANT ALL ON FUNCTION public.baaki_guard_group_columns() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_guard_group_columns() TO service_role;
-
-
---
--- Name: FUNCTION baaki_guard_membership_columns(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_guard_membership_columns() TO anon;
-GRANT ALL ON FUNCTION public.baaki_guard_membership_columns() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_guard_membership_columns() TO service_role;
-
-
---
--- Name: FUNCTION baaki_handle_new_user(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_handle_new_user() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_handle_new_user() TO service_role;
-
-
---
--- Name: FUNCTION baaki_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_is_expense_party(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_is_expense_party(p_expense_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_is_expense_party(p_expense_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_is_expense_party(p_expense_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_is_expense_party(p_expense_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_is_settlement_party(p_settlement_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_item_claims(p_receipt_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_item_claims(p_receipt_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_item_claims(p_receipt_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_item_claims(p_receipt_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_list_devices(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_list_devices() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_list_devices() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_list_devices() TO service_role;
-
-
---
--- Name: FUNCTION baaki_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_mark_notifications_read(p_ids uuid[]); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_mark_notifications_read(p_ids uuid[]) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_mark_notifications_read(p_ids uuid[]) TO anon;
-
-
---
--- Name: FUNCTION baaki_member_group_id(p_member_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_member_group_id(p_member_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_member_group_id(p_member_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_member_group_id(p_member_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_merge_ghosts(p_member_ids uuid[], p_name text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_merge_ghosts(p_member_ids uuid[], p_name text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_merge_ghosts(p_member_ids uuid[], p_name text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_merge_ghosts(p_member_ids uuid[], p_name text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_campaign(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_campaign() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_campaign() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_campaign() TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_erasure_preview(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_erasure_preview() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_erasure_preview() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_erasure_preview() TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_member_claims(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_member_claims() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_member_claims() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_member_claims() TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_member_id(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_my_member_id(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_member_id(p_group_id uuid) TO anon;
-
-
---
--- Name: FUNCTION baaki_my_member_id_for(p_group_id uuid, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_member_id_for(p_group_id uuid, p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_member_id_for(p_group_id uuid, p_profile_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_member_id_for(p_group_id uuid, p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_plan(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_plan(p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_plan(p_profile_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_plan(p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_storage_usage(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_storage_usage() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_storage_usage() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_storage_usage() TO service_role;
-
-
---
--- Name: FUNCTION baaki_my_voice_access(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_my_voice_access() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_my_voice_access() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_my_voice_access() TO service_role;
-
-
---
--- Name: FUNCTION baaki_new_group_join_token(p_group_id uuid, p_revoke_existing boolean); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) TO service_role;
-
-
---
--- Name: FUNCTION baaki_next_capture_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_next_capture_seq(p_owner uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_next_capture_seq(p_owner uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_next_capture_seq(p_owner uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_next_category_tag_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_next_category_tag_seq(p_owner uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_next_category_tag_seq(p_owner uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_next_category_tag_seq(p_owner uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_next_ghost_merge_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_next_ghost_merge_seq(p_owner uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_next_ghost_merge_seq(p_owner uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_next_ghost_merge_seq(p_owner uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_next_group_seq(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_next_group_seq(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_next_group_seq(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_next_group_seq(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) TO service_role;
-
-
---
--- Name: FUNCTION baaki_open_receipts(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_open_receipts(p_group_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_open_receipts(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_open_receipts(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_people_i_owe(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_people_i_owe() TO anon;
-GRANT ALL ON FUNCTION public.baaki_people_i_owe() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_people_i_owe() TO service_role;
-
-
---
--- Name: FUNCTION baaki_person_group_balances(p_person_key text); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_person_group_balances(p_person_key text) TO anon;
-GRANT ALL ON FUNCTION public.baaki_person_group_balances(p_person_key text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_person_group_balances(p_person_key text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_profile_is_paid(p_profile uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_profile_is_paid(p_profile uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_profile_is_paid(p_profile uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_profiles_share_group(p_a uuid, p_b uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_profiles_share_group(p_a uuid, p_b uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_profiles_share_group(p_a uuid, p_b uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_profiles_share_group(p_a uuid, p_b uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_publish_receipt_items(p_receipt_id uuid, p_items jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_publish_receipt_items(p_receipt_id uuid, p_items jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_publish_receipt_items(p_receipt_id uuid, p_items jsonb) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_publish_receipt_items(p_receipt_id uuid, p_items jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_receipt_cap(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_receipt_cap() TO anon;
-GRANT ALL ON FUNCTION public.baaki_receipt_cap() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_receipt_cap() TO service_role;
-
-
---
--- Name: FUNCTION baaki_receipt_scan_quota(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_receipt_scan_quota() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_receipt_scan_quota() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_receipt_scan_quota() TO service_role;
-
-
---
--- Name: FUNCTION baaki_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_redeem_promo(p_code text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_redeem_promo(p_code text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_redeem_promo(p_code text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_redeem_promo(p_code text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_refresh_group_balances(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_refresh_group_balances(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_refresh_group_balances(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_register_device(p_device_id text, p_label text, p_platform text, p_app_version text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_remove_expense_attachment(p_attachment_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_remove_expense_attachment(p_attachment_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_remove_expense_attachment(p_attachment_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_remove_expense_attachment(p_attachment_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_remove_plan_item(p_item_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_remove_plan_item(p_item_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_remove_plan_item(p_item_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_remove_plan_item(p_item_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_remove_settlement_proof(p_proof_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_remove_settlement_proof(p_proof_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_remove_settlement_proof(p_proof_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_remove_settlement_proof(p_proof_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_remove_trip_photo(p_photo_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_remove_trip_photo(p_photo_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_remove_trip_photo(p_photo_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_remove_trip_photo(p_photo_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_require_committed_object(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_require_committed_object(p_logical_bucket text, p_path text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_require_committed_object(p_logical_bucket text, p_path text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_reset_group_join_token(p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_reset_group_join_token(p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_reset_group_join_token(p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_reset_group_join_token(p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_restore_expense(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_restore_expense(p_expense_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_restore_expense(p_expense_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_restore_expense(p_expense_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_scans_used_this_month(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_scans_used_this_month(p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_scans_used_this_month(p_profile_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_scans_used_this_month(p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) TO service_role;
-
-
---
--- Name: FUNCTION baaki_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) TO service_role;
-
-
---
--- Name: FUNCTION baaki_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_set_member_role(p_member_id uuid, p_role text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_set_member_role(p_member_id uuid, p_role text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_set_member_role(p_member_id uuid, p_role text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_set_member_role(p_member_id uuid, p_role text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_shares_a_group_with(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_shares_a_group_with(p_profile_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_shares_a_group_with(p_profile_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_shares_a_group_with(p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_sign_out_other_devices(p_device_id text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_sign_out_other_devices(p_device_id text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_sign_out_other_devices(p_device_id text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_sign_out_other_devices(p_device_id text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_stamp_capture_seq(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_stamp_capture_seq() TO anon;
-GRANT ALL ON FUNCTION public.baaki_stamp_capture_seq() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_stamp_capture_seq() TO service_role;
-
-
---
--- Name: FUNCTION baaki_stamp_category_tag_seq(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_stamp_category_tag_seq() TO anon;
-GRANT ALL ON FUNCTION public.baaki_stamp_category_tag_seq() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_stamp_category_tag_seq() TO service_role;
-
-
---
--- Name: FUNCTION baaki_stamp_ghost_merge_seq(); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_stamp_ghost_merge_seq() TO anon;
-GRANT ALL ON FUNCTION public.baaki_stamp_ghost_merge_seq() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_stamp_ghost_merge_seq() TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_counts(p_profile_id uuid, p_group_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_counts(p_profile_id uuid, p_group_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_counts(p_profile_id uuid, p_group_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_counts(p_profile_id uuid, p_group_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_enqueue_orphan(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_enqueue_orphan() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_enqueue_orphan() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_enqueue_orphan() TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_expire_pending(p_age interval); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_expire_pending(p_age interval) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_expire_pending(p_age interval) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_expire_pending(p_age interval) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_orphan_clear(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_orphan_clear(p_logical_bucket text, p_path text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_orphan_clear(p_logical_bucket text, p_path text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_orphan_clear(p_logical_bucket text, p_path text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_orphans(p_limit integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_orphans(p_limit integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_orphans(p_limit integer) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_orphans(p_limit integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_release(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_release(p_logical_bucket text, p_path text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_release(p_logical_bucket text, p_path text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_release(p_logical_bucket text, p_path text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_release_reservation(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_release_reservation(p_logical_bucket text, p_path text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_release_reservation(p_logical_bucket text, p_path text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_release_reservation(p_logical_bucket text, p_path text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_suppress_email(p_address text, p_reason text, p_detail jsonb); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_suppress_email(p_address text, p_reason text, p_detail jsonb) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_suppress_email(p_address text, p_reason text, p_detail jsonb) TO service_role;
-
-
---
--- Name: FUNCTION baaki_sweep_rate_limits(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_sweep_rate_limits() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_sweep_rate_limits() TO service_role;
-
-
---
--- Name: FUNCTION baaki_touch_balances(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_touch_balances() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_touch_balances() TO service_role;
-
-
---
--- Name: FUNCTION baaki_trip_nudges(p_now timestamp with time zone); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_trip_nudges(p_now timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_trip_nudges(p_now timestamp with time zone) TO service_role;
-
-
---
--- Name: FUNCTION baaki_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) TO service_role;
-
-
---
--- Name: FUNCTION baaki_variant(p_key text, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_variant(p_key text, p_profile_id uuid) TO anon;
-GRANT ALL ON FUNCTION public.baaki_variant(p_key text, p_profile_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_variant(p_key text, p_profile_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_version_key(p_version text); Type: ACL; Schema: public; Owner: -
---
-
-GRANT ALL ON FUNCTION public.baaki_version_key(p_version text) TO anon;
-GRANT ALL ON FUNCTION public.baaki_version_key(p_version text) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_version_key(p_version text) TO service_role;
-
-
---
--- Name: FUNCTION baaki_voice_stt_free_seconds(); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_voice_stt_free_seconds() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_voice_stt_free_seconds() TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_voice_stt_free_seconds() TO service_role;
-
-
---
--- Name: FUNCTION baaki_voice_stt_record(p_profile uuid, p_seconds integer); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_voice_stt_record(p_profile uuid, p_seconds integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_voice_stt_record(p_profile uuid, p_seconds integer) TO service_role;
-
-
---
--- Name: FUNCTION baaki_voice_stt_remaining_seconds(p_profile uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_voice_stt_remaining_seconds(p_profile uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_voice_stt_remaining_seconds(p_profile uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_withdraw_dispute(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_withdraw_dispute(p_expense_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_withdraw_dispute(p_expense_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_withdraw_dispute(p_expense_id uuid) TO service_role;
-
-
---
--- Name: FUNCTION baaki_withdraw_member_claim(p_claim_id uuid); Type: ACL; Schema: public; Owner: -
---
-
-REVOKE ALL ON FUNCTION public.baaki_withdraw_member_claim(p_claim_id uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.baaki_withdraw_member_claim(p_claim_id uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.baaki_withdraw_member_claim(p_claim_id uuid) TO service_role;
-
-
---
 -- Name: FUNCTION is_group_admin(p_group_id uuid); Type: ACL; Schema: public; Owner: -
 --
 
@@ -11848,15 +11143,1389 @@ GRANT ALL ON FUNCTION public.is_group_admin(p_group_id uuid) TO service_role;
 
 
 --
+-- Name: FUNCTION waves_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text); Type: ACL; Schema: public; Owner: -
 --
 
+REVOKE ALL ON FUNCTION public.waves_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_add_expense_comment(p_group_id uuid, p_expense_id uuid, p_comment_id uuid, p_body text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_add_ghost_member(p_group_id uuid, p_name text, p_member_id uuid, p_email text, p_phone text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_add_plan_item(p_group_id uuid, p_day date, p_title text, p_starts_at time without time zone, p_note text, p_category text, p_planned_minor bigint, p_currency character, p_item_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_add_trip_photo(p_group_id uuid, p_storage_path text, p_photo_id uuid, p_expense_id uuid, p_day date, p_caption text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_ai_cost(p_days integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_ai_cost(p_days integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_ai_cost(p_days integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_campaign_email_stats(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_campaign_email_stats(p_campaign_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_campaign_email_stats(p_campaign_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_campaign_funnel(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_campaign_funnel(p_campaign_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_campaign_funnel(p_campaign_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_campaign_revenue(p_campaign_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_campaign_revenue(p_campaign_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_campaign_revenue(p_campaign_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_daily(p_days integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_daily(p_days integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_daily(p_days integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_feedback(p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_feedback(p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_feedback(p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_flag_results(p_key text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_flag_results(p_key text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_flag_results(p_key text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_geo(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_geo() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_geo() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_grant_promo(p_profile_id uuid, p_days integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_grant_promo(p_profile_id uuid, p_days integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_grant_promo(p_profile_id uuid, p_days integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_logins(p_days integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_logins(p_days integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_logins(p_days integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_money(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_money() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_money() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_overview(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_overview() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_overview() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_promo_codes(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_promo_codes() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_promo_codes() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_users(p_limit integer, p_offset integer, p_name_prefix text, p_country text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_admin_voice_attempts(p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_admin_voice_attempts(p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_admin_voice_attempts(p_limit integer) TO anon;
+GRANT ALL ON FUNCTION public.waves_admin_voice_attempts(p_limit integer) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_admin_voice_attempts(p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_annotate_expense_attachment(p_attachment_id uuid, p_annotations jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_apply_expense(p_group_id uuid, p_expense_id uuid, p_author_member_id uuid, p_description text, p_category text, p_expense_date date, p_currency character, p_amount bigint, p_split_type text, p_split_params jsonb, p_payers jsonb, p_shares jsonb, p_client_mutation_id uuid, p_notes text, p_receipt_id uuid, p_base_version_no integer, p_fx jsonb, p_source text, p_payment_method text, p_receipt_share_url text, p_category_meta jsonb, p_location jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_array_is_distinct(p_values text[]); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_array_is_distinct(p_values text[]) TO anon;
+GRANT ALL ON FUNCTION public.waves_array_is_distinct(p_values text[]) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_array_is_distinct(p_values text[]) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_assert_expense_caller(p_group_id uuid, p_author_member_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_assert_expense_caller(p_group_id uuid, p_author_member_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_assert_fx_valid(p_fx jsonb, p_expense_currency character, p_group_currency character) TO anon;
+
+
+--
+-- Name: FUNCTION waves_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_attach_expense_attachment(p_expense_id uuid, p_storage_path text, p_visibility text, p_attachment_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_attach_settlement_proof(p_settlement_id uuid, p_storage_path text, p_proof_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_attachment_cap(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_attachment_cap() TO anon;
+GRANT ALL ON FUNCTION public.waves_attachment_cap() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_attachment_cap() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_auto_archive_stale_groups(p_now timestamp with time zone, p_age interval) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_auto_confirm_settlements(p_now timestamp with time zone, p_window interval); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_auto_confirm_settlements(p_now timestamp with time zone, p_window interval) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_auto_confirm_settlements(p_now timestamp with time zone, p_window interval) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_bucket(p_input text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_bucket(p_input text) TO anon;
+GRANT ALL ON FUNCTION public.waves_bucket(p_input text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_bucket(p_input text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_campaign_cohort(p_campaign_id uuid, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_campaign_cohort(p_campaign_id uuid, p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_campaign_seen(p_campaign_id uuid, p_acted boolean); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_campaign_seen(p_campaign_id uuid, p_acted boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_campaign_seen(p_campaign_id uuid, p_acted boolean) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_campaign_seen(p_campaign_id uuid, p_acted boolean) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_can_add_expense_attachment(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_can_add_expense_attachment(p_expense_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_can_add_expense_attachment(p_expense_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_can_add_expense_attachment(p_expense_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_can_add_receipt(p_group_id uuid, p_receipt_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_can_add_receipt(p_group_id uuid, p_receipt_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_can_add_receipt(p_group_id uuid, p_receipt_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_can_add_receipt(p_group_id uuid, p_receipt_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_can_upload_group_photo(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_can_upload_group_photo(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_can_upload_group_photo(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_can_upload_group_photo(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_cancel_settlement(p_settlement_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_cancel_settlement(p_settlement_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_cancel_settlement(p_settlement_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_cancel_settlement(p_settlement_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_claim_campaign_emails(p_campaign_id uuid, p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_claim_campaign_emails(p_campaign_id uuid, p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_claim_campaign_emails(p_campaign_id uuid, p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_claim_email_notifications(p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_claim_email_notifications(p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_claim_email_notifications(p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_claim_push_notifications(p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_claim_push_notifications(p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_claim_push_notifications(p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_clear_my_trip_budget(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_clear_my_trip_budget(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_clear_my_trip_budget(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_clear_my_trip_budget(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_close_disputes_on_new_version(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_close_disputes_on_new_version() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_close_disputes_on_new_version() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_confirm_settlement(p_settlement_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_confirm_settlement(p_settlement_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_confirm_settlement(p_settlement_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_confirm_settlement(p_settlement_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_consume_invite(p_invite_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_consume_invite(p_invite_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_consume_invite(p_invite_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_create_group(p_name text, p_type text, p_currency character, p_emoji text, p_simplify boolean, p_group_id uuid, p_photo_path text, p_country character, p_creator_member_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_decide_member_claim(p_claim_id uuid, p_approve boolean); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_decide_member_claim(p_claim_id uuid, p_approve boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_decide_member_claim(p_claim_id uuid, p_approve boolean) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_decide_member_claim(p_claim_id uuid, p_approve boolean) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_delete_expense(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_delete_expense(p_expense_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_delete_expense(p_expense_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_delete_expense(p_expense_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_delete_expense_comment(p_comment_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_delete_expense_comment(p_comment_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_delete_expense_comment(p_comment_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_delete_expense_comment(p_comment_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_delete_group(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_delete_group(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_delete_group(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_delete_group(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_delete_my_account(p_feedback text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_delete_my_account(p_feedback text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_delete_my_account(p_feedback text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_delete_my_account(p_feedback text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_device_cap(p_profile_id uuid, p_is_plus boolean); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_device_cap(p_profile_id uuid, p_is_plus boolean) TO anon;
+GRANT ALL ON FUNCTION public.waves_device_cap(p_profile_id uuid, p_is_plus boolean) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_device_cap(p_profile_id uuid, p_is_plus boolean) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_dispute_expense(p_expense_id uuid, p_reason text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_dispute_expense(p_expense_id uuid, p_reason text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_dispute_expense(p_expense_id uuid, p_reason text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_dispute_expense(p_expense_id uuid, p_reason text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_dispute_settlement(p_settlement_id uuid, p_reason text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_dispute_settlement(p_settlement_id uuid, p_reason text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_dispute_settlement(p_settlement_id uuid, p_reason text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_dispute_settlement(p_settlement_id uuid, p_reason text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_edit_expense_comment(p_comment_id uuid, p_body text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_edit_expense_comment(p_comment_id uuid, p_body text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_edit_expense_comment(p_comment_id uuid, p_body text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_edit_expense_comment(p_comment_id uuid, p_body text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_email_for(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_email_for(p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_email_for(p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_email_suppressed(p_address text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_email_suppressed(p_address text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_email_suppressed(p_address text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_ensure_group_join_token(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_ensure_group_join_token(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_ensure_group_join_token(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_ensure_group_join_token(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_finish_campaign_emails(p_results jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_finish_campaign_emails(p_results jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_finish_campaign_emails(p_results jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_finish_email(p_results jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_finish_email(p_results jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_finish_email(p_results jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_finish_push(p_delivered uuid[], p_failed uuid[], p_revoke text[]) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_flag_expense_comment(p_comment_id uuid, p_flag boolean); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_flag_expense_comment(p_comment_id uuid, p_flag boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_flag_expense_comment(p_comment_id uuid, p_flag boolean) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_flag_expense_comment(p_comment_id uuid, p_flag boolean) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_free_storage_cap(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_free_storage_cap() TO anon;
+GRANT ALL ON FUNCTION public.waves_free_storage_cap() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_free_storage_cap() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_grant_promo(p_profile_id uuid, p_days integer, p_source text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_grant_promo(p_profile_id uuid, p_days integer, p_source text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_grant_promo(p_profile_id uuid, p_days integer, p_source text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_gravatar_url(p_email text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_gravatar_url(p_email text) TO anon;
+GRANT ALL ON FUNCTION public.waves_gravatar_url(p_email text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_gravatar_url(p_email text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_group_is_paid(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_group_is_paid(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_group_is_paid(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_group_is_paid(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_group_member_claims(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_group_member_claims(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_group_member_claims(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_group_member_claims(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_group_plan(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_group_plan(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_group_plan(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_group_plan(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_group_spending(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_group_spending(p_group_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_group_spending(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_group_spending(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_guard_group_columns(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_guard_group_columns() TO anon;
+GRANT ALL ON FUNCTION public.waves_guard_group_columns() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_guard_group_columns() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_guard_membership_columns(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_guard_membership_columns() TO anon;
+GRANT ALL ON FUNCTION public.waves_guard_membership_columns() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_guard_membership_columns() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_handle_new_user(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_handle_new_user() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_handle_new_user() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_import_ledger(p_group_id uuid, p_people jsonb, p_expenses jsonb, p_settlements jsonb, p_origin text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_import_splitwise(p_group_id uuid, p_people jsonb, p_expenses jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_is_expense_party(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_is_expense_party(p_expense_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_is_expense_party(p_expense_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_is_expense_party(p_expense_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_is_expense_party(p_expense_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_is_settlement_party(p_settlement_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_is_settlement_party(p_settlement_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_is_settlement_party(p_settlement_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_is_settlement_party(p_settlement_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_is_settlement_party(p_settlement_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_item_claims(p_receipt_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_item_claims(p_receipt_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_item_claims(p_receipt_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_item_claims(p_receipt_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_list_devices(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_list_devices() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_list_devices() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_list_devices() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_log_receipt_event(p_event_id uuid, p_group_id uuid, p_expense_id uuid, p_action text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_log_voice_attempt(p_transcript text, p_locale text, p_used_model boolean, p_item_count integer, p_platform text, p_app_version text, p_client_at timestamp with time zone); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_log_voice_attempt(p_transcript text, p_locale text, p_used_model boolean, p_item_count integer, p_platform text, p_app_version text, p_client_at timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_log_voice_attempt(p_transcript text, p_locale text, p_used_model boolean, p_item_count integer, p_platform text, p_app_version text, p_client_at timestamp with time zone) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_log_voice_attempt(p_transcript text, p_locale text, p_used_model boolean, p_item_count integer, p_platform text, p_app_version text, p_client_at timestamp with time zone) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_mark_notifications_read(p_ids uuid[]); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_mark_notifications_read(p_ids uuid[]) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_mark_notifications_read(p_ids uuid[]) TO anon;
+
+
+--
+-- Name: FUNCTION waves_member_group_id(p_member_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_member_group_id(p_member_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_member_group_id(p_member_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_member_group_id(p_member_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_merge_ghosts(p_member_ids uuid[], p_name text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_merge_ghosts(p_member_ids uuid[], p_name text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_merge_ghosts(p_member_ids uuid[], p_name text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_merge_ghosts(p_member_ids uuid[], p_name text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_campaign(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_campaign() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_campaign() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_campaign() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_erasure_preview(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_erasure_preview() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_erasure_preview() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_erasure_preview() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_member_claims(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_member_claims() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_member_claims() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_member_claims() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_member_id(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_my_member_id(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_member_id(p_group_id uuid) TO anon;
+
+
+--
+-- Name: FUNCTION waves_my_member_id_for(p_group_id uuid, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_member_id_for(p_group_id uuid, p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_member_id_for(p_group_id uuid, p_profile_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_member_id_for(p_group_id uuid, p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_plan(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_plan(p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_plan(p_profile_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_plan(p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_storage_usage(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_storage_usage() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_storage_usage() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_storage_usage() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_my_voice_access(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_my_voice_access() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_my_voice_access() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_my_voice_access() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_new_group_join_token(p_group_id uuid, p_revoke_existing boolean); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_new_group_join_token(p_group_id uuid, p_revoke_existing boolean) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_next_capture_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_next_capture_seq(p_owner uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_next_capture_seq(p_owner uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_next_category_tag_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_next_category_tag_seq(p_owner uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_next_category_tag_seq(p_owner uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_next_ghost_merge_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_next_ghost_merge_seq(p_owner uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_next_ghost_merge_seq(p_owner uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_next_group_seq(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_next_group_seq(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_next_group_seq(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_next_personal_seq(p_owner uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_next_personal_seq(p_owner uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_next_personal_seq(p_owner uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_notify(p_profile_id uuid, p_group_id uuid, p_kind text, p_title text, p_body text, p_deep_link text, p_payload jsonb, p_dedupe_key text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_notify_fanout_trigger(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_notify_fanout_trigger() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_notify_fanout_trigger() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_nudge_to_settle(p_group_id uuid, p_to_member_id uuid, p_currency character) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_open_receipts(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_open_receipts(p_group_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_open_receipts(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_open_receipts(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_people_i_owe(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_people_i_owe() TO anon;
+GRANT ALL ON FUNCTION public.waves_people_i_owe() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_people_i_owe() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_person_group_balances(p_person_key text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_person_group_balances(p_person_key text) TO anon;
+GRANT ALL ON FUNCTION public.waves_person_group_balances(p_person_key text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_person_group_balances(p_person_key text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_profile_is_paid(p_profile uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_profile_is_paid(p_profile uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_profile_is_paid(p_profile uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_profiles_share_group(p_a uuid, p_b uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_profiles_share_group(p_a uuid, p_b uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_profiles_share_group(p_a uuid, p_b uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_profiles_share_group(p_a uuid, p_b uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_publish_receipt_items(p_receipt_id uuid, p_items jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_publish_receipt_items(p_receipt_id uuid, p_items jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_publish_receipt_items(p_receipt_id uuid, p_items jsonb) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_publish_receipt_items(p_receipt_id uuid, p_items jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_rate_limit(p_subject text, p_bucket text, p_limit integer, p_window_seconds integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_receipt_cap(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_receipt_cap() TO anon;
+GRANT ALL ON FUNCTION public.waves_receipt_cap() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_receipt_cap() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_receipt_scan_quota(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_receipt_scan_quota() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_receipt_scan_quota() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_receipt_scan_quota() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_record_email_event(p_resend_email_id text, p_event text, p_address text, p_payload jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_record_receipt(p_group_id uuid, p_receipt_id uuid, p_profile_id uuid, p_source text, p_storage_path text, p_raw_text text, p_parsed jsonb, p_status text, p_input_tokens integer, p_output_tokens integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_record_settlement(p_group_id uuid, p_from_member_id uuid, p_to_member_id uuid, p_amount bigint, p_method text, p_currency character, p_note text, p_allocations jsonb, p_client_mutation_id uuid, p_rail text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_redeem_promo(p_code text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_redeem_promo(p_code text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_redeem_promo(p_code text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_redeem_promo(p_code text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_refresh_group_balances(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_refresh_group_balances(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_refresh_group_balances(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_register_device(p_device_id text, p_label text, p_platform text, p_app_version text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_register_device(p_device_id text, p_label text, p_platform text, p_app_version text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_remove_expense_attachment(p_attachment_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_remove_expense_attachment(p_attachment_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_remove_expense_attachment(p_attachment_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_remove_expense_attachment(p_attachment_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_remove_plan_item(p_item_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_remove_plan_item(p_item_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_remove_plan_item(p_item_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_remove_plan_item(p_item_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_remove_settlement_proof(p_proof_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_remove_settlement_proof(p_proof_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_remove_settlement_proof(p_proof_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_remove_settlement_proof(p_proof_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_remove_trip_photo(p_photo_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_remove_trip_photo(p_photo_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_remove_trip_photo(p_photo_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_remove_trip_photo(p_photo_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_replace_expense_attachment_image(p_attachment_id uuid, p_new_path text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_request_member_claim(p_group_id uuid, p_member_id uuid, p_profile_id uuid, p_name text, p_invite_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_require_committed_object(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_require_committed_object(p_logical_bucket text, p_path text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_require_committed_object(p_logical_bucket text, p_path text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_reset_group_join_token(p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_reset_group_join_token(p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_reset_group_join_token(p_group_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_reset_group_join_token(p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_resolve_dispute(p_dispute_id uuid, p_accept boolean, p_note text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_restore_expense(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_restore_expense(p_expense_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_restore_expense(p_expense_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_restore_expense(p_expense_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_scans_used_this_month(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_scans_used_this_month(p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_scans_used_this_month(p_profile_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_scans_used_this_month(p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_category_budget(p_group_id uuid, p_category text, p_amount_minor bigint, p_currency character) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_group_budget(p_group_id uuid, p_amount_minor bigint, p_currency character) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_group_fx_rate(p_group_id uuid, p_from character, p_num bigint, p_den bigint, p_source text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_group_fx_rate(p_group_id uuid, p_from character, p_num bigint, p_den bigint, p_source text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_group_fx_rate(p_group_id uuid, p_from character, p_num bigint, p_den bigint, p_source text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_group_fx_rate(p_group_id uuid, p_from character, p_num bigint, p_den bigint, p_source text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_item_claim(p_receipt_id uuid, p_item_index integer, p_claimed boolean, p_for_member_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_member_role(p_member_id uuid, p_role text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_member_role(p_member_id uuid, p_role text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_member_role(p_member_id uuid, p_role text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_member_role(p_member_id uuid, p_role text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_set_my_trip_budget(p_group_id uuid, p_amount_minor bigint, p_currency character, p_visibility text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_shares_a_group_with(p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_shares_a_group_with(p_profile_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_shares_a_group_with(p_profile_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_shares_a_group_with(p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_sign_out_other_devices(p_device_id text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_sign_out_other_devices(p_device_id text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_sign_out_other_devices(p_device_id text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_sign_out_other_devices(p_device_id text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_stamp_capture_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_capture_seq() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_stamp_capture_seq() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_stamp_category_tag_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_category_tag_seq() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_stamp_category_tag_seq() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_stamp_ghost_merge_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_ghost_merge_seq() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_stamp_ghost_merge_seq() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_stamp_group_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_group_seq() FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION waves_stamp_personal_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_personal_seq() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_stamp_personal_seq() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_stamp_seq(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_stamp_seq() FROM PUBLIC;
+
+
+--
+-- Name: FUNCTION waves_storage_counts(p_profile_id uuid, p_group_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_counts(p_profile_id uuid, p_group_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_counts(p_profile_id uuid, p_group_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_enqueue_orphan(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_enqueue_orphan() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_enqueue_orphan() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_expire_pending(p_age interval); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_expire_pending(p_age interval) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_expire_pending(p_age interval) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_orphan_clear(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_orphan_clear(p_logical_bucket text, p_path text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_orphan_clear(p_logical_bucket text, p_path text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_orphans(p_limit integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_orphans(p_limit integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_orphans(p_limit integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_record(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_recount(p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_release(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_release(p_logical_bucket text, p_path text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_release(p_logical_bucket text, p_path text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_release_reservation(p_logical_bucket text, p_path text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_release_reservation(p_logical_bucket text, p_path text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_release_reservation(p_logical_bucket text, p_path text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_storage_reserve(p_profile_id uuid, p_group_id uuid, p_logical_bucket text, p_path text, p_bytes bigint, p_content_type text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_submit_feedback(p_message text, p_kind text, p_rating integer, p_app_version text, p_platform text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_suppress_email(p_address text, p_reason text, p_detail jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_suppress_email(p_address text, p_reason text, p_detail jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_suppress_email(p_address text, p_reason text, p_detail jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_sweep_rate_limits(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_sweep_rate_limits() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_sweep_rate_limits() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_touch_balances(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_touch_balances() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_touch_balances() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_trip_nudges(p_now timestamp with time zone); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_trip_nudges(p_now timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_trip_nudges(p_now timestamp with time zone) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_update_plan_item(p_item_id uuid, p_day date, p_starts_at time without time zone, p_title text, p_note text, p_category text, p_planned_minor bigint, p_done boolean, p_expense_id uuid, p_clear text[]) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_variant(p_key text, p_profile_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_variant(p_key text, p_profile_id uuid) TO anon;
+GRANT ALL ON FUNCTION public.waves_variant(p_key text, p_profile_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_variant(p_key text, p_profile_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_version_key(p_version text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.waves_version_key(p_version text) TO anon;
+GRANT ALL ON FUNCTION public.waves_version_key(p_version text) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_version_key(p_version text) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_voice_stt_free_seconds(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_voice_stt_free_seconds() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_voice_stt_free_seconds() TO authenticated;
+GRANT ALL ON FUNCTION public.waves_voice_stt_free_seconds() TO service_role;
+
+
+--
+-- Name: FUNCTION waves_voice_stt_record(p_profile uuid, p_seconds integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_voice_stt_record(p_profile uuid, p_seconds integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_voice_stt_record(p_profile uuid, p_seconds integer) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_voice_stt_remaining_seconds(p_profile uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_voice_stt_remaining_seconds(p_profile uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_voice_stt_remaining_seconds(p_profile uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_withdraw_dispute(p_expense_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_withdraw_dispute(p_expense_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_withdraw_dispute(p_expense_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_withdraw_dispute(p_expense_id uuid) TO service_role;
+
+
+--
+-- Name: FUNCTION waves_withdraw_member_claim(p_claim_id uuid); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.waves_withdraw_member_claim(p_claim_id uuid) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.waves_withdraw_member_claim(p_claim_id uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.waves_withdraw_member_claim(p_claim_id uuid) TO service_role;
 
 
 --
 -- Name: TABLE activity_log; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.activity_log TO anon;
 GRANT SELECT ON TABLE public.activity_log TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.activity_log TO service_role;
 
@@ -11865,7 +12534,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.activity_log TO service_role;
 -- Name: TABLE app_config; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.app_config TO anon;
 GRANT SELECT ON TABLE public.app_config TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.app_config TO service_role;
 
@@ -11874,9 +12542,9 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.app_config TO service_role;
 -- Name: TABLE app_releases; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.app_releases TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.app_releases TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.app_releases TO service_role;
+GRANT SELECT ON TABLE public.app_releases TO anon;
 
 
 --
@@ -11890,7 +12558,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.campaign_email_sends TO servic
 -- Name: TABLE campaign_impressions; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.campaign_impressions TO anon;
 GRANT SELECT ON TABLE public.campaign_impressions TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.campaign_impressions TO service_role;
 
@@ -11939,7 +12606,6 @@ GRANT SELECT ON TABLE public.device_sessions TO authenticated;
 -- Name: TABLE email_events; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.email_events TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.email_events TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.email_events TO service_role;
 
@@ -11956,7 +12622,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.email_suppressions TO service_
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_attachments TO service_role;
-GRANT SELECT ON TABLE public.expense_attachments TO anon;
 GRANT SELECT ON TABLE public.expense_attachments TO authenticated;
 
 
@@ -11965,7 +12630,6 @@ GRANT SELECT ON TABLE public.expense_attachments TO authenticated;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_comments TO service_role;
-GRANT SELECT ON TABLE public.expense_comments TO anon;
 GRANT SELECT ON TABLE public.expense_comments TO authenticated;
 
 
@@ -11973,7 +12637,6 @@ GRANT SELECT ON TABLE public.expense_comments TO authenticated;
 -- Name: TABLE expense_disputes; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.expense_disputes TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.expense_disputes TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_disputes TO service_role;
 
@@ -11983,7 +12646,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_disputes TO service_ro
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_image_events TO service_role;
-GRANT SELECT ON TABLE public.expense_image_events TO anon;
 GRANT SELECT ON TABLE public.expense_image_events TO authenticated;
 
 
@@ -11991,7 +12653,6 @@ GRANT SELECT ON TABLE public.expense_image_events TO authenticated;
 -- Name: TABLE expense_payers; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.expense_payers TO anon;
 GRANT SELECT ON TABLE public.expense_payers TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_payers TO service_role;
 
@@ -12000,7 +12661,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_payers TO service_role
 -- Name: TABLE expense_shares; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.expense_shares TO anon;
 GRANT SELECT ON TABLE public.expense_shares TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_shares TO service_role;
 
@@ -12009,7 +12669,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_shares TO service_role
 -- Name: TABLE expense_versions; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.expense_versions TO anon;
 GRANT SELECT ON TABLE public.expense_versions TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_versions TO service_role;
 
@@ -12018,7 +12677,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expense_versions TO service_ro
 -- Name: TABLE expenses; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.expenses TO anon;
 GRANT SELECT ON TABLE public.expenses TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.expenses TO service_role;
 
@@ -12036,7 +12694,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.feature_flags TO service_role;
 -- Name: TABLE feedback; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.feedback TO anon;
 GRANT SELECT ON TABLE public.feedback TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.feedback TO service_role;
 
@@ -12045,7 +12702,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.feedback TO service_role;
 -- Name: TABLE ghost_merges; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.ghost_merges TO anon;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.ghost_merges TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.ghost_merges TO service_role;
 
@@ -12054,7 +12710,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.ghost_merges TO service_role;
 -- Name: TABLE group_balances; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.group_balances TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.group_balances TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.group_balances TO service_role;
 
@@ -12063,7 +12718,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.group_balances TO service_role
 -- Name: TABLE group_members; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.group_members TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.group_members TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.group_members TO service_role;
 
@@ -12073,7 +12727,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.group_members TO service_role;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.group_passes TO service_role;
-GRANT SELECT ON TABLE public.group_passes TO anon;
 GRANT SELECT ON TABLE public.group_passes TO authenticated;
 
 
@@ -12081,7 +12734,6 @@ GRANT SELECT ON TABLE public.group_passes TO authenticated;
 -- Name: TABLE groups; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.groups TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.groups TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.groups TO service_role;
 
@@ -12090,7 +12742,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.groups TO service_role;
 -- Name: TABLE invites; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.invites TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.invites TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.invites TO service_role;
 
@@ -12099,7 +12750,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.invites TO service_role;
 -- Name: TABLE member_claims; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.member_claims TO anon;
 GRANT SELECT ON TABLE public.member_claims TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.member_claims TO service_role;
 
@@ -12108,7 +12758,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.member_claims TO service_role;
 -- Name: TABLE notifications; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.notifications TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.notifications TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.notifications TO service_role;
 
@@ -12117,16 +12766,22 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.notifications TO service_role;
 -- Name: TABLE pairwise_balances; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.pairwise_balances TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.pairwise_balances TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.pairwise_balances TO service_role;
+
+
+--
+-- Name: TABLE personal_records; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.personal_records TO authenticated;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.personal_records TO service_role;
 
 
 --
 -- Name: TABLE profiles; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.profiles TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.profiles TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.profiles TO service_role;
 
@@ -12142,7 +12797,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.promo_codes TO service_role;
 -- Name: TABLE promo_redemptions; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.promo_redemptions TO anon;
 GRANT SELECT ON TABLE public.promo_redemptions TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.promo_redemptions TO service_role;
 
@@ -12151,7 +12805,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.promo_redemptions TO service_r
 -- Name: TABLE push_tokens; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.push_tokens TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.push_tokens TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.push_tokens TO service_role;
 
@@ -12181,7 +12834,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.rate_limit_settings TO service
 -- Name: TABLE receipt_item_claims; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.receipt_item_claims TO anon;
 GRANT SELECT ON TABLE public.receipt_item_claims TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.receipt_item_claims TO service_role;
 
@@ -12190,7 +12842,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.receipt_item_claims TO service
 -- Name: TABLE receipts; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.receipts TO anon;
 GRANT SELECT ON TABLE public.receipts TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.receipts TO service_role;
 
@@ -12199,7 +12850,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.receipts TO service_role;
 -- Name: TABLE reminders; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.reminders TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.reminders TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.reminders TO service_role;
 
@@ -12209,7 +12859,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.reminders TO service_role;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.service_config TO service_role;
-GRANT SELECT ON TABLE public.service_config TO anon;
 GRANT SELECT ON TABLE public.service_config TO authenticated;
 
 
@@ -12217,7 +12866,6 @@ GRANT SELECT ON TABLE public.service_config TO authenticated;
 -- Name: TABLE settlement_allocations; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.settlement_allocations TO anon;
 GRANT SELECT ON TABLE public.settlement_allocations TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.settlement_allocations TO service_role;
 
@@ -12227,7 +12875,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.settlement_allocations TO serv
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.settlement_proofs TO service_role;
-GRANT SELECT ON TABLE public.settlement_proofs TO anon;
 GRANT SELECT ON TABLE public.settlement_proofs TO authenticated;
 
 
@@ -12235,7 +12882,6 @@ GRANT SELECT ON TABLE public.settlement_proofs TO authenticated;
 -- Name: TABLE settlements; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT ON TABLE public.settlements TO anon;
 GRANT SELECT ON TABLE public.settlements TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.settlements TO service_role;
 
@@ -12266,7 +12912,6 @@ GRANT SELECT ON TABLE public.subscriptions TO authenticated;
 -- Name: TABLE sync_mutations; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.sync_mutations TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.sync_mutations TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.sync_mutations TO service_role;
 
@@ -12276,7 +12921,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.sync_mutations TO service_role
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.trip_member_budgets TO service_role;
-GRANT SELECT ON TABLE public.trip_member_budgets TO anon;
 GRANT SELECT ON TABLE public.trip_member_budgets TO authenticated;
 
 
@@ -12285,7 +12929,6 @@ GRANT SELECT ON TABLE public.trip_member_budgets TO authenticated;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.trip_photos TO service_role;
-GRANT SELECT ON TABLE public.trip_photos TO anon;
 GRANT SELECT ON TABLE public.trip_photos TO authenticated;
 
 
@@ -12294,7 +12937,6 @@ GRANT SELECT ON TABLE public.trip_photos TO authenticated;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.trip_plan_items TO service_role;
-GRANT SELECT ON TABLE public.trip_plan_items TO anon;
 GRANT SELECT ON TABLE public.trip_plan_items TO authenticated;
 
 
@@ -12302,9 +12944,16 @@ GRANT SELECT ON TABLE public.trip_plan_items TO authenticated;
 -- Name: TABLE usage_events; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT SELECT,INSERT,UPDATE ON TABLE public.usage_events TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.usage_events TO authenticated;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.usage_events TO service_role;
+
+
+--
+-- Name: TABLE voice_attempts; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.voice_attempts TO service_role;
+GRANT INSERT ON TABLE public.voice_attempts TO authenticated;
 
 
 --
@@ -12319,7 +12968,6 @@ GRANT SELECT ON TABLE public.voice_stt_usage TO authenticated;
 -- Name: DEFAULT PRIVILEGES FOR FUNCTIONS; Type: DEFAULT ACL; Schema: public; Owner: -
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS TO authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS TO service_role;
 
@@ -12328,7 +12976,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIO
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: -
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,DELETE,UPDATE ON TABLES TO anon;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,DELETE,UPDATE ON TABLES TO authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,DELETE,UPDATE ON TABLES TO service_role;
 
@@ -12339,10 +12986,33 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,
 
 
 
--- ─────────────────────────────────── seeded reference data ──
--- Config / reference rows that persisted after every migration ran (app_config
--- knobs, feature flags, rate-limit rules, service + release config). A
--- schema-only dump drops these, and both the tests and the app read them.
+-- ────────────────────────────────────────────── reference data ──
+-- Rows the app and the tests read as configuration rather than as anybody's
+-- data: the config knobs, the release policy, the feature flags and the rate
+-- limits. A schema-only dump leaves them out.
+--
+-- PostgreSQL database dump
+--
+
+
+-- Dumped from database version 17.10
+-- Dumped by pg_dump version 17.10
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Data for Name: app_config; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('receipt_cap_per_group', 3, 'Free receipts a group may hold before it must upgrade or add storage.', '2026-08-26 13:27:13.686044+00');
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('free_storage_cap_bytes', 10485760, 'Total image bytes a free account may store in R2 before it must upgrade.', '2026-08-26 13:27:13.882808+00');
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('attachment_cap_per_expense', 2, 'Free gallery receipts an expense may hold before the group must upgrade.', '2026-08-26 13:27:14.171781+00');
@@ -12351,11 +13021,29 @@ INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('voi
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('voice_llm_schema_version', 1, 'Version of the structured voice output contract the server emits.', '2026-08-26 13:27:14.193543+00');
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('device_cap_free', 2, 'Devices a free account may sign in on at once before the soft over-limit gate appears.', '2026-08-26 13:27:14.222797+00');
 INSERT INTO public.app_config (key, value, description, updated_at) VALUES ('device_cap_plus', 3, 'Devices a paid (Plus) account may sign in on at once before the soft over-limit gate appears.', '2026-08-26 13:27:14.222797+00');
-INSERT INTO public.app_releases (platform, latest_version, minimum_version, store_url, message, updated_at) VALUES ('android', '0.1.0', '0.1.0', 'https://play.google.com/store/apps/details?id=app.baaki.mobile', NULL, '2026-08-26 13:27:12.474675+00');
-INSERT INTO public.app_releases (platform, latest_version, minimum_version, store_url, message, updated_at) VALUES ('ios', '0.1.0', '0.1.0', 'https://apps.apple.com/app/baaki/id0000000000', NULL, '2026-08-26 13:27:12.474675+00');
+
+
+--
+-- Data for Name: app_releases; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.app_releases (platform, latest_version, minimum_version, store_url, message, updated_at) VALUES ('android', '0.1.0', '0.1.0', 'https://play.google.com/store/apps/details?id=app.waves.mobile', NULL, '2026-08-26 13:27:12.474675+00');
+INSERT INTO public.app_releases (platform, latest_version, minimum_version, store_url, message, updated_at) VALUES ('ios', '0.1.0', '0.1.0', 'https://apps.apple.com/app/waves/id0000000000', NULL, '2026-08-26 13:27:12.474675+00');
+
+
+--
+-- Data for Name: feature_flags; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 INSERT INTO public.feature_flags (key, description, enabled, rollout_percent, variants, created_at, updated_at) VALUES ('sms_inbox_read', 'Android only: read bank SMS from the inbox (READ_SMS) instead of pasting. Ships dormant; switch on to roll the native reader out to a cohort.', false, 0, '{control,treatment}', '2026-08-26 13:27:13.304782+00', '2026-08-26 13:27:13.304782+00');
 INSERT INTO public.feature_flags (key, description, enabled, rollout_percent, variants, created_at, updated_at) VALUES ('device_cap_free_ab', 'Experiment on the free device cap. Arms are the number of devices; enrolled accounts get their arm instead of the device_cap_free knob.', false, 0, '{2,3}', '2026-08-26 13:27:14.224623+00', '2026-08-26 13:27:14.224623+00');
 INSERT INTO public.feature_flags (key, description, enabled, rollout_percent, variants, created_at, updated_at) VALUES ('device_cap_plus_ab', 'Experiment on the paid device cap. Arms are the number of devices; enrolled accounts get their arm instead of the device_cap_plus knob.', false, 0, '{3,5}', '2026-08-26 13:27:14.224623+00', '2026-08-26 13:27:14.224623+00');
+
+
+--
+-- Data for Name: rate_limit_rules; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('sync', true, 120, 60, '2026-08-26 13:27:13.210493+00');
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('expense-write', true, 60, 60, '2026-08-26 13:27:13.210493+00');
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('export-data', true, 10, 3600, '2026-08-26 13:27:13.210493+00');
@@ -12363,8 +13051,363 @@ INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds,
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('invite-mint', true, 30, 3600, '2026-08-26 13:27:13.210493+00');
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('invite-accept', true, 30, 3600, '2026-08-26 13:27:13.210493+00');
 INSERT INTO public.rate_limit_rules (bucket, enabled, max_calls, window_seconds, updated_at) VALUES ('receipt-parse', true, 10, 60, '2026-08-26 13:27:13.210493+00');
+
+
+--
+-- Data for Name: rate_limit_settings; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 INSERT INTO public.rate_limit_settings (id, enabled, updated_at) VALUES (true, true, '2026-08-26 13:27:13.204269+00');
+
+
+--
+-- Data for Name: service_config; Type: TABLE DATA; Schema: public; Owner: -
+--
+
 INSERT INTO public.service_config (key, value, description, updated_at) VALUES ('voice_stt_provider', 'deepgram', 'Cloud STT provider adapter: deepgram | gemini.', '2026-08-26 13:27:14.193543+00');
 INSERT INTO public.service_config (key, value, description, updated_at) VALUES ('voice_stt_model', '', 'Provider model id for STT (empty = provider default).', '2026-08-26 13:27:14.193543+00');
 INSERT INTO public.service_config (key, value, description, updated_at) VALUES ('voice_llm_provider', '', 'Managed LLM provider for voice structuring.', '2026-08-26 13:27:14.193543+00');
 INSERT INTO public.service_config (key, value, description, updated_at) VALUES ('voice_llm_model', '', 'Managed LLM model id for voice structuring.', '2026-08-26 13:27:14.193543+00');
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+-- ──────────────────────────────────────────────────── object storage ──
+-- Buckets and their row policies. This is the one part of the schema that does
+-- not live in `public`: `storage` belongs to Supabase, and a plain Postgres —
+-- CI, a laptop — has no such schema at all. Every block below is guarded on it
+-- existing and says so and skips when it does not, which is why a schema-only
+-- dump of a local database could never carry them.
+--
+-- Order matters. The photo-gate rewrite of the group-photo write policies comes
+-- after the policies it replaces, and the signed-out hardening comes last,
+-- because it narrows every policy above it to `authenticated`.
+
+-- from 20260805120000_nameless_groups_and_photos
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the photo bucket';
+    RETURN;
+  END IF;
+
+  -- Private, not public. A group photo is a picture of somebody's friends on
+  -- holiday; it is read through a signed URL by people in the group and by
+  -- nobody else (ADR-013). 5 MB and three image types is enough for a cover
+  -- and keeps the free tier's storage honest (ADR-011).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('group-photos', 'group-photos', false, 5242880,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "group photos are readable by members" ON storage.objects;
+    CREATE POLICY "group photos are readable by members" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are writable by members" ON storage.objects;
+    CREATE POLICY "group photos are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are replaceable by members" ON storage.objects;
+    CREATE POLICY "group photos are replaceable by members" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are removable by members" ON storage.objects;
+    CREATE POLICY "group photos are removable by members" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260805140000_receipt_scanning
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the receipts bucket';
+    RETURN;
+  END IF;
+
+  -- Private. A receipt is a record of what somebody ate and where they were;
+  -- it is readable by the group it belongs to and nobody else (ADR-013).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('receipts', 'receipts', false, 10485760,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "receipts are readable by members" ON storage.objects;
+    CREATE POLICY "receipts are readable by members" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "receipts are writable by members" ON storage.objects;
+    CREATE POLICY "receipts are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "receipts are removable by members" ON storage.objects;
+    CREATE POLICY "receipts are removable by members" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'receipts'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260806210000_profile_avatars
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the avatar bucket';
+    RETURN;
+  END IF;
+
+  -- 2 MB, not the 5 MB a group cover gets. An avatar is displayed at 78pt at
+  -- its largest; the client downscales to 512px before it ever gets here, and
+  -- the ceiling exists to catch the case where it did not (ADR-011).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('avatars', 'avatars', false, 2097152,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "avatars are readable by people you split with" ON storage.objects;
+    CREATE POLICY "avatars are readable by people you split with" ON storage.objects
+      FOR SELECT TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_shares_a_group_with(public.waves_group_from_storage_path(name))
+      );
+
+    -- Writes are self-only. Reading a groupmate's face is ordinary; replacing
+    -- it is impersonation.
+    DROP POLICY IF EXISTS "avatars are writable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are writable by their owner" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "avatars are replaceable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are replaceable by their owner" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "avatars are removable by their owner" ON storage.objects;
+    CREATE POLICY "avatars are removable by their owner" ON storage.objects
+      FOR DELETE TO authenticated, anon
+      USING (
+        bucket_id = 'avatars'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260814140000_captures_inbox
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the captures bucket';
+    RETURN;
+  END IF;
+
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('captures', 'captures', false, 5242880,
+          ARRAY['image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO UPDATE
+    SET public = false,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "captures are readable by their owner" ON storage.objects;
+    CREATE POLICY "captures are readable by their owner" ON storage.objects
+      FOR SELECT TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are writable by their owner" ON storage.objects;
+    CREATE POLICY "captures are writable by their owner" ON storage.objects
+      FOR INSERT TO authenticated
+      WITH CHECK (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are replaceable by their owner" ON storage.objects;
+    CREATE POLICY "captures are replaceable by their owner" ON storage.objects
+      FOR UPDATE TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+
+    DROP POLICY IF EXISTS "captures are removable by their owner" ON storage.objects;
+    CREATE POLICY "captures are removable by their owner" ON storage.objects
+      FOR DELETE TO authenticated
+      USING (
+        bucket_id = 'captures'
+        AND public.waves_group_from_storage_path(name) = public.waves_current_profile_id()
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260815180000_group_photo_gate_enforcement
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping the photo policies';
+    RETURN;
+  END IF;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "group photos are writable by members" ON storage.objects;
+    CREATE POLICY "group photos are writable by members" ON storage.objects
+      FOR INSERT TO authenticated, anon
+      WITH CHECK (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+        AND public.waves_can_upload_group_photo(public.waves_group_from_storage_path(name))
+      );
+
+    DROP POLICY IF EXISTS "group photos are replaceable by members" ON storage.objects;
+    CREATE POLICY "group photos are replaceable by members" ON storage.objects
+      FOR UPDATE TO authenticated, anon
+      USING (
+        bucket_id = 'group-photos'
+        AND public.is_group_member(public.waves_group_from_storage_path(name))
+        AND public.waves_can_upload_group_photo(public.waves_group_from_storage_path(name))
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260818150000_personal_receipt_storage
+DO $$
+BEGIN
+  IF to_regclass('storage.buckets') IS NULL THEN
+    RAISE NOTICE 'storage schema absent (plain Postgres): skipping personal receipt policies';
+    RETURN;
+  END IF;
+
+  EXECUTE $policy$
+    DROP POLICY IF EXISTS "personal receipts are readable by owner" ON storage.objects;
+    CREATE POLICY "personal receipts are readable by owner" ON storage.objects
+      FOR SELECT TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are writable by paid owner" ON storage.objects;
+    CREATE POLICY "personal receipts are writable by paid owner" ON storage.objects
+      FOR INSERT TO authenticated
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+        AND public.waves_can_upload_group_photo(NULL)
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are replaceable by paid owner" ON storage.objects;
+    CREATE POLICY "personal receipts are replaceable by paid owner" ON storage.objects
+      FOR UPDATE TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      )
+      WITH CHECK (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+        AND public.waves_can_upload_group_photo(NULL)
+      );
+
+    DROP POLICY IF EXISTS "personal receipts are removable by owner" ON storage.objects;
+    CREATE POLICY "personal receipts are removable by owner" ON storage.objects
+      FOR DELETE TO authenticated
+      USING (
+        bucket_id = 'receipts'
+        AND (storage.foldername(name))[1] = 'personal'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      );
+  $policy$;
+END
+$$;
+
+-- from 20260831120000_anon_surface_hardening
+DO $$
+DECLARE
+  v_policy text;
+  v_policies text[] := ARRAY[
+    'captures are readable by their owner',
+    'captures are removable by their owner',
+    'captures are replaceable by their owner',
+    'personal receipts are readable by owner',
+    'personal receipts are removable by owner',
+    'personal receipts are replaceable by paid owner'
+  ];
+BEGIN
+  FOREACH v_policy IN ARRAY v_policies LOOP
+    BEGIN
+      -- Only touch what is actually there: a policy renamed or dropped since
+      -- the linter ran is not an error worth stopping for.
+      IF EXISTS (
+        SELECT 1 FROM pg_policies
+         WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = v_policy
+      ) THEN
+        EXECUTE format('ALTER POLICY %I ON storage.objects TO authenticated', v_policy);
+      END IF;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        RAISE NOTICE 'storage.objects policy %: not owned by this role, left as it is', v_policy;
+    END;
+  END LOOP;
+END
+$$;

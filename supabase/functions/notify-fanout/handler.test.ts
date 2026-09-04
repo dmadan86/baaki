@@ -8,7 +8,7 @@
  *   • the machine-to-machine gate: only a caller holding the service-role key
  *     gets in; everyone else is a 401;
  *   • claim → send → finish accounting: delivered / failed / revoked land in the
- *     right buckets and are handed to `baaki_finish_push`;
+ *     right buckets and are handed to `waves_finish_push`;
  *   • resilience: Expo being unreachable fails the chunk rather than throwing,
  *     and a credential error is surfaced as `misconfigured`.
  */
@@ -124,7 +124,7 @@ describe('claim → send → finish', () => {
   it('with nobody to buzz, still runs the email half and reports zero', async () => {
     const { deps, dispatchEmail } = harness({
       serviceKey: SERVICE_KEY,
-      rpc: { baaki_claim_push_notifications: { data: [] } },
+      rpc: { waves_claim_push_notifications: { data: [] } },
     });
     const response = await handlePushFanout(authorizedRequest(), deps);
     expect(response.status).toBe(200);
@@ -137,7 +137,7 @@ describe('claim → send → finish', () => {
     const { deps, service } = harness({
       serviceKey: SERVICE_KEY,
       rpc: {
-        baaki_claim_push_notifications: { data: [claimRow('n-1', ['ExponentPushToken[a]'])] },
+        waves_claim_push_notifications: { data: [claimRow('n-1', ['ExponentPushToken[a]'])] },
       },
       fetchImpl,
     });
@@ -145,7 +145,7 @@ describe('claim → send → finish', () => {
     const body = await response.json();
     expect(body).toMatchObject({ claimed: 1, sent: 1, failed: 0, revoked: 0 });
     expect(service.rpc).toHaveBeenCalledWith(
-      'baaki_finish_push',
+      'waves_finish_push',
       expect.objectContaining({ p_delivered: ['n-1'], p_failed: [], p_revoke: [] }),
     );
   });
@@ -159,14 +159,14 @@ describe('claim → send → finish', () => {
     const { deps, service } = harness({
       serviceKey: SERVICE_KEY,
       rpc: {
-        baaki_claim_push_notifications: { data: [claimRow('n-2', ['ExponentPushToken[dead]'])] },
+        waves_claim_push_notifications: { data: [claimRow('n-2', ['ExponentPushToken[dead]'])] },
       },
       fetchImpl,
     });
     const response = await handlePushFanout(authorizedRequest(), deps);
     expect(await response.json()).toMatchObject({ sent: 0, failed: 1, revoked: 1 });
     expect(service.rpc).toHaveBeenCalledWith(
-      'baaki_finish_push',
+      'waves_finish_push',
       expect.objectContaining({ p_revoke: ['ExponentPushToken[dead]'], p_failed: ['n-2'] }),
     );
   });
@@ -176,7 +176,7 @@ describe('claim → send → finish', () => {
     const { deps, service } = harness({
       serviceKey: SERVICE_KEY,
       rpc: {
-        baaki_claim_push_notifications: { data: [claimRow('n-3', ['ExponentPushToken[a]'])] },
+        waves_claim_push_notifications: { data: [claimRow('n-3', ['ExponentPushToken[a]'])] },
       },
       fetchImpl,
     });
@@ -184,7 +184,7 @@ describe('claim → send → finish', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ sent: 0, failed: 1 });
     // The rows are still closed out so a redelivery does not double-send.
-    expect(service.rpc).toHaveBeenCalledWith('baaki_finish_push', expect.any(Object));
+    expect(service.rpc).toHaveBeenCalledWith('waves_finish_push', expect.any(Object));
   });
 
   it('flags a credential problem as misconfigured', async () => {
@@ -196,7 +196,7 @@ describe('claim → send → finish', () => {
     const { deps } = harness({
       serviceKey: SERVICE_KEY,
       rpc: {
-        baaki_claim_push_notifications: { data: [claimRow('n-4', ['ExponentPushToken[a]'])] },
+        waves_claim_push_notifications: { data: [claimRow('n-4', ['ExponentPushToken[a]'])] },
       },
       fetchImpl,
     });
@@ -211,7 +211,7 @@ describe('claim / finish failures', () => {
   it('500s CLAIM_FAILED when the claim RPC errors', async () => {
     const { deps } = harness({
       serviceKey: SERVICE_KEY,
-      rpc: { baaki_claim_push_notifications: { data: null, error: { message: 'boom' } } },
+      rpc: { waves_claim_push_notifications: { data: null, error: { message: 'boom' } } },
     });
     const response = await handlePushFanout(authorizedRequest(), deps);
     expect(response.status).toBe(500);
@@ -223,8 +223,8 @@ describe('claim / finish failures', () => {
     const { deps } = harness({
       serviceKey: SERVICE_KEY,
       rpc: {
-        baaki_claim_push_notifications: { data: [claimRow('n-5', ['ExponentPushToken[a]'])] },
-        baaki_finish_push: { data: null, error: { message: 'finish boom' } },
+        waves_claim_push_notifications: { data: [claimRow('n-5', ['ExponentPushToken[a]'])] },
+        waves_finish_push: { data: null, error: { message: 'finish boom' } },
       },
       fetchImpl,
     });

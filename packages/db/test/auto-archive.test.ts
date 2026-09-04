@@ -45,11 +45,11 @@ const archivedAtOf = async (groupId: string): Promise<Date | null> => {
 };
 
 const runJob = async (): Promise<number> => {
-  const { rows } = await client.query(`SELECT public.baaki_auto_archive_stale_groups() AS n`);
+  const { rows } = await client.query(`SELECT public.waves_auto_archive_stale_groups() AS n`);
   return Number(rows[0]?.n ?? 0);
 };
 
-describe('baaki_auto_archive_stale_groups', () => {
+describe('waves_auto_archive_stale_groups', () => {
   it('archives a group that has sat untouched past the window', async () => {
     const { groupId } = await seedGroup(client, { memberCount: 2 });
     await ageGroup(groupId, '2 years');

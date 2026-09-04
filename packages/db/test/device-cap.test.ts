@@ -2,7 +2,7 @@
  * The device cap: an admin knob, and an A/B experiment over the number.
  *
  * The paid/free device limits used to be two integer literals inside
- * baaki_register_device. This pins the behaviour that replaced them:
+ * waves_register_device. This pins the behaviour that replaced them:
  *
  *   - a free account resolves to the `device_cap_free` knob, a paid one to
  *     `device_cap_plus` — both editable from the console with no deploy;
@@ -82,7 +82,7 @@ async function register(
     JSON.stringify({ sub: profileId, role: 'authenticated' }),
   ]);
   const { rows } = await client.query(
-    `SELECT public.baaki_register_device($1, 'A phone', $2, null) AS r`,
+    `SELECT public.waves_register_device($1, 'A phone', $2, null) AS r`,
     [deviceId, platform],
   );
   await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
@@ -91,7 +91,7 @@ async function register(
 
 /** The arm a profile is on for a flag, or null — the same source the app reads. */
 async function armFor(flagKey: string, profileId: string): Promise<string | null> {
-  const { rows } = await client.query(`SELECT public.baaki_variant($1, $2) AS v`, [
+  const { rows } = await client.query(`SELECT public.waves_variant($1, $2) AS v`, [
     flagKey,
     profileId,
   ]);

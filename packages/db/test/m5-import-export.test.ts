@@ -3,7 +3,7 @@
  * the database rather than in the abstract.
  *
  * A group is built, settled against, exported the way `export-data` exports
- * it, and read back into a brand-new group by `baaki_import_ledger`. The
+ * it, and read back into a brand-new group by `waves_import_ledger`. The
  * assertion is the only one that matters: every person's balance in the new
  * group equals their balance in the old one, to the paisa.
  */
@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 
-import { parseBaakiExport } from '@waves/core';
+import { parseWavesExport } from '@waves/core';
 
 import { addEqualSplitExpense, big, connect, readTruth, seedGroup } from './helpers.js';
 
@@ -44,7 +44,7 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 async function balancesByName(groupId: string): Promise<Record<string, bigint>> {
   const result = await client.query(
     `SELECT COALESCE(p.display_name, gm.ghost_name) AS name, b.currency, b.balance
-       FROM baaki_group_balances_truth($1) b
+       FROM waves_group_balances_truth($1) b
        JOIN group_members gm ON gm.id = b.member_id
        LEFT JOIN profiles p ON p.id = gm.profile_id`,
     [groupId],
@@ -105,7 +105,7 @@ async function exportGroup(groupId: string): Promise<string> {
   });
 }
 
-describe('a Baaki export, imported back', () => {
+describe('a Waves export, imported back', () => {
   it('reproduces every balance exactly, in a group that never existed before', async () => {
     const seeded = await seedGroup(client, { memberCount: 3, ghostCount: 1 });
     const [asha, ravi, priya, ghost] = seeded.memberIds as [string, string, string, string];
@@ -153,7 +153,7 @@ describe('a Baaki export, imported back', () => {
     const before = await balancesByName(seeded.groupId);
     expect(Object.keys(before).length).toBeGreaterThan(0);
 
-    const parsed = parseBaakiExport(await exportGroup(seeded.groupId));
+    const parsed = parseWavesExport(await exportGroup(seeded.groupId));
     expect(parsed.problems).toEqual([]);
     const exported = parsed.groups[0]!;
     expect(exported.expenses).toHaveLength(3);
@@ -168,12 +168,12 @@ describe('a Baaki export, imported back', () => {
 
     const newGroupId = await asUser(importer, async () => {
       const created = await client.query(
-        `SELECT baaki_create_group('Imported trip', 'trip', 'INR', NULL, true) AS id`,
+        `SELECT waves_create_group('Imported trip', 'trip', 'INR', NULL, true) AS id`,
       );
       const groupId = String(created.rows[0]!.id);
 
       await client.query(
-        `SELECT baaki_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, 'baaki')`,
+        `SELECT waves_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, 'waves')`,
         [
           groupId,
           JSON.stringify(exported.people.map((name) => ({ name, memberId: null }))),
@@ -236,7 +236,7 @@ describe('a Baaki export, imported back', () => {
       [seeded.groupId, ravi, asha],
     );
 
-    const exported = parseBaakiExport(await exportGroup(seeded.groupId)).groups[0]!;
+    const exported = parseWavesExport(await exportGroup(seeded.groupId)).groups[0]!;
     const importer = randomUUID();
     await client.query(`INSERT INTO profiles (id, display_name) VALUES ($1, 'Twice')`, [importer]);
 
@@ -247,7 +247,7 @@ describe('a Baaki export, imported back', () => {
 
     const run = async (groupId: string): Promise<void> => {
       await client.query(
-        `SELECT baaki_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, 'baaki')`,
+        `SELECT waves_import_ledger($1, $2::jsonb, $3::jsonb, $4::jsonb, 'waves')`,
         [
           groupId,
           JSON.stringify(exported.people.map((name) => ({ name, memberId: null }))),
@@ -281,7 +281,7 @@ describe('a Baaki export, imported back', () => {
 
     const newGroupId = await asUser(importer, async () => {
       const created = await client.query(
-        `SELECT baaki_create_group('Twice over', 'trip', 'INR', NULL, true) AS id`,
+        `SELECT waves_create_group('Twice over', 'trip', 'INR', NULL, true) AS id`,
       );
       const groupId = String(created.rows[0]!.id);
       await run(groupId);
@@ -310,10 +310,10 @@ describe('a Baaki export, imported back', () => {
     await expect(
       asUser(importer, async () => {
         const created = await client.query(
-          `SELECT baaki_create_group('Broken', 'trip', 'INR', NULL, true) AS id`,
+          `SELECT waves_create_group('Broken', 'trip', 'INR', NULL, true) AS id`,
         );
         await client.query(
-          `SELECT baaki_import_ledger($1, $2::jsonb, $3::jsonb, '[]'::jsonb, 'baaki')`,
+          `SELECT waves_import_ledger($1, $2::jsonb, $3::jsonb, '[]'::jsonb, 'waves')`,
           [
             String(created.rows[0]!.id),
             JSON.stringify([{ name: 'Asha', memberId: null }]),
@@ -343,11 +343,11 @@ describe('a Baaki export, imported back', () => {
 
     const result = await asUser(importer, async () => {
       const created = await client.query(
-        `SELECT baaki_create_group('From Splitwise', 'trip', 'INR', NULL, true) AS id`,
+        `SELECT waves_create_group('From Splitwise', 'trip', 'INR', NULL, true) AS id`,
       );
       const groupId = String(created.rows[0]!.id);
       const imported = await client.query(
-        `SELECT baaki_import_splitwise($1, $2::jsonb, $3::jsonb) AS result`,
+        `SELECT waves_import_splitwise($1, $2::jsonb, $3::jsonb) AS result`,
         [
           groupId,
           JSON.stringify([
@@ -404,7 +404,7 @@ describe('imported settlements and consent', () => {
   ): Promise<{ settlementsPending: number; settlements: number }> {
     return asUser(importerProfile, async () => {
       const result = await client.query(
-        `SELECT baaki_import_ledger($1, $2::jsonb, '[]'::jsonb, $3::jsonb, 'baaki') AS r`,
+        `SELECT waves_import_ledger($1, $2::jsonb, '[]'::jsonb, $3::jsonb, 'waves') AS r`,
         [
           groupId,
           JSON.stringify(people),

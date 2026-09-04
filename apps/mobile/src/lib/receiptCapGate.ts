@@ -2,7 +2,7 @@
  * The rule the receipt-scan control obeys: a group may hold a set number of
  * receipts for free (an admin knob), and past that the scan is a paid feature —
  * unlock it by upgrading or by adding your own storage. The server answers "may
- * this group take one more receipt" over the `baaki_can_add_receipt` RPC; this
+ * this group take one more receipt" over the `waves_can_add_receipt` RPC; this
  * module turns that answer, and its loading state, into the small decisions the
  * two scan screens (add-expense, itemize) need, kept pure so they can be tested
  * without a renderer or the network.

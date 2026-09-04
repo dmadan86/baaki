@@ -83,7 +83,7 @@ describe('settlement allocation (ADR-007: partial and per-expense are first-clas
   });
 });
 
-describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
+describe('UPI intent (ADR-007: Waves never moves the money)', () => {
   it('builds a standard intent URI', () => {
     const uri = buildUpiIntentUri(
       {
@@ -91,7 +91,7 @@ describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
         payeeName: 'Priya',
         amount: 42000n,
         currency: 'INR',
-        note: 'Baaki Goa trip',
+        note: 'Waves Goa trip',
       },
       formatMajor,
     );
@@ -99,7 +99,7 @@ describe('UPI intent (ADR-007: Baaki never moves the money)', () => {
     expect(uri).toContain('pa=priya%40okaxis');
     expect(uri).toContain('am=420.00');
     expect(uri).toContain('cu=INR');
-    expect(uri).toContain('tn=Baaki');
+    expect(uri).toContain('tn=Waves');
   });
 
   it('validates VPAs', () => {

@@ -2,7 +2,7 @@
  * The expense-write serialization contract (@waves/core).
  *
  * `buildApplyExpenseArgs` is the single serializer both the direct
- * `expense-write` edge and the `/sync` edge use to call `baaki_apply_expense`,
+ * `expense-write` edge and the `/sync` edge use to call `waves_apply_expense`,
  * and `buildExpenseWriteBody` is the single body builder both the mobile and web
  * direct clients use. These tests pin what a write consists of, so the parity
  * hole this module closed — `expense-write` silently dropping `p_category_meta`
@@ -21,7 +21,7 @@ import {
   type SplitParams,
 } from '../src/index';
 
-/** Every named argument `baaki_apply_expense` accepts except `p_source`, which
+/** Every named argument `waves_apply_expense` accepts except `p_source`, which
  *  every caller leaves to its default. This is the contract with the DB; if the
  *  RPC gains a parameter, this list and the builder must both learn it. */
 const APPLY_EXPENSE_KEYS = [

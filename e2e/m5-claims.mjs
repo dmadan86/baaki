@@ -6,7 +6,7 @@
  * `m5-receipts.mjs` claimed this from the moment the milestone was called done,
  * and never tested it. It inserted five rows into `receipt_item_claims` through
  * the **service role**, which bypasses RLS, bypasses every grant, and bypasses
- * `baaki_set_item_claim` entirely — the one piece of code that decides whose
+ * `waves_set_item_claim` entirely — the one piece of code that decides whose
  * claim a claim is. Postgres accepting five concurrent inserts from a superuser
  * is not in question. What was never checked is the thing the criterion is
  * about: four people, on four phones, each signed in as themselves. That block
@@ -16,7 +16,7 @@
  * The difference is not academic. `receipt_item_claims` has INSERT, UPDATE and
  * DELETE revoked from `anon` and `authenticated`, so the door that test used is
  * one no real client can open. Everything a phone can actually do goes through
- * `baaki_set_item_claim`, and that function has authorization logic —
+ * `waves_set_item_claim`, and that function has authorization logic —
  * membership, ghost-versus-real, whose session this is — none of which the
  * service role ever reaches.
  *
@@ -85,7 +85,7 @@ const chitra = await person('Chitra');
 const dev = await person('Dev');
 const everyone = [asha, bharath, chitra, dev];
 
-const { data: groupId, error: groupError } = await asha.session.rpc('baaki_create_group', {
+const { data: groupId, error: groupError } = await asha.session.rpc('waves_create_group', {
   p_name: 'Anjappar',
   p_type: 'other',
   p_currency: 'INR',
@@ -185,7 +185,7 @@ check('a receipt is waiting to be split', !receiptError, receiptError?.message ?
 
 // Publishing is a real call from a real session: it is what freezes the lines
 // so that a claim against index 2 keeps meaning the Chicken 65.
-const { error: publishError } = await asha.session.rpc('baaki_publish_receipt_items', {
+const { error: publishError } = await asha.session.rpc('waves_publish_receipt_items', {
   p_receipt_id: receiptId,
   p_items: items,
 });
@@ -208,7 +208,7 @@ const claims = [
 const results = await Promise.all(
   claims.map(({ who, itemIndex }) =>
     who.session
-      .rpc('baaki_set_item_claim', {
+      .rpc('waves_set_item_claim', {
         p_receipt_id: receiptId,
         p_item_index: itemIndex,
         p_claimed: true,
@@ -254,12 +254,12 @@ check(
 // ── the same line, twice, at the same instant ──────────────────────────────
 //
 // The convergence property. One person's phone retrying — or two taps racing —
-// must leave one row, not two, and must not error. `baaki_set_item_claim` does
+// must leave one row, not two, and must not error. `waves_set_item_claim` does
 // it in a single INSERT ... ON CONFLICT so the race is settled by the database
 // rather than by whichever client read first.
 const racing = await Promise.all(
   Array.from({ length: 4 }, () =>
-    chitra.session.rpc('baaki_set_item_claim', {
+    chitra.session.rpc('waves_set_item_claim', {
       p_receipt_id: receiptId,
       p_item_index: 1,
       p_claimed: true,
@@ -285,7 +285,7 @@ check(
 );
 
 // ── what a phone must not be able to do ────────────────────────────────────
-const { error: forOther } = await bharath.session.rpc('baaki_set_item_claim', {
+const { error: forOther } = await bharath.session.rpc('waves_set_item_claim', {
   p_receipt_id: receiptId,
   p_item_index: 3,
   p_claimed: true,
@@ -298,7 +298,7 @@ check(
 );
 
 const stranger = await person('Nobody');
-const { error: outsiderClaim } = await stranger.session.rpc('baaki_set_item_claim', {
+const { error: outsiderClaim } = await stranger.session.rpc('waves_set_item_claim', {
   p_receipt_id: receiptId,
   p_item_index: 0,
   p_claimed: true,
@@ -321,7 +321,7 @@ check(
 );
 
 // ── the lines cannot move under a claim ────────────────────────────────────
-const { error: republish } = await asha.session.rpc('baaki_publish_receipt_items', {
+const { error: republish } = await asha.session.rpc('waves_publish_receipt_items', {
   p_receipt_id: receiptId,
   p_items: items.slice(0, 3),
 });

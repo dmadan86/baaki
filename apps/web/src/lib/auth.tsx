@@ -24,7 +24,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 
 interface AuthValue {
   session: Session | null;
@@ -48,12 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // `onAuthChange` is authoritative once it has spoken. The initial read may
     // resolve after it and would otherwise reinstate a stale session.
     let fromSubscription = false;
-    void baaki.session().then((next) => {
+    void waves.session().then((next) => {
       if (!active || fromSubscription) return;
       setSession(next);
       setLoading(false);
     });
-    const unsubscribe = baaki.onAuthChange((next) => {
+    const unsubscribe = waves.onAuthChange((next) => {
       fromSubscription = true;
       setSession(next);
       setLoading(false);
@@ -66,25 +66,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     // Back to the callback route with the code in the URL; it finishes there.
-    await baaki.signInWithGoogle(`${window.location.origin}/auth/callback`);
+    await waves.signInWithGoogle(`${window.location.origin}/auth/callback`);
   }, []);
 
   const signInWithEmail = useCallback(async (email: string) => {
     // The mailed link lands on the same callback route as Google does.
-    await baaki.signInWithEmail(email, `${window.location.origin}/auth/callback`);
+    await waves.signInWithEmail(email, `${window.location.origin}/auth/callback`);
   }, []);
 
   const withPassword = useCallback(
     async (email: string, password: string, intent: 'sign_in' | 'sign_up') => {
       // The one correct call (sign up, sign in, or upgrade-in-place) is chosen
       // by @waves/core inside the client — never guessed here.
-      await baaki.withPassword(email, password, intent);
+      await waves.withPassword(email, password, intent);
     },
     [],
   );
 
   const signOut = useCallback(async () => {
-    await baaki.signOut();
+    await waves.signOut();
   }, []);
 
   const value = useMemo<AuthValue>(

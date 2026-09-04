@@ -49,7 +49,7 @@ async function describeError(error) {
 const client = createClient(URL, ANON, { auth: { persistSession: false } });
 await client.auth.signInAnonymously();
 
-const { data: groupId } = await client.rpc('baaki_create_group', {
+const { data: groupId } = await client.rpc('waves_create_group', {
   p_name: 'Split wire',
   p_type: 'trip',
   p_currency: 'INR',
@@ -57,7 +57,7 @@ const { data: groupId } = await client.rpc('baaki_create_group', {
   p_simplify: true,
 });
 
-const { data: ghostId } = await client.rpc('baaki_add_ghost_member', {
+const { data: ghostId } = await client.rpc('waves_add_ghost_member', {
   p_group_id: groupId,
   p_name: 'Ravi',
   p_member_id: null,

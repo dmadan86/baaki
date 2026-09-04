@@ -283,7 +283,7 @@ serveWithCors(async (request) => {
           clientMutationId: mutation.clientMutationId ?? '',
           status: 'rejected',
           code: 'GUEST_TRIAL_EXPIRED',
-          message: 'Your guest trial has ended — sign up to keep adding to Baaki',
+          message: 'Your guest trial has ended — sign up to keep adding to Waves',
         });
         continue;
       }
@@ -393,7 +393,7 @@ export class SyncSession {
     const cached = this.memberIds.get(groupId);
     if (cached !== undefined) return cached;
 
-    const { data, error } = await this.caller.rpc('baaki_my_member_id', { p_group_id: groupId });
+    const { data, error } = await this.caller.rpc('waves_my_member_id', { p_group_id: groupId });
     if (error) throw new HttpError(500, 'INTERNAL', error.message);
     const memberId = (data as string | null) ?? null;
     this.memberIds.set(groupId, memberId);
@@ -412,11 +412,11 @@ export class SyncSession {
       case 'expense.update':
         return await this.writeExpense(mutation);
       case 'expense.delete':
-        return await this.rpcAsCaller('baaki_delete_expense', {
+        return await this.rpcAsCaller('waves_delete_expense', {
           p_expense_id: requireString(mutation.payload.expenseId, 'expenseId'),
         });
       case 'expense.restore':
-        return await this.rpcAsCaller('baaki_restore_expense', {
+        return await this.rpcAsCaller('waves_restore_expense', {
           p_expense_id: requireString(mutation.payload.expenseId, 'expenseId'),
         });
       case 'settlement.create':
@@ -427,11 +427,11 @@ export class SyncSession {
         const settlementId = requireString(mutation.payload.settlementId, 'settlementId');
         const to = (mutation.payload.to as string | undefined) ?? 'confirmed';
         if (to === 'cancelled')
-          return await this.rpcAsCaller('baaki_cancel_settlement', {
+          return await this.rpcAsCaller('waves_cancel_settlement', {
             p_settlement_id: settlementId,
           });
         if (to === 'disputed')
-          return await this.rpcAsCaller('baaki_dispute_settlement', {
+          return await this.rpcAsCaller('waves_dispute_settlement', {
             p_settlement_id: settlementId,
             p_reason: (mutation.payload.reason as string | undefined) ?? null,
           });
@@ -444,12 +444,12 @@ export class SyncSession {
             'INVALID_TRANSITION',
             `Unsupported settlement transition target: ${to}`,
           );
-        return await this.rpcAsCaller('baaki_confirm_settlement', {
+        return await this.rpcAsCaller('waves_confirm_settlement', {
           p_settlement_id: settlementId,
         });
       }
       case 'member.add_ghost':
-        return await this.rpcAsCaller('baaki_add_ghost_member', {
+        return await this.rpcAsCaller('waves_add_ghost_member', {
           p_group_id: mutation.groupId,
           p_name: requireString(mutation.payload.name, 'name'),
           p_member_id: (mutation.payload.memberId as string | undefined) ?? null,
@@ -461,7 +461,7 @@ export class SyncSession {
           p_phone: (mutation.payload.phone as string | undefined) ?? null,
         });
       case 'group.create':
-        return await this.rpcAsCaller('baaki_create_group', {
+        return await this.rpcAsCaller('waves_create_group', {
           p_name: requireString(mutation.payload.name, 'name'),
           p_type: (mutation.payload.type as string | undefined) ?? 'other',
           p_currency: (mutation.payload.currency as string | undefined) ?? 'INR',
@@ -512,7 +512,7 @@ export class SyncSession {
       case 'personal.delete':
         return await this.deletePersonal(mutation);
       case 'plan_item.create':
-        return await this.rpcAsCaller('baaki_add_plan_item', {
+        return await this.rpcAsCaller('waves_add_plan_item', {
           p_group_id: mutation.groupId,
           p_day: requireString(mutation.payload.day, 'day'),
           p_title: requireString(mutation.payload.title, 'title'),
@@ -525,7 +525,7 @@ export class SyncSession {
           p_item_id: requireString(mutation.payload.itemId, 'itemId'),
         });
       case 'plan_item.update':
-        return await this.rpcAsCaller('baaki_update_plan_item', {
+        return await this.rpcAsCaller('waves_update_plan_item', {
           p_item_id: requireString(mutation.payload.itemId, 'itemId'),
           // NULL means "leave alone"; p_clear (below) is how a field is emptied.
           p_day: (mutation.payload.day as string | undefined) ?? null,
@@ -539,24 +539,24 @@ export class SyncSession {
           p_clear: (mutation.payload.clear as string[] | undefined) ?? [],
         });
       case 'plan_item.delete':
-        return await this.rpcAsCaller('baaki_remove_plan_item', {
+        return await this.rpcAsCaller('waves_remove_plan_item', {
           p_item_id: requireString(mutation.payload.itemId, 'itemId'),
         });
       case 'member_budget.set':
-        return await this.rpcAsCaller('baaki_set_my_trip_budget', {
+        return await this.rpcAsCaller('waves_set_my_trip_budget', {
           p_group_id: mutation.groupId,
           p_amount_minor: requireString(mutation.payload.amountMinor, 'amountMinor'),
           p_currency: (mutation.payload.currency as string | undefined) ?? null,
           p_visibility: (mutation.payload.visibility as string | undefined) ?? 'private',
         });
       case 'member_budget.clear':
-        return await this.rpcAsCaller('baaki_clear_my_trip_budget', {
+        return await this.rpcAsCaller('waves_clear_my_trip_budget', {
           p_group_id: mutation.groupId,
         });
       case 'group_budget.set':
         // Admin-gated inside the RPC — kept a distinct kind rather than widening
         // group.update, so any member cannot move the overall ceiling.
-        return await this.rpcAsCaller('baaki_set_group_budget', {
+        return await this.rpcAsCaller('waves_set_group_budget', {
           p_group_id: mutation.groupId,
           p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
           p_currency: (mutation.payload.currency as string | undefined) ?? null,
@@ -564,7 +564,7 @@ export class SyncSession {
       case 'category_budget.set':
         // Admin-gated inside the RPC, same as the overall budget; a null amount
         // clears that category's cap.
-        return await this.rpcAsCaller('baaki_set_category_budget', {
+        return await this.rpcAsCaller('waves_set_category_budget', {
           p_group_id: mutation.groupId,
           p_category: mutation.payload.category as string,
           p_amount_minor: (mutation.payload.amountMinor as string | null) ?? null,
@@ -574,7 +574,7 @@ export class SyncSession {
         // Admin-gated inside the RPC, like the budgets; a null ratio clears that
         // currency's entry. The rate is passed as the two integers the client
         // computed — never a decimal (ADR-003).
-        return await this.rpcAsCaller('baaki_set_group_fx_rate', {
+        return await this.rpcAsCaller('waves_set_group_fx_rate', {
           p_group_id: mutation.groupId,
           p_from: mutation.payload.from as string,
           p_num: (mutation.payload.num as string | null) ?? null,
@@ -670,11 +670,11 @@ export class SyncSession {
 
     // The one shared builder the direct `expense-write` path uses too
     // (`buildApplyExpenseArgs` in @waves/core), so a queued write and a direct
-    // write reach `baaki_apply_expense` with an identical set of fields. It
+    // write reach `waves_apply_expense` with an identical set of fields. It
     // carries `p_base_version_no` (edit conflict, TDR §4.4) and the sanitised
     // `p_category_meta`/`p_location` snapshots every group member reads.
     const { data, error } = await this.service.rpc(
-      'baaki_apply_expense',
+      'waves_apply_expense',
       buildApplyExpenseArgs({
         groupId: mutation.groupId,
         expenseId,
@@ -714,7 +714,7 @@ export class SyncSession {
       allocations?: { expenseId: string; amount: string }[];
     };
 
-    return await this.rpcAsCaller('baaki_record_settlement', {
+    return await this.rpcAsCaller('waves_record_settlement', {
       p_group_id: mutation.groupId,
       p_from_member_id: payload.from,
       p_to_member_id: payload.to,
@@ -1045,7 +1045,7 @@ export class SyncSession {
  * accidentally widen what it can see (ADR-013).
  *
  * The new cursor is the group's own `updated_seq`. That is safe because
- * `baaki_next_group_seq` takes the sequence by updating the groups row, which
+ * `waves_next_group_seq` takes the sequence by updating the groups row, which
  * holds a row lock until commit — so within a group, sequence order and commit
  * order are the same and no lower-numbered row can appear after a higher one.
  */

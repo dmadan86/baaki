@@ -31,31 +31,31 @@ afterAll(async () => {
 
 /** Service-role only. Every one is definer, and none checks who is asking. */
 const INTERNAL = [
-  'baaki_next_capture_seq',
-  'baaki_next_category_tag_seq',
-  'baaki_next_ghost_merge_seq',
-  'baaki_next_group_seq',
-  'baaki_next_personal_seq',
-  'baaki_storage_counts',
-  'baaki_storage_expire_pending',
-  'baaki_storage_orphan_clear',
-  'baaki_storage_orphans',
-  'baaki_storage_record',
-  'baaki_storage_recount',
-  'baaki_storage_release',
-  'baaki_storage_release_reservation',
-  'baaki_storage_reserve',
+  'waves_next_capture_seq',
+  'waves_next_category_tag_seq',
+  'waves_next_ghost_merge_seq',
+  'waves_next_group_seq',
+  'waves_next_personal_seq',
+  'waves_storage_counts',
+  'waves_storage_expire_pending',
+  'waves_storage_orphan_clear',
+  'waves_storage_orphans',
+  'waves_storage_record',
+  'waves_storage_recount',
+  'waves_storage_release',
+  'waves_storage_release_reservation',
+  'waves_storage_reserve',
 ];
 
 /** Trigger functions: fired by the row write, never callable, so no grant at all. */
 const STAMP_TRIGGERS = [
-  'baaki_stamp_capture_seq',
-  'baaki_stamp_category_tag_seq',
-  'baaki_stamp_ghost_merge_seq',
-  'baaki_stamp_group_seq',
-  'baaki_stamp_personal_seq',
-  'baaki_stamp_seq',
-  'baaki_storage_enqueue_orphan',
+  'waves_stamp_capture_seq',
+  'waves_stamp_category_tag_seq',
+  'waves_stamp_ghost_merge_seq',
+  'waves_stamp_group_seq',
+  'waves_stamp_personal_seq',
+  'waves_stamp_seq',
+  'waves_storage_enqueue_orphan',
 ];
 
 async function grants(names: string[]) {
@@ -108,20 +108,20 @@ describe('the internal RPC families', () => {
 
     const release = await asRole(client, 'authenticated', claims, () =>
       expectDenied(
-        client.query(`SELECT public.baaki_storage_release('avatars', $1)`, ['x/y.webp']),
+        client.query(`SELECT public.waves_storage_release('avatars', $1)`, ['x/y.webp']),
       ),
     );
     expect(release).toMatch(/permission denied/);
 
     const bump = await asRole(client, 'authenticated', claims, () =>
-      expectDenied(client.query(`SELECT public.baaki_next_group_seq($1)`, [group.groupId])),
+      expectDenied(client.query(`SELECT public.waves_next_group_seq($1)`, [group.groupId])),
     );
     expect(bump).toMatch(/permission denied/);
 
     const reserve = await asRole(client, 'authenticated', claims, () =>
       expectDenied(
         client.query(
-          `SELECT public.baaki_storage_reserve($1, NULL, 'avatars', $2, 1, 'image/webp')`,
+          `SELECT public.waves_storage_reserve($1, NULL, 'avatars', $2, 1, 'image/webp')`,
           [group.profileIds[1], `${group.profileIds[1]}/a.webp`],
         ),
       ),

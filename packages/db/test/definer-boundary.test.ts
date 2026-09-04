@@ -188,45 +188,45 @@ const q = (sql: string, params: unknown[]) => client.query(sql, params);
 
 const cases: Case[] = [
   {
-    name: 'baaki_remove_expense_attachment (attachment removal)',
-    call: (o) => q(`SELECT baaki_remove_expense_attachment($1)`, [o.attachmentId]),
+    name: 'waves_remove_expense_attachment (attachment removal)',
+    call: (o) => q(`SELECT waves_remove_expense_attachment($1)`, [o.attachmentId]),
     memberActor: (g) => g.profileIds[0]!, // the payer/author is a party
     refuse: /NOT_A_PARTY/,
   },
   {
-    name: 'baaki_remove_settlement_proof (proof removal)',
-    call: (o) => q(`SELECT baaki_remove_settlement_proof($1)`, [o.proofId]),
+    name: 'waves_remove_settlement_proof (proof removal)',
+    call: (o) => q(`SELECT waves_remove_settlement_proof($1)`, [o.proofId]),
     memberActor: (g) => g.profileIds[0]!,
     refuse: /NOT_A_PARTY/,
   },
   {
-    name: 'baaki_remove_trip_photo (album photo removal)',
-    call: (o) => q(`SELECT baaki_remove_trip_photo($1)`, [o.photoId]),
+    name: 'waves_remove_trip_photo (album photo removal)',
+    call: (o) => q(`SELECT waves_remove_trip_photo($1)`, [o.photoId]),
     memberActor: (g) => g.profileIds[1]!, // any member may
     refuse: /NOT_A_MEMBER/,
   },
   {
-    name: 'baaki_remove_plan_item (plan item removal)',
-    call: (o) => q(`SELECT baaki_remove_plan_item($1)`, [o.planItemId]),
+    name: 'waves_remove_plan_item (plan item removal)',
+    call: (o) => q(`SELECT waves_remove_plan_item($1)`, [o.planItemId]),
     memberActor: (g) => g.profileIds[1]!,
     refuse: /NOT_A_MEMBER/,
   },
   {
-    name: 'baaki_merge_ghosts (merge ghosts)',
-    call: (o) => q(`SELECT baaki_merge_ghosts($1::uuid[], 'Priya')`, [o.ghostIds]),
+    name: 'waves_merge_ghosts (merge ghosts)',
+    call: (o) => q(`SELECT waves_merge_ghosts($1::uuid[], 'Priya')`, [o.ghostIds]),
     memberActor: (g) => g.profileIds[0]!,
     refuse: /NOT_MERGEABLE/,
   },
   {
-    name: 'baaki_reset_group_join_token (join-token reset, admin-only)',
-    call: (_o, g) => q(`SELECT baaki_reset_group_join_token($1)`, [g.groupId]),
+    name: 'waves_reset_group_join_token (join-token reset, admin-only)',
+    call: (_o, g) => q(`SELECT waves_reset_group_join_token($1)`, [g.groupId]),
     memberActor: (g) => g.profileIds[0]!, // admin
     refuse: /ADMIN_ONLY/,
   },
   {
-    name: 'baaki_import_ledger (import RPC)',
+    name: 'waves_import_ledger (import RPC)',
     call: (_o, g) =>
-      q(`SELECT baaki_import_ledger($1, $2::jsonb, '[]'::jsonb, '[]'::jsonb, 'test')`, [
+      q(`SELECT waves_import_ledger($1, $2::jsonb, '[]'::jsonb, '[]'::jsonb, 'test')`, [
         g.groupId,
         JSON.stringify([{ name: 'Imported ghost', memberId: null }]),
       ]),
@@ -264,11 +264,11 @@ describe.each(cases)('$name', ({ call, memberActor, refuse }) => {
 });
 
 /**
- * baaki_ensure_group_join_token is member-level (not admin), so it gets the same
+ * waves_ensure_group_join_token is member-level (not admin), so it gets the same
  * matrix but with NOT_A_MEMBER as the refusal and any member allowed.
  */
-describe('baaki_ensure_group_join_token (durable join link, member-level)', () => {
-  const call = (groupId: string) => q(`SELECT baaki_ensure_group_join_token($1)`, [groupId]);
+describe('waves_ensure_group_join_token (durable join link, member-level)', () => {
+  const call = (groupId: string) => q(`SELECT waves_ensure_group_join_token($1)`, [groupId]);
 
   it('anon (no subject) → permission denied', async () => {
     const message = await expectDenied(asAnon(() => call(scene.A.groupId)));

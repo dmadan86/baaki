@@ -37,7 +37,7 @@ async function seedGroup(): Promise<string> {
   ]);
   await client.query(`SET ROLE authenticated`);
   const { rows } = await client.query(
-    `SELECT baaki_create_group('Trip', 'trip', 'INR', NULL, true, NULL, NULL) AS id`,
+    `SELECT waves_create_group('Trip', 'trip', 'INR', NULL, true, NULL, NULL) AS id`,
   );
   return String(rows[0].id);
 }
@@ -57,7 +57,7 @@ async function add(
 ): Promise<{ id?: string; error?: string }> {
   try {
     const { rows } = await client.query(
-      `SELECT baaki_add_ghost_member($1::uuid, $2::text, NULL::uuid, $3::text, $4::text) AS id`,
+      `SELECT waves_add_ghost_member($1::uuid, $2::text, NULL::uuid, $3::text, $4::text) AS id`,
       [groupId, name, email, phone],
     );
     return { id: String(rows[0].id) };

@@ -129,7 +129,7 @@ describe('mergeErrorMessage', () => {
     // Raw Postgres/network text is developer detail — never surfaced to a person.
     expect(mergeErrorMessage(new Error('Network request failed'), t)).toBe('something went wrong');
     expect(
-      mergeErrorMessage(new Error('function public.baaki_merge_ghosts does not exist'), t),
+      mergeErrorMessage(new Error('function public.waves_merge_ghosts does not exist'), t),
     ).toBe('something went wrong');
   });
 

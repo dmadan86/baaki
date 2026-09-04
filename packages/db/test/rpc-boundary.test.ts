@@ -9,9 +9,9 @@
  *   SEC-1: the anon key (role=anon, no `sub`) fell through the caller check and
  *          could write expenses in any group.
  *   INT-1: client-supplied shares were stored verbatim; only the sum was checked.
- *          Both are closed by revoking `baaki_apply_expense` from the client
+ *          Both are closed by revoking `waves_apply_expense` from the client
  *          roles — the edge functions, as the service role, are the only door.
- *   INT-2: `baaki_record_settlement` never checked that the two parties belong
+ *   INT-2: `waves_record_settlement` never checked that the two parties belong
  *          to the settlement's group.
  */
 
@@ -130,11 +130,11 @@ afterAll(async () => {
   await client.end();
 });
 
-describe('SEC-1 / INT-1 — baaki_apply_expense is service-role only', () => {
+describe('SEC-1 / INT-1 — waves_apply_expense is service-role only', () => {
   const call = (role: 'anon' | 'authenticated') => {
     const run = () =>
       client.query(
-        `SELECT baaki_apply_expense($1, NULL, $2, 'x', NULL, current_date, 'INR', 1000,
+        `SELECT waves_apply_expense($1, NULL, $2, 'x', NULL, current_date, 'INR', 1000,
            'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5)`,
         [
           scene.groupA,
@@ -161,7 +161,7 @@ describe('INT-2 — settlement parties must belong to the group', () => {
     await asAuthenticated(scene.attackerProfile, async () => {
       const message = await expectDenied(
         client.query(
-          `SELECT baaki_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
+          `SELECT waves_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
           [scene.groupA, scene.attackerMemberA, scene.outsiderMemberB, randomUUID()],
         ),
       );
@@ -172,7 +172,7 @@ describe('INT-2 — settlement parties must belong to the group', () => {
   it('still records a settlement between two members of the same group', async () => {
     await asAuthenticated(scene.attackerProfile, async () => {
       const { rows } = await client.query(
-        `SELECT baaki_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
+        `SELECT waves_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
         [scene.groupA, scene.attackerMemberA, scene.victimMemberA, randomUUID()],
       );
       expect(rows[0].id).toBeTruthy();
@@ -183,7 +183,7 @@ describe('INT-2 — settlement parties must belong to the group', () => {
     await asAnon(async () => {
       const message = await expectDenied(
         client.query(
-          `SELECT baaki_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
+          `SELECT waves_record_settlement($1, $2, $3, 5000, 'cash', 'INR', NULL, '[]'::jsonb, $4) AS id`,
           [scene.groupA, scene.attackerMemberA, scene.victimMemberA, randomUUID()],
         ),
       );

@@ -533,7 +533,7 @@ async function runFlush(): Promise<FlushResult> {
           subjectId: entry.expenseId,
         });
         objectStored = true;
-        const { error } = await backend.rpc('baaki_attach_expense_attachment', {
+        const { error } = await backend.rpc('waves_attach_expense_attachment', {
           p_expense_id: entry.expenseId,
           p_storage_path: entry.storagePath,
           p_visibility: entry.visibility,

@@ -59,7 +59,7 @@ describe('a personal budget is private until shared', () => {
   it('hides one member’s private budget from a co-member, but not from its owner', async () => {
     const [, m1] = group.memberIds;
     await as(group.profileIds[1] as string, async () => {
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 500000, NULL, 'private')`, [
         group.groupId,
       ]);
     });
@@ -75,7 +75,7 @@ describe('a personal budget is private until shared', () => {
   it('shows it to the whole group once shared', async () => {
     const [, m1] = group.memberIds;
     await as(group.profileIds[1] as string, async () => {
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'group')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 500000, NULL, 'group')`, [
         group.groupId,
       ]);
     });
@@ -85,11 +85,11 @@ describe('a personal budget is private until shared', () => {
   it('flipping back to private hides it again', async () => {
     const [, m1] = group.memberIds;
     await as(group.profileIds[1] as string, async () => {
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'group')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 500000, NULL, 'group')`, [
         group.groupId,
       ]);
       // Upsert on the same member — one row, not two.
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 700000, NULL, 'private')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 700000, NULL, 'private')`, [
         group.groupId,
       ]);
     });
@@ -121,7 +121,7 @@ describe('writing a personal budget', () => {
   it('refuses a negative budget', async () => {
     await as(group.profileIds[1] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_set_my_trip_budget($1, -1, NULL, 'private')`, [group.groupId]),
+        client.query(`SELECT waves_set_my_trip_budget($1, -1, NULL, 'private')`, [group.groupId]),
       );
       expect(message).toMatch(/INVALID_AMOUNT/);
     });
@@ -131,7 +131,7 @@ describe('writing a personal budget', () => {
 describe('the overall budget is the admin’s', () => {
   it('lets an admin set and clear it', async () => {
     await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_group_budget($1, 5000000, 'INR')`, [group.groupId]);
+      await client.query(`SELECT waves_set_group_budget($1, 5000000, 'INR')`, [group.groupId]);
     });
     let { rows } = await client.query(
       `SELECT budget_minor::text AS m, budget_currency AS c FROM groups WHERE id = $1`,
@@ -141,7 +141,7 @@ describe('the overall budget is the admin’s', () => {
     expect(rows[0].c).toBe('INR');
 
     await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_group_budget($1, NULL, NULL)`, [group.groupId]);
+      await client.query(`SELECT waves_set_group_budget($1, NULL, NULL)`, [group.groupId]);
     });
     ({ rows } = await client.query(
       `SELECT budget_minor AS m, budget_currency AS c FROM groups WHERE id = $1`,
@@ -154,7 +154,7 @@ describe('the overall budget is the admin’s', () => {
   it('refuses a plain member', async () => {
     await as(group.profileIds[1] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_set_group_budget($1, 5000000, 'INR')`, [group.groupId]),
+        client.query(`SELECT waves_set_group_budget($1, 5000000, 'INR')`, [group.groupId]),
       );
       expect(message).toMatch(/NOT_AN_ADMIN/);
     });
@@ -166,14 +166,14 @@ describe('clearing a personal budget is a soft delete (so it syncs)', () => {
     const member = group.profileIds[1] as string;
     const memberId = group.memberIds[1] as string;
     const seqAfterSet = await as(member, async () => {
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 500000, NULL, 'private')`, [
         group.groupId,
       ]);
       const { rows } = await client.query(
         `SELECT updated_seq FROM trip_member_budgets WHERE member_id = $1`,
         [memberId],
       );
-      await client.query(`SELECT baaki_clear_my_trip_budget($1)`, [group.groupId]);
+      await client.query(`SELECT waves_clear_my_trip_budget($1)`, [group.groupId]);
       return Number(rows[0].updated_seq);
     });
     const { rows } = await client.query(
@@ -192,11 +192,11 @@ describe('clearing a personal budget is a soft delete (so it syncs)', () => {
     const member = group.profileIds[1] as string;
     const memberId = group.memberIds[1] as string;
     await as(member, async () => {
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 500000, NULL, 'private')`, [
+      await client.query(`SELECT waves_set_my_trip_budget($1, 500000, NULL, 'private')`, [
         group.groupId,
       ]);
-      await client.query(`SELECT baaki_clear_my_trip_budget($1)`, [group.groupId]);
-      await client.query(`SELECT baaki_set_my_trip_budget($1, 700000, NULL, 'private')`, [
+      await client.query(`SELECT waves_clear_my_trip_budget($1)`, [group.groupId]);
+      await client.query(`SELECT waves_set_my_trip_budget($1, 700000, NULL, 'private')`, [
         group.groupId,
       ]);
     });

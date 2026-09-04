@@ -1,12 +1,12 @@
 /**
  * Restarting the app from inside it.
  *
- * There is exactly one thing in Baaki that cannot take effect while the app is
+ * There is exactly one thing in Waves that cannot take effect while the app is
  * running: the direction the layout runs in. React Native reads that from
  * native constants before any JavaScript, so `I18nManager.forceRTL` says of
  * itself that changes *take full effect on the next application start*. Until
  * this file existed the only honest answer was to ask the person to close and
- * open Baaki, which two people in a row read as a broken app.
+ * open Waves, which two people in a row read as a broken app.
  *
  * `expo-updates` owns the only supported way to restart the JavaScript runtime
  * in a release build. It is here for that, and the fact that it also brings OTA

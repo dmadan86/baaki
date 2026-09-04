@@ -1,4 +1,4 @@
-# Baaki Web — full-featured web app
+# Waves Web — full-featured web app
 
 **Goal.** Grow `apps/web-lite` from the deliberate guest/link "lite" view
 into a full web client with parity to the mobile app, styled after the
@@ -127,7 +127,7 @@ Legend: ✳ new web screen · ↺ reskin existing web-lite page.
 
 - ✳ Group insights/spending · ✳ Month view · ✳ Trip plan (checklist)
   · ✳ Receipt itemize + claims (text scan only) · ✳ Import (Splitwise/
-  Baaki CSV) + Export · ✳ Settings (account, language, notifications,
+  Waves CSV) + Export · ✳ Settings (account, language, notifications,
   privacy, devices, upgrade, redeem, delete-account, feedback).
 
 ---

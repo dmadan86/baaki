@@ -26,7 +26,7 @@ import {
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { money } from '@/lib/money';
 import { plural } from '@/i18n';
 import { useStrings } from '@/i18n-context';
@@ -56,10 +56,10 @@ function GroupDetail({ profileId, query }: { profileId: string; query: string })
     void (async () => {
       try {
         const [g, m, e, s] = await Promise.all([
-          baaki.group(groupId),
-          baaki.members(groupId),
-          baaki.expenses(groupId),
-          baaki.settlements(groupId),
+          waves.group(groupId),
+          waves.members(groupId),
+          waves.expenses(groupId),
+          waves.settlements(groupId),
         ]);
         if (!active) return;
         setGroup(g);

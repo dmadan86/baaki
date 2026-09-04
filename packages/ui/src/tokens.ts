@@ -1,5 +1,5 @@
 /**
- * Baaki design tokens.
+ * Waves design tokens.
  *
  * Derived from the two reference boards: a lavender canvas, white cards with
  * softened corners and one soft shadow, a single saturated purple that owns

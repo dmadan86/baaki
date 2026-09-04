@@ -112,7 +112,7 @@ function SettingsSection({ title, rows }: { title?: string; rows: SettingsRow[] 
 /**
  * What has actually changed hands through you.
  *
- * The board this is drawn from puts a points total here. Baaki has no points
+ * The board this is drawn from puts a points total here. Waves has no points
  * and should not invent any: a score next to somebody's money is a number that
  * means nothing pretending to sit with numbers that mean everything. This is
  * the true version of the same idea — one figure, earned, that appears nowhere

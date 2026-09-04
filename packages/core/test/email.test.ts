@@ -13,7 +13,7 @@ import {
 } from '../src/notifications/email';
 
 const OPTIONS = {
-  webUrl: 'https://baaki.example/',
+  webUrl: 'https://waves.example/',
   unsubscribeUrl: 'https://fn.example/email-unsubscribe?address=a%40b.com&sig=deadbeef',
 };
 
@@ -22,7 +22,7 @@ const ROW = {
   kind: 'settlement_confirm_request',
   title: 'Fallback title',
   body: 'Fallback body',
-  deepLink: 'baaki://group/22222222-2222-4222-8222-222222222222',
+  deepLink: 'waves://group/22222222-2222-4222-8222-222222222222',
   facts: { amount: '42000', currency: 'INR', counterparty: 'Madan' },
   locale: 'en',
   to: 'a@b.com',
@@ -95,7 +95,7 @@ describe('what the mail says', () => {
     const settlement = buildEmail(ROW, OPTIONS);
     const digest = buildEmail({ ...ROW, kind: 'digest_daily' }, OPTIONS);
     expect(settlement?.html).toContain('Confirm you received it');
-    expect(digest?.html).toContain('Open Baaki');
+    expect(digest?.html).toContain('Open Waves');
   });
 
   it('names the group in the footer, so the reason is on the mail', () => {
@@ -138,14 +138,14 @@ describe('the unsubscribe headers', () => {
 describe('where the button goes', () => {
   it('rewrites a deep link to the web-lite group page', () => {
     expect(
-      webLinkFor('baaki://group/22222222-2222-4222-8222-222222222222', 'https://b.example'),
+      webLinkFor('waves://group/22222222-2222-4222-8222-222222222222', 'https://b.example'),
     ).toBe('https://b.example/g/22222222-2222-4222-8222-222222222222');
   });
 
   it('drops trailing segments web-lite has no page for', () => {
     expect(
       webLinkFor(
-        'baaki://group/22222222-2222-4222-8222-222222222222/expense/x',
+        'waves://group/22222222-2222-4222-8222-222222222222/expense/x',
         'https://b.example',
       ),
     ).toBe('https://b.example/g/22222222-2222-4222-8222-222222222222');
@@ -160,7 +160,7 @@ describe('where the button goes', () => {
    * or nothing — an `https://` URL that 404s looks like it should have worked.
    */
   it('falls back to the deep link when there is no web URL', () => {
-    expect(webLinkFor('baaki://group/x', null)).toBe('baaki://group/x');
+    expect(webLinkFor('waves://group/x', null)).toBe('waves://group/x');
   });
 
   it('renders no button at all when there is nowhere to send anyone', () => {
@@ -226,7 +226,7 @@ describe('proving an address without a session', () => {
 /**
  * The signature on Resend's webhook is the entire security of an endpoint
  * anybody on the internet can reach — it runs with `verify_jwt = false`, so
- * there is nothing else between a stranger and `baaki_record_email_event`.
+ * there is nothing else between a stranger and `waves_record_email_event`.
  *
  * Getting it subtly wrong fails in the direction nobody notices: every genuine
  * delivery report is answered 401, Resend gives up after a while, and the

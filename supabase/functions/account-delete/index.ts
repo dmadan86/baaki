@@ -1,7 +1,7 @@
 /**
  * account-delete — the half of erasure a database role cannot do (A22).
  *
- * `baaki_delete_my_account` erases the person from the ledger: every membership
+ * `waves_delete_my_account` erases the person from the ledger: every membership
  * becomes an unnamed ghost, and the profile row goes with everything personal
  * hanging off it (push tokens, subscriptions, notifications, usage). What it
  * cannot touch is the auth identity — `auth.users` lives in a schema the
@@ -11,7 +11,7 @@
  * you could still log into, reaching nothing. This closes that.
  *
  * Order is the whole design. The data is erased first, as the caller, so RLS
- * and `baaki_current_profile_id()` decide whose account this is by the same JWT
+ * and `waves_current_profile_id()` decide whose account this is by the same JWT
  * the app is subject to. Only then is the identity deleted, as the service.
  * A run that stops in the middle has erased the data and left an identity that
  * signs in to nothing — recoverable, because the RPC is idempotent (it reads
@@ -67,7 +67,7 @@ serveWithCors(async (request) => {
 
     // Step one: erase the data, as the caller. SECURITY DEFINER inside, but it
     // reads the subject from this JWT, so it can only ever erase the caller.
-    const { data: erased, error: eraseError } = await caller.rpc('baaki_delete_my_account', {
+    const { data: erased, error: eraseError } = await caller.rpc('waves_delete_my_account', {
       p_feedback: reason,
     });
     if (eraseError) {

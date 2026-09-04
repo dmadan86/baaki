@@ -23,7 +23,7 @@ const describe = async (e) => {
 const asha = createClient(URL, ANON, { auth: { persistSession: false } });
 await asha.auth.signInAnonymously();
 
-const { data: groupId } = await asha.rpc('baaki_create_group', {
+const { data: groupId } = await asha.rpc('waves_create_group', {
   p_name: 'Bali', p_type: 'trip', p_currency: 'INR', p_emoji: '🏝️', p_simplify: false,
 });
 await asha.from('group_members').insert({ group_id: groupId, ghost_name: 'Ravi', joined_via: 'ghost' });

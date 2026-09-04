@@ -48,7 +48,7 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 
 /** starts_at, note, category, planned_minor, currency, item_id — all optional. */
 const add = (title: string, day = '2026-03-14') =>
-  client.query(`SELECT baaki_add_plan_item($1, $2, $3, NULL, NULL, NULL, NULL, NULL, NULL) AS id`, [
+  client.query(`SELECT waves_add_plan_item($1, $2, $3, NULL, NULL, NULL, NULL, NULL, NULL) AS id`, [
     group.groupId,
     day,
     title,
@@ -94,7 +94,7 @@ describe('adding to the plan', () => {
   it('returns the same item when a create is replayed', async () => {
     // A planner is used on a phone with one bar of signal by definition.
     const itemId = randomUUID();
-    const call = `SELECT baaki_add_plan_item($1, $2, 'Beach', NULL, NULL, NULL, NULL, NULL, $3) AS id`;
+    const call = `SELECT waves_add_plan_item($1, $2, 'Beach', NULL, NULL, NULL, NULL, NULL, $3) AS id`;
     await as(group.profileIds[0] as string, async () => {
       const first = await client.query(call, [group.groupId, '2026-03-15', itemId]);
       const second = await client.query(call, [group.groupId, '2026-03-15', itemId]);
@@ -124,7 +124,7 @@ describe('adding to the plan', () => {
     await as(group.profileIds[0] as string, async () => {
       const message = await expectDenied(
         client.query(
-          `SELECT baaki_add_plan_item($1, '2026-03-14', 'Bad', NULL, NULL, NULL, -100, NULL, NULL)`,
+          `SELECT waves_add_plan_item($1, '2026-03-14', 'Bad', NULL, NULL, NULL, -100, NULL, NULL)`,
           [group.groupId],
         ),
       );
@@ -132,7 +132,7 @@ describe('adding to the plan', () => {
 
       // "The beach is free" is a real thing to plan.
       await client.query(
-        `SELECT baaki_add_plan_item($1, '2026-03-14', 'Beach', NULL, NULL, NULL, 0, NULL, NULL)`,
+        `SELECT waves_add_plan_item($1, '2026-03-14', 'Beach', NULL, NULL, NULL, 0, NULL, NULL)`,
         [group.groupId],
       );
     });
@@ -142,7 +142,7 @@ describe('adding to the plan', () => {
 describe('changing the plan', () => {
   async function seedItem(): Promise<string> {
     const { rows } = await client.query(
-      `SELECT baaki_add_plan_item($1, '2026-03-14', 'Falls', NULL, 'take cash', NULL, 200000, NULL, NULL) AS id`,
+      `SELECT waves_add_plan_item($1, '2026-03-14', 'Falls', NULL, 'take cash', NULL, 200000, NULL, NULL) AS id`,
       [group.groupId],
     );
     return String(rows[0].id);
@@ -153,7 +153,7 @@ describe('changing the plan', () => {
     // their phone down.
     const id = await as(group.profileIds[0] as string, seedItem);
     await as(group.profileIds[1] as string, async () => {
-      await client.query(`SELECT baaki_update_plan_item($1, NULL, NULL, 'Dudhsagar falls')`, [id]);
+      await client.query(`SELECT waves_update_plan_item($1, NULL, NULL, 'Dudhsagar falls')`, [id]);
     });
     const { rows } = await client.query(`SELECT title FROM trip_plan_items WHERE id = $1`, [id]);
     expect(rows[0].title).toBe('Dudhsagar falls');
@@ -162,7 +162,7 @@ describe('changing the plan', () => {
   it('leaves untouched fields alone', async () => {
     const id = await as(group.profileIds[0] as string, seedItem);
     await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_update_plan_item($1, '2026-03-16')`, [id]);
+      await client.query(`SELECT waves_update_plan_item($1, '2026-03-16')`, [id]);
     });
     const { rows } = await client.query(
       `SELECT day::text AS day, note, planned_minor FROM trip_plan_items WHERE id = $1`,
@@ -177,7 +177,7 @@ describe('changing the plan', () => {
     const id = await as(group.profileIds[0] as string, seedItem);
     await as(group.profileIds[0] as string, async () => {
       await client.query(
-        `SELECT baaki_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        `SELECT waves_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                        ARRAY['note','planned_minor'])`,
         [id],
       );
@@ -194,7 +194,7 @@ describe('changing the plan', () => {
     const id = await as(group.profileIds[0] as string, seedItem);
     await as(group.profileIds[0] as string, async () => {
       await client.query(
-        `SELECT baaki_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, true)`,
+        `SELECT waves_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, true)`,
         [id],
       );
     });
@@ -203,7 +203,7 @@ describe('changing the plan', () => {
 
     await as(group.profileIds[0] as string, async () => {
       await client.query(
-        `SELECT baaki_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, false)`,
+        `SELECT waves_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, false)`,
         [id],
       );
     });
@@ -217,12 +217,12 @@ describe('changing the plan', () => {
     const id = await as(group.profileIds[0] as string, seedItem);
 
     // `RESET ROLE` puts the role back but leaves the JWT claim set, and
-    // `baaki_apply_expense` now checks its caller — so seeding another group's
+    // `waves_apply_expense` now checks its caller — so seeding another group's
     // expense while still "logged in" as somebody outside it is refused.
     await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
     const other = await seedGroup(client, { memberCount: 1, name: 'Elsewhere' });
     const { rows: made } = await client.query(
-      `SELECT baaki_apply_expense($1, NULL, $2, 'Theirs', NULL, current_date, 'INR', 1000,
+      `SELECT waves_apply_expense($1, NULL, $2, 'Theirs', NULL, current_date, 'INR', 1000,
         'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5) AS out`,
       [
         other.groupId,
@@ -237,7 +237,7 @@ describe('changing the plan', () => {
     await as(group.profileIds[0] as string, async () => {
       const message = await expectDenied(
         client.query(
-          `SELECT baaki_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, $2)`,
+          `SELECT waves_update_plan_item($1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, $2)`,
           [id, foreignExpense],
         ),
       );
@@ -255,10 +255,10 @@ describe('changing the plan', () => {
     await as(outsider, async () => {
       expect(
         await expectDenied(
-          client.query(`SELECT baaki_update_plan_item($1, NULL, NULL, 'Mine now')`, [id]),
+          client.query(`SELECT waves_update_plan_item($1, NULL, NULL, 'Mine now')`, [id]),
         ),
       ).toMatch(/NOT_A_MEMBER/);
-      expect(await expectDenied(client.query(`SELECT baaki_remove_plan_item($1)`, [id]))).toMatch(
+      expect(await expectDenied(client.query(`SELECT waves_remove_plan_item($1)`, [id]))).toMatch(
         /NOT_A_MEMBER/,
       );
     });
@@ -267,14 +267,14 @@ describe('changing the plan', () => {
   it('removes as a soft delete so the tombstone can sync, and twice is fine', async () => {
     const id = await as(group.profileIds[0] as string, seedItem);
     const seqAfterFirst = await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
+      await client.query(`SELECT waves_remove_plan_item($1)`, [id]);
       const { rows } = await client.query(`SELECT updated_seq FROM trip_plan_items WHERE id = $1`, [
         id,
       ]);
       const seq = Number(rows[0].updated_seq);
       // Removing again must be a no-op — the RPC guards on `deleted_at IS NULL`,
       // so a second call cannot re-stamp the seq and churn every device's pull.
-      await client.query(`SELECT baaki_remove_plan_item($1)`, [id]);
+      await client.query(`SELECT waves_remove_plan_item($1)`, [id]);
       return seq;
     });
     // The row stays, marked deleted, so a seq-based pull carries the removal to
@@ -301,7 +301,7 @@ describe('a plan is not a ledger', () => {
     );
     await as(group.profileIds[0] as string, async () => {
       await client.query(
-        `SELECT baaki_add_plan_item($1, '2026-03-14', 'Hotel', NULL, NULL, NULL, 900000, NULL, NULL)`,
+        `SELECT waves_add_plan_item($1, '2026-03-14', 'Hotel', NULL, NULL, NULL, 900000, NULL, NULL)`,
         [group.groupId],
       );
     });

@@ -298,14 +298,14 @@ describe('one field for either', () => {
 
 describe('what the browser brings back from a provider', () => {
   it('reads the one-time code out of the query string', () => {
-    expect(readOAuthCallback('baaki://auth?code=abc-123')).toEqual({
+    expect(readOAuthCallback('waves://auth?code=abc-123')).toEqual({
       kind: 'code',
       code: 'abc-123',
     });
   });
 
   it('reads the code from the triple-slash form as well', () => {
-    expect(readOAuthCallback('baaki:///auth?code=abc-123')).toEqual({
+    expect(readOAuthCallback('waves:///auth?code=abc-123')).toEqual({
       kind: 'code',
       code: 'abc-123',
     });
@@ -314,7 +314,7 @@ describe('what the browser brings back from a provider', () => {
   it('never mistakes a token in the fragment for a session', () => {
     // The implicit flow put the refresh token here. Under PKCE nothing reads
     // the fragment: a redirect shaped like the old one is simply "nothing".
-    expect(readOAuthCallback('baaki://auth#access_token=a&refresh_token=b')).toEqual({
+    expect(readOAuthCallback('waves://auth#access_token=a&refresh_token=b')).toEqual({
       kind: 'none',
     });
   });
@@ -322,13 +322,13 @@ describe('what the browser brings back from a provider', () => {
   it('prefers the readable description of a provider error', () => {
     expect(
       readOAuthCallback(
-        'baaki://auth?error=access_denied&error_description=User+cancelled+the+request',
+        'waves://auth?error=access_denied&error_description=User+cancelled+the+request',
       ),
     ).toEqual({ kind: 'error', message: 'User cancelled the request' });
   });
 
   it('falls back to the bare error code', () => {
-    expect(readOAuthCallback('baaki://auth?error=server_error')).toEqual({
+    expect(readOAuthCallback('waves://auth?error=server_error')).toEqual({
       kind: 'error',
       message: 'server_error',
     });

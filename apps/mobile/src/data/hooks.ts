@@ -510,7 +510,7 @@ export function useKnownPeopleCount(profileId: string | null): LocalRead<number>
 /**
  * Who owes you and who you owe, across every group — from the mirror (ADR-005).
  *
- * The local-first twin of `baaki_people_i_owe` (A11/A36/A38). For each group the
+ * The local-first twin of `waves_people_i_owe` (A11/A36/A38). For each group the
  * viewer is in, the pairwise edge that touches them becomes one
  * {@link PersonContribution}; a mirrored ghost merge (A38) supplies the
  * `person_id` that folds a guest seen across groups; `aggregatePeopleBalances`
@@ -943,7 +943,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
 
     // Is the WHOLE group square (A49)? Across every currency, not just the group
     // default — a USD balance left open must still block a delete. The server
-    // re-checks this in `baaki_delete_group`; this only decides the button.
+    // re-checks this in `waves_delete_group`; this only decides the button.
     let groupSettled = true;
     for (const perMember of net.values()) {
       for (const balance of perMember.values()) {
@@ -1607,7 +1607,7 @@ export function useLeaveGroup(groupId: string) {
 
 /**
  * Delete a group for everyone (A49). Unlike leave and archive — plain column
- * writes — this goes through `baaki_delete_group`, which enforces admin-only and
+ * writes — this goes through `waves_delete_group`, which enforces admin-only and
  * all-settled server-side. The tombstone syncs to every member and the mirror
  * filters hide it; on this device we forget it at once (like leave) so it drops
  * from the list before the pull round-trips, then flush to fetch the tombstone.
@@ -1901,7 +1901,7 @@ export function useAnnotateExpenseAttachment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { attachmentId: string; annotations: Annotations | null }) => {
-      const { error } = await backend.rpc('baaki_annotate_expense_attachment', {
+      const { error } = await backend.rpc('waves_annotate_expense_attachment', {
         p_attachment_id: input.attachmentId,
         p_annotations: input.annotations,
       });
@@ -1950,7 +1950,7 @@ export function useReplaceExpenseAttachmentImage(groupId: string, expenseId: str
           subjectId: expenseId,
         });
         committed = path;
-        const { error } = await backend.rpc('baaki_replace_expense_attachment_image', {
+        const { error } = await backend.rpc('waves_replace_expense_attachment_image', {
           p_attachment_id: input.attachmentId,
           p_new_path: path,
         });
@@ -1975,7 +1975,7 @@ export function useRemoveExpenseAttachment(expenseId: string) {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { attachmentId: string; storagePath: string }) => {
-      const { error } = await backend.rpc('baaki_remove_expense_attachment', {
+      const { error } = await backend.rpc('waves_remove_expense_attachment', {
         p_attachment_id: input.attachmentId,
       });
       if (error) throw new Error(error.message);
@@ -2087,7 +2087,7 @@ export function useAddExpenseComment(groupId: string, expenseId: string) {
       const body = sanitizeCommentMarkdown(input.body);
       if (body === '') return null;
       const id = randomUUID();
-      const { error } = await backend.rpc('baaki_add_expense_comment', {
+      const { error } = await backend.rpc('waves_add_expense_comment', {
         p_group_id: groupId,
         p_expense_id: expenseId,
         p_comment_id: id,
@@ -2107,7 +2107,7 @@ export function useEditExpenseComment() {
     mutationFn: async (input: { commentId: string; body: string }) => {
       const body = sanitizeCommentMarkdown(input.body);
       if (body === '') return;
-      const { error } = await backend.rpc('baaki_edit_expense_comment', {
+      const { error } = await backend.rpc('waves_edit_expense_comment', {
         p_comment_id: input.commentId,
         p_body: body,
       });
@@ -2122,7 +2122,7 @@ export function useDeleteExpenseComment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { commentId: string }) => {
-      const { error } = await backend.rpc('baaki_delete_expense_comment', {
+      const { error } = await backend.rpc('waves_delete_expense_comment', {
         p_comment_id: input.commentId,
       });
       if (error) throw new Error(error.message);
@@ -2136,7 +2136,7 @@ export function useFlagExpenseComment() {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { commentId: string; flag: boolean }) => {
-      const { error } = await backend.rpc('baaki_flag_expense_comment', {
+      const { error } = await backend.rpc('waves_flag_expense_comment', {
         p_comment_id: input.commentId,
         p_flag: input.flag,
       });
@@ -2193,7 +2193,7 @@ export function useAttachSettlementProof(groupId: string, settlementId: string) 
           subjectId: settlementId,
         });
         committed = path;
-        const { error } = await backend.rpc('baaki_attach_settlement_proof', {
+        const { error } = await backend.rpc('waves_attach_settlement_proof', {
           p_settlement_id: settlementId,
           p_storage_path: path,
           p_proof_id: randomUUID(),
@@ -2215,7 +2215,7 @@ export function useRemoveSettlementProof(settlementId: string) {
   const { flush } = useSync();
   return useMutation({
     mutationFn: async (input: { proofId: string; storagePath: string }) => {
-      const { error } = await backend.rpc('baaki_remove_settlement_proof', {
+      const { error } = await backend.rpc('waves_remove_settlement_proof', {
         p_proof_id: input.proofId,
       });
       if (error) throw new Error(error.message);
@@ -2325,13 +2325,13 @@ export function useOpenReceipts(groupId: string) {
 
 /**
  * The reader's cloud-STT entitlement (A48): paid → unlimited, free → a monthly
- * allowance, resolved per person by `baaki_my_voice_access`. The UI uses it to
+ * allowance, resolved per person by `waves_my_voice_access`. The UI uses it to
  * show remaining free talk-time and to pick the cloud vs on-device tier
  * (`pickVoiceMode`). A minute of staleness is harmless — the server re-meters on
  * every real STT call.
  */
 export function useVoiceAccess() {
-  // Key on the signed-in profile: baaki_my_voice_access resolves the caller from
+  // Key on the signed-in profile: waves_my_voice_access resolves the caller from
   // the JWT, and the QueryClient is persisted across sign-outs, so a bare
   // ['voiceAccess'] key would let a second person on the same device read the
   // first person's cached entitlement for up to staleTime.
@@ -2339,7 +2339,7 @@ export function useVoiceAccess() {
   return useQuery({
     queryKey: ['voiceAccess', profile?.id ?? null],
     queryFn: async (): Promise<VoiceAccess> => {
-      const { data, error } = await backend.rpc('baaki_my_voice_access');
+      const { data, error } = await backend.rpc('waves_my_voice_access');
       if (error) throw new Error(error.message);
       return data as VoiceAccess;
     },

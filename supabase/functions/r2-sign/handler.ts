@@ -178,7 +178,7 @@ async function requireRestrictedParty(
   subjectId: string,
 ): Promise<void> {
   const rpc =
-    bucket === 'settlement-proofs' ? 'baaki_is_settlement_party' : 'baaki_is_expense_party';
+    bucket === 'settlement-proofs' ? 'waves_is_settlement_party' : 'waves_is_expense_party';
   const arg =
     bucket === 'settlement-proofs' ? { p_settlement_id: subjectId } : { p_expense_id: subjectId };
   const { data, error } = await caller.rpc(rpc, arg);
@@ -228,7 +228,7 @@ async function callerUserId(caller: SupabaseClient): Promise<string> {
 /** True when the two profiles share at least one live group. */
 async function sharesGroup(service: SupabaseClient, a: string, b: string): Promise<boolean> {
   if (a === b) return true;
-  const { data, error } = await service.rpc('baaki_profiles_share_group', { p_a: a, p_b: b });
+  const { data, error } = await service.rpc('waves_profiles_share_group', { p_a: a, p_b: b });
   if (error) throw new HttpError(500, 'INTERNAL', error.message);
   return data === true;
 }
@@ -270,7 +270,7 @@ async function authorizeWrite(
   if (bucket === 'group-photos') {
     if (!groupId) throw new HttpError(400, 'BAD_PATH', 'A group photo needs a group');
     await requireMembership(caller, groupId);
-    const { data: allowed, error } = await caller.rpc('baaki_can_upload_group_photo', {
+    const { data: allowed, error } = await caller.rpc('waves_can_upload_group_photo', {
       p_group_id: groupId,
     });
     if (error) throw new HttpError(500, 'INTERNAL', error.message);
@@ -295,7 +295,7 @@ async function authorizeWrite(
   // A personal receipt backup (`receipts/personal/<uid>/…`) is a paid feature —
   // the Supabase insert policy gated it, so the R2 path must too.
   if (bucket === 'receipts') {
-    const { data: allowed, error } = await caller.rpc('baaki_can_upload_group_photo', {
+    const { data: allowed, error } = await caller.rpc('waves_can_upload_group_photo', {
       p_group_id: null,
     });
     if (error) throw new HttpError(500, 'INTERNAL', error.message);
@@ -383,7 +383,7 @@ export async function handleR2Sign(request: Request, deps: R2SignDeps): Promise<
       // never commits still holds cap until it is swept, which is what stops
       // "presign forever, commit never" from filling R2 for free. Charges the
       // client's declared length; `commit` corrects it to the true size.
-      const { error } = await service.rpc('baaki_storage_reserve', {
+      const { error } = await service.rpc('waves_storage_reserve', {
         p_profile_id: uid,
         p_group_id: groupId,
         p_logical_bucket: bucket,
@@ -435,7 +435,7 @@ export async function handleR2Sign(request: Request, deps: R2SignDeps): Promise<
         throw new HttpError(413, 'TOO_LARGE', 'That image is too large');
       }
 
-      const { error } = await service.rpc('baaki_storage_record', {
+      const { error } = await service.rpc('waves_storage_record', {
         p_profile_id: uid,
         p_group_id: groupId,
         p_logical_bucket: bucket,
@@ -452,7 +452,7 @@ export async function handleR2Sign(request: Request, deps: R2SignDeps): Promise<
         // untouched — never destroy the good copy that is already there.
         let removedReservation = false;
         try {
-          const { data } = await service.rpc('baaki_storage_release_reservation', {
+          const { data } = await service.rpc('waves_storage_release_reservation', {
             p_logical_bucket: bucket,
             p_path: path,
           });
@@ -513,7 +513,7 @@ export async function handleR2Sign(request: Request, deps: R2SignDeps): Promise<
     // pending row, cannot take the committed image down with it.
     if (action === 'release') {
       await authorizeWrite(caller, service, uid, bucket, path, subjectId);
-      const { data: removed, error } = await service.rpc('baaki_storage_release_reservation', {
+      const { data: removed, error } = await service.rpc('waves_storage_release_reservation', {
         p_logical_bucket: bucket,
         p_path: path,
       });
@@ -543,7 +543,7 @@ export async function handleR2Sign(request: Request, deps: R2SignDeps): Promise<
         .from(bucket)
         .remove([path])
         .catch(() => {});
-      const { error } = await service.rpc('baaki_storage_release', {
+      const { error } = await service.rpc('waves_storage_release', {
         p_logical_bucket: bucket,
         p_path: path,
       });

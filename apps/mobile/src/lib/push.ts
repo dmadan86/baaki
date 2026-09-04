@@ -5,7 +5,7 @@
  * nobody notices:
  *
  * **Permission is never asked for on launch.** A money app that opens with
- * "Baaki would like to send you notifications" gets denied, and on iOS a denial
+ * "Waves would like to send you notifications" gets denied, and on iOS a denial
  * is close to permanent — the only way back is Settings, which nobody visits.
  * So the prompt happens when somebody turns notifications on, having read what
  * they are for. If permission is already granted the token is refreshed
@@ -48,7 +48,7 @@ export const pushSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 export async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('default', {
-    name: 'Baaki',
+    name: 'Waves',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200, 100, 200],
     lightColor: '#7A5AF8',
@@ -193,9 +193,8 @@ export function routeForNotification(response: Notifications.NotificationRespons
   const data = response.notification.request.content.data as { url?: unknown } | undefined;
   const url = typeof data?.url === 'string' ? data.url : null;
   if (!url) return null;
-  // `waves://group/<id>` (or a pre-rebrand `baaki://…` still in the queue) →
-  // `/group/<id>`. The scheme is only there because a push has to survive being
-  // handed to the operating system; either of the app's registered schemes maps
-  // to the same in-app path.
-  return url.replace(/^(?:baaki|waves):\/\//, '/');
+  // `waves://group/<id>` → `/group/<id>`. The scheme is only there because a
+  // push has to survive being handed to the operating system; in the app it is
+  // noise in front of the path.
+  return url.replace(/^waves:\/\//, '/');
 }

@@ -6,10 +6,10 @@
  * the name and address needed to invite them.
  *
  * This is worth being deliberate about, because the usual version of this
- * feature uploads the whole book to find "who else already uses Baaki". That
+ * feature uploads the whole book to find "who else already uses Waves". That
  * turns an address book into a membership oracle — it tells the server, and
  * anyone who later reaches the server, which of your contacts use the app.
- * Baaki has no such endpoint and this component does not want one: an invite
+ * Waves has no such endpoint and this component does not want one: an invite
  * link works whether or not the person has ever heard of us (ADR-006).
  *
  * The shape is the phone's own contacts app, because that is the list everyone
@@ -81,7 +81,7 @@ interface ContactPickerProps {
  *
  * These used to be one state, and the whole feature died of it: in SDK 57 the
  * old `Contacts.getContactsAsync` throws on every call, so a phone that had
- * just granted permission was told "Baaki cannot see your contacts" and offered
+ * just granted permission was told "Waves cannot see your contacts" and offered
  * a settings screen where the switch was already on. A catch that turns every
  * failure into the same sentence does not just lose the reason — it prints a
  * confident lie.
@@ -194,7 +194,7 @@ export function ContactPicker({
   /**
    * "Open settings" sends somebody out of the app to grant access. Without
    * this, they came back to the same refusal and had to guess that killing
-   * Baaki and starting it again was the missing step.
+   * Waves and starting it again was the missing step.
    */
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

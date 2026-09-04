@@ -73,7 +73,7 @@ ambiguous — pin it down):
 
 - **Settlement proof** — parties are the two members on the settlement row:
   `caller_member ∈ {from_member_id, to_member_id}`. This mirrors the existing
-  `baaki_record_settlement` / `baaki_confirm_settlement` actor check
+  `waves_record_settlement` / `waves_confirm_settlement` actor check
   (`v_actor NOT IN (from,to)` and `v_actor <> to`).
 - **Hidden expense attachment** — parties are the **payers** of the expense's
   current version (`expense_payers`) plus the version author
@@ -82,7 +82,7 @@ ambiguous — pin it down):
   analogue.)
 
 `caller_member` is the caller's own `group_members.id` for that group, derived
-server-side via `baaki_my_member_id(group_id)` — never taken from the client.
+server-side via `waves_my_member_id(group_id)` — never taken from the client.
 
 | Operation                                             | Predicate (enforced at DB **and** presign)                                           |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -137,7 +137,7 @@ still-valid URL. R2 presigns are self-authenticating and **cannot be revoked**.
    un-revocable URL survives is the TTL; cut it to seconds. (`r2-sign` must pick
    the TTL by bucket: restricted → `RESTRICTED_URL_TTL_SECONDS = 60`.)
 2. **Re-check the party predicate on _every_ issue** — the presign is minted only
-   after `baaki_is_settlement_party` passes _now_, not from a cached grant.
+   after `waves_is_settlement_party` passes _now_, not from a cached grant.
 3. **Rotate the object key on downgrade/party-removal** — store the R2 key with a
    random UUID segment; a visibility change writes a **new** key and orphans the
    old one (into `storage_orphans`, swept), so every previously-minted URL 404s.
@@ -211,7 +211,7 @@ authenticated`, `r2_storage_cap` line 103), so the ledger cannot be scraped
 
 ## 3. Draft RLS policies + presign authorization logic
 
-> Draft SQL for review — **not a migration.** Names follow the `baaki_*`,
+> Draft SQL for review — **not a migration.** Names follow the `waves_*`,
 > `SECURITY DEFINER`, `SET search_path`, `REVOKE ... FROM public` conventions of
 > the existing migrations.
 
@@ -219,7 +219,7 @@ authenticated`, `r2_storage_cap` line 103), so the ledger cannot be scraped
 
 ```sql
 -- Is the caller a party to this settlement (its payer or payee)?
-CREATE OR REPLACE FUNCTION public.baaki_is_settlement_party(p_settlement_id uuid)
+CREATE OR REPLACE FUNCTION public.waves_is_settlement_party(p_settlement_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public, pg_temp
@@ -230,14 +230,14 @@ AS $$
     JOIN public.group_members gm
       ON gm.id IN (s.from_member_id, s.to_member_id)
     WHERE s.id = p_settlement_id
-      AND gm.profile_id = public.baaki_current_profile_id()
+      AND gm.profile_id = public.waves_current_profile_id()
       AND gm.left_at IS NULL
   )
 $$;
 
 -- Is the caller a party to this expense (a payer of the current version,
 -- or its author)?
-CREATE OR REPLACE FUNCTION public.baaki_is_expense_party(p_expense_id uuid)
+CREATE OR REPLACE FUNCTION public.waves_is_expense_party(p_expense_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public, pg_temp
@@ -250,16 +250,16 @@ AS $$
     JOIN public.group_members gm
       ON gm.id = ep.member_id OR gm.id = v.author_member_id
     WHERE e.id = p_expense_id
-      AND gm.profile_id = public.baaki_current_profile_id()
+      AND gm.profile_id = public.waves_current_profile_id()
       AND gm.left_at IS NULL
   )
 $$;
 
-REVOKE ALL ON FUNCTION public.baaki_is_settlement_party(uuid) FROM public;
-GRANT EXECUTE ON FUNCTION public.baaki_is_settlement_party(uuid)
+REVOKE ALL ON FUNCTION public.waves_is_settlement_party(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION public.waves_is_settlement_party(uuid)
   TO authenticated, anon;    -- used inside RLS; safe, returns only own membership
-REVOKE ALL ON FUNCTION public.baaki_is_expense_party(uuid) FROM public;
-GRANT EXECUTE ON FUNCTION public.baaki_is_expense_party(uuid) TO authenticated, anon;
+REVOKE ALL ON FUNCTION public.waves_is_expense_party(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION public.waves_is_expense_party(uuid) TO authenticated, anon;
 ```
 
 ### 3.2 The restricted-attachment tables
@@ -311,7 +311,7 @@ CREATE POLICY settlement_proofs_select ON public.settlement_proofs
   FOR SELECT TO authenticated, anon
   USING (
     public.is_group_member(group_id)
-    AND public.baaki_is_settlement_party(settlement_id)
+    AND public.waves_is_settlement_party(settlement_id)
   );
 
 -- Only a party may create the proof, and only for a settlement they belong to.
@@ -319,14 +319,14 @@ CREATE POLICY settlement_proofs_insert ON public.settlement_proofs
   FOR INSERT TO authenticated, anon
   WITH CHECK (
     public.is_group_member(group_id)
-    AND public.baaki_is_settlement_party(settlement_id)
-    AND uploader_member_id = public.baaki_my_member_id(group_id)
+    AND public.waves_is_settlement_party(settlement_id)
+    AND uploader_member_id = public.waves_my_member_id(group_id)
   );
 
 CREATE POLICY settlement_proofs_delete ON public.settlement_proofs
   FOR DELETE TO authenticated, anon
   USING (
-    public.baaki_is_settlement_party(settlement_id)
+    public.waves_is_settlement_party(settlement_id)
   );
 -- No UPDATE policy: a proof is immutable; replacing it is delete + insert with a
 -- fresh key, which also gives key-rotation (threat (c)) for free.
@@ -339,7 +339,7 @@ CREATE POLICY expense_attachments_select ON public.expense_attachments
     public.is_group_member(group_id)
     AND (
       visibility = 'group'
-      OR public.baaki_is_expense_party(expense_id)
+      OR public.waves_is_expense_party(expense_id)
     )
   );
 
@@ -347,13 +347,13 @@ CREATE POLICY expense_attachments_insert ON public.expense_attachments
   FOR INSERT TO authenticated, anon
   WITH CHECK (
     public.is_group_member(group_id)
-    AND public.baaki_is_expense_party(expense_id)
-    AND uploader_member_id = public.baaki_my_member_id(group_id)
+    AND public.waves_is_expense_party(expense_id)
+    AND uploader_member_id = public.waves_my_member_id(group_id)
   );
 
 CREATE POLICY expense_attachments_delete ON public.expense_attachments
   FOR DELETE TO authenticated, anon
-  USING (public.baaki_is_expense_party(expense_id));
+  USING (public.waves_is_expense_party(expense_id));
 ```
 
 Note: the tables are written **directly by the caller** (RLS gates it), not via a
@@ -421,8 +421,8 @@ if (RESTRICTED_BUCKETS.has(bucket)) {
   await requireMembership(caller, groupId);
   const isParty =
     bucket === 'settlement-proofs'
-      ? await caller.rpc('baaki_is_settlement_party', { p_settlement_id: subjectId })
-      : await caller.rpc('baaki_is_expense_party', { p_expense_id: subjectId });
+      ? await caller.rpc('waves_is_settlement_party', { p_settlement_id: subjectId })
+      : await caller.rpc('waves_is_expense_party', { p_expense_id: subjectId });
   if (isParty.data !== true)
     throw new HttpError(403, 'NOT_A_PARTY', 'Only a party may attach proof');
   return { groupId };
@@ -489,11 +489,11 @@ back). Ships only when **all** are green:
 - [ ] **T6** `role=anon` (no `sub`) SELECT on either table → **0 rows**.
 - [ ] **T7** Outsider from a different group → **0 rows**.
 - [ ] **T8** Non-party INSERT of a proof (party check in `WITH CHECK`) → **denied**.
-- [ ] **T9** Party INSERT with a **forged** `uploader_member_id` (someone else's) → **denied** (`uploader_member_id = baaki_my_member_id`).
+- [ ] **T9** Party INSERT with a **forged** `uploader_member_id` (someone else's) → **denied** (`uploader_member_id = waves_my_member_id`).
 - [ ] **T10** After an expense edit drops a member from `expense_payers`, that member loses SELECT on a `parties` attachment → **0 rows** (predicate is re-evaluated live).
 - [ ] **T11** `storage_objects` still `REVOKE ALL FROM anon, authenticated` — a client SELECT → **denied** (no key scraping).
 - [ ] **T12** Assert the **sync pull shape**: `SETTLEMENT_SELECT` returns no `proof_path`; a non-party's pull of the group returns no `settlement_proofs`/`expense_attachments` rows.
-- [ ] **T13** `baaki_is_settlement_party` / `baaki_is_expense_party` return **false** for a non-party and **true** for each party (unit).
+- [ ] **T13** `waves_is_settlement_party` / `waves_is_expense_party` return **false** for a non-party and **true** for each party (unit).
 - [ ] **T14** Delete then re-insert (key rotation) yields a **different** `storage_path` (threat (c) rotation invariant).
 
 Presign-layer checks (edge, or asserted via the helper RPCs in T13 since the

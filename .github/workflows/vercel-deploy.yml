@@ -8,8 +8,8 @@ name: Vercel deploy (manual)
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   VERCEL_TOKEN              — a Vercel access token
 #   VERCEL_ORG_ID             — the Vercel team/org id (same for every project)
-#   VERCEL_PROJECT_ID_WEB     — project id of baaki-web     (.vercel/project.json)
-#   VERCEL_PROJECT_ID_ADMIN   — project id of baaki-admin   (.vercel/project.json)
+#   VERCEL_PROJECT_ID_WEB     — project id of waves-web     (.vercel/project.json)
+#   VERCEL_PROJECT_ID_ADMIN   — project id of waves-admin   (.vercel/project.json)
 #   VERCEL_PROJECT_ID_WEBSITE — project id of waves-website (.vercel/project.json)
 
 on:

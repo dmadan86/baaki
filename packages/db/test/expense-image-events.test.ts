@@ -76,7 +76,7 @@ const M = (i: number) => g.memberIds[i] as string;
 
 const logReceipt = (profileId: string, action: string, id = randomUUID()) =>
   as(profileId, () =>
-    client.query(`SELECT baaki_log_receipt_event($1, $2, $3, $4)`, [
+    client.query(`SELECT waves_log_receipt_event($1, $2, $3, $4)`, [
       id,
       g.groupId,
       expenseId,
@@ -95,7 +95,7 @@ const attach = (profileId: string, visibility: string, id = randomUUID()) =>
       ownerProfileId: profileId,
     });
     return client
-      .query(`SELECT baaki_attach_expense_attachment($1, $2, $3, $4) AS id`, [
+      .query(`SELECT waves_attach_expense_attachment($1, $2, $3, $4) AS id`, [
         expenseId,
         path,
         visibility,
@@ -105,7 +105,7 @@ const attach = (profileId: string, visibility: string, id = randomUUID()) =>
   });
 
 const remove = (profileId: string, attachmentId: string) =>
-  as(profileId, () => client.query(`SELECT baaki_remove_expense_attachment($1)`, [attachmentId]));
+  as(profileId, () => client.query(`SELECT waves_remove_expense_attachment($1)`, [attachmentId]));
 
 /** The events on this expense that `profileId` may see (RLS applied). */
 const eventsVisibleTo = (profileId: string | null) =>
@@ -153,7 +153,7 @@ describe('receipt audit line', () => {
     const otherExpense = randomUUID();
     await expectDenied(
       as(P(0), () =>
-        client.query(`SELECT baaki_log_receipt_event($1, $2, $3, 'added')`, [
+        client.query(`SELECT waves_log_receipt_event($1, $2, $3, 'added')`, [
           randomUUID(),
           g.groupId,
           otherExpense,
@@ -232,7 +232,7 @@ describe('anon', () => {
     await expectDenied(eventsVisibleTo(null));
     await expectDenied(
       as(null, () =>
-        client.query(`SELECT baaki_log_receipt_event($1, $2, $3, 'added')`, [
+        client.query(`SELECT waves_log_receipt_event($1, $2, $3, 'added')`, [
           randomUUID(),
           g.groupId,
           expenseId,

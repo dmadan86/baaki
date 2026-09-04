@@ -1,5 +1,5 @@
 /**
- * The dashboard's rotating tips — one useful, Baaki-specific hint at a time.
+ * The dashboard's rotating tips — one useful, Waves-specific hint at a time.
  *
  * These are not generic money advice; each points at something the app can
  * actually do that a new person would not find on their own (add by voice,

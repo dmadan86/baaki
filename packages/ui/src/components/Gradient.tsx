@@ -19,7 +19,7 @@ export interface GradientProps {
 /**
  * The brand wash: one purple sliding into a lighter one, corner to corner.
  *
- * Flat brand is fine and was what Baaki shipped; a wash gives the balance the
+ * Flat brand is fine and was what Waves shipped; a wash gives the balance the
  * depth the reference boards get from theirs, and costs nothing at rest. The
  * colours are the brand ramp rather than anything new, so a gradient can never
  * disagree with the rest of the app about what purple is.

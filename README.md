@@ -1,6 +1,6 @@
-# Baaki
+# Waves
 
-**பாக்கி — "balance / what's still owed".** An expense-splitting app for people
+**Split the bill, settle up, move on.** An expense-splitting app for people
 everywhere: unlimited free ledger, link-based guest joining, multi-currency from
 the first expense, deep-link settlement with partial and per-expense payments
 (UPI in India, PayPal / PayID and more worldwide), and AI receipt itemization
@@ -13,12 +13,12 @@ ledger, currency handling or growth loop is India-only. Every amount is stored
 in ISO-4217 minor units from M0, and opening a new market is a settlement rail
 and a price tier, not a rewrite.
 
-The two binding specs live in this repo: [`baaki-adr.md`](./baaki-adr.md) (14
-accepted architecture decisions) and [`baaki-tdr.md`](./baaki-tdr.md) (how to
+The two binding specs live in this repo: [`waves-adr.md`](./waves-adr.md) (14
+accepted architecture decisions) and [`waves-tdr.md`](./waves-tdr.md) (how to
 build them, milestone by milestone). **The ADRs are constraints, not
 suggestions** — if code and ADR disagree, the ADR wins.
 
-Current state, as of 2026-08-09. [TDR §10](./baaki-tdr.md) carries the evidence
+Current state, as of 2026-08-09. [TDR §10](./waves-tdr.md) carries the evidence
 for each line; this is the summary.
 
 | Milestone               | State                                                                                 |
@@ -99,9 +99,9 @@ is what makes a retried run a no-op rather than a second buzz.
 
 | Job                                | What it resolves                                                                                                                                                                                             |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `baaki_auto_confirm_settlements()` | A settlement nobody answered for 7 days (ADR-007). A dispute still reopens it.                                                                                                                               |
-| `baaki_claim_push_notifications()` | Hands unsent inbox rows to the fanout. An UPDATE, not a SELECT — two overlapping runs cannot both send the same reminder.                                                                                    |
-| `baaki_trip_nudges()`              | Twice a day during a group's dates: at breakfast about yesterday, at the end of the day about today. Skips anybody who already recorded that day, and asks in the group's timezone rather than the server's. |
+| `waves_auto_confirm_settlements()` | A settlement nobody answered for 7 days (ADR-007). A dispute still reopens it.                                                                                                                               |
+| `waves_claim_push_notifications()` | Hands unsent inbox rows to the fanout. An UPDATE, not a SELECT — two overlapping runs cannot both send the same reminder.                                                                                    |
+| `waves_trip_nudges()`              | Twice a day during a group's dates: at breakfast about yesterday, at the end of the day about today. Skips anybody who already recorded that day, and asks in the group's timezone rather than the server's. |
 
 ### Edge functions
 
@@ -317,7 +317,7 @@ tries`, ten minutes in, blaming `react-native-screens`. Windows long paths do
 ## Where the money went
 
 The Spending screen (`group/[id]/insights`) draws two charts over
-`baaki_group_spending(group_id)` — what each category cost, and month by month,
+`waves_group_spending(group_id)` — what each category cost, and month by month,
 for the whole group or for you alone. The function returns the finest grain it
 can (member × category × month × currency) and the screen adds up whichever way
 it is being asked; summing server-side would answer only one of the two
@@ -348,9 +348,9 @@ of bars and a row of columns.
 ## Taking your ledger elsewhere, and bringing it back
 
 Export is JSON (lossless) or CSV, for one group or all of them, free forever
-(ADR-012). The import screen reads three things: a Splitwise CSV, and Baaki's own
-JSON export, through one RPC — `baaki_import_ledger`, of which
-`baaki_import_splitwise` is now a thin wrapper.
+(ADR-012). The import screen reads three things: a Splitwise CSV, and Waves's own
+JSON export, through one RPC — `waves_import_ledger`, of which
+`waves_import_splitwise` is now a thin wrapper.
 
 What comes back from our own file is every balance, to the paisa, in every
 currency, settlements included. What does not: ids, edit history, and settlement
@@ -365,13 +365,13 @@ the fan-out, the language, the dead-device revocation. The one part that is not
 in this repository is the credential that lets a phone have a push token at all,
 because it is issued by a console and belongs to whoever owns the app.
 
-The path is Baaki → Expo → **FCM** (Android) or **APNs** (iOS) → the phone. Expo
+The path is Waves → Expo → **FCM** (Android) or **APNs** (iOS) → the phone. Expo
 is a relay; the credentials at the far end are still yours to supply.
 
 **Android, once:**
 
 1. Create a Firebase project and add an Android app to it with the package name
-   `app.baaki.mobile`. It must match, exactly — a mismatch is the error
+   `app.waves.mobile`. It must match, exactly — a mismatch is the error
    `MismatchSenderId` on every notification, months later.
 2. Download `google-services.json` and put it at `apps/mobile/google-services.json`.
    It is gitignored: this repository is public, and the file names the Firebase
@@ -464,7 +464,7 @@ both before it claims a row, so a half-configured deployment strands nothing.
 
 ```bash
 supabase secrets set RESEND_WEBHOOK_SECRET=whsec_...
-supabase secrets set EMAIL_FROM='Baaki <hello@mail.dmadan.com>'   # optional; this is the default
+supabase secrets set EMAIL_FROM='Waves <hello@mail.dmadan.com>'   # optional; this is the default
 supabase secrets set EMAIL_WEB_URL=https://wavs.co.in             # optional; this is the default
 pnpm edge:deploy
 ```
@@ -476,7 +476,7 @@ it is set once and left alone.
 `EMAIL_WEB_URL` is where the button in an email points — defaults to the site's
 real domain, `https://wavs.co.in`. A fork or a self-host pointing at a
 different domain (or nothing at all, deliberately) should set this explicitly;
-with it unset the button falls back to the `baaki://`/`waves://` deep link,
+with it unset the button falls back to the `waves://` deep link,
 which works on a phone and does nothing in desktop webmail. That fallback is
 deliberate: an `https://` URL that 404s looks like it should have worked.
 
@@ -498,6 +498,49 @@ Note for an eventual iOS release: App Store guideline 4.8 requires an equivalent
 private sign-in option (Sign in with Apple) alongside any third-party social
 login. With Google as the only provider, this must be revisited before shipping
 to the App Store.
+
+## The rename, and what it needs from the consoles
+
+The app was called `baaki` before it was called Waves, and the old name is now
+gone from the source, the database, the local stack and these docs. What is left
+lives in somebody's console rather than in this repository:
+
+1. **The OAuth redirect.** The app asks for `waves://auth` and registers only
+   the `waves` scheme. Add `waves://auth` to the hosted project's **Auth →
+   URL Configuration → Redirect URLs**, and to the redirect URIs of the Google
+   OAuth client (and Apple's Services ID, if that ever comes back). Until it is
+   listed, Google sign-in completes at the provider and lands nowhere.
+2. **The admin domain.** The console, its CSRF check and its tests all name
+   `waves.dmadan.com`. Point that host at the admin Vercel project and put it in
+   `ADMIN_ALLOWED_ORIGIN`; the old host stops matching the moment this ships.
+3. **The Vercel projects.** The workflows and the admin README name
+   `waves-admin` and `waves-web`. Renaming a project in Vercel keeps its
+   project id, so the `VERCEL_PROJECT_ID_*` secrets stay valid — only the
+   `.vercel.app` hostname moves.
+4. **The edge functions.** They call `waves_*` now. A deployed function still
+   calling the old names answers "function does not exist" on every write, so
+   they redeploy with this.
+
+The database was **rebuilt, not migrated**. The whole migration history is one
+file — `20260904000000_waves_baseline` — that builds the schema already named
+`waves_*`, and the hosted database was dropped and recreated from it on
+2026-09-04. There is no upgrade path from a database built by the old files and
+no compatibility aliases, by choice. Everything the hosted database held went
+with it — 152 accounts, 100 groups, 806 expenses, all of it development data —
+and a dump was taken first. The three rows in `storage.objects` survived: the
+Storage API refuses a direct delete, so those bytes are orphaned until they are
+removed through it.
+
+The only thing that keeps its old name is the Firebase project
+(`baaki-43455`), because that id was issued by a console and the app is
+still registered under it.
+
+An installed app still carries its own device state across the rename. The
+device keys and the mirror's SQLite file move on the first launch after the
+update (`lib/legacyKeys.ts`, `sync/legacyDatabase.ts`), which keeps the
+language, theme, app lock and device identity rather than resetting them. The
+mirror itself is of a database that no longer holds those rows, so the first
+sync after this is a fresh one either way.
 
 ## Releasing, and stopping old builds
 
@@ -544,7 +587,7 @@ Three things stop a mistake here from bricking every phone:
   as there is a connection.
 
 The comparison itself is `compareVersions` in `packages/core/src/version`,
-mirrored in SQL by `baaki_version_key()` so the database and the app cannot
+mirrored in SQL by `waves_version_key()` so the database and the app cannot
 disagree about which of two versions is newer.
 
 ## Money rules
@@ -556,7 +599,7 @@ disagree about which of two versions is newer.
   aggregate.
 - The remainder of an uneven split rotates by expense id, so the same person
   does not always absorb the extra paisa (ADR-009).
-- Baaki **never moves money**. Settlement opens a UPI intent in the payer's own
+- Waves **never moves money**. Settlement opens a UPI intent in the payer's own
   app and records the outcome (ADR-007).
 
 ## Monetization guardrail (ADR-011)

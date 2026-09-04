@@ -11,7 +11,7 @@
  * It is the service role's business and no one else's, so — like the email
  * broadcaster — the gate is a plain comparison against the service key, not a
  * user JWT. Schedule it wherever the R2 secret lives (docs/r2-storage.md); the
- * `baaki_storage_expire_pending` cron already keeps the *cap* correct without it,
+ * `waves_storage_expire_pending` cron already keeps the *cap* correct without it,
  * so this lagging or not running costs only reclaimable R2 space, never a wrong
  * ceiling.
  */
@@ -37,10 +37,10 @@ interface OrphanRow {
 async function sweep(service: SupabaseClient): Promise<{ expired: number; deleted: number }> {
   // Free the cap first: reservations nobody committed become deletable rows,
   // which the trigger has already queued as orphans for the pass below.
-  const { data: expired, error: expireError } = await service.rpc('baaki_storage_expire_pending');
+  const { data: expired, error: expireError } = await service.rpc('waves_storage_expire_pending');
   if (expireError) throw new HttpError(500, 'INTERNAL', expireError.message);
 
-  const { data, error } = await service.rpc('baaki_storage_orphans', { p_limit: SWEEP_BATCH });
+  const { data, error } = await service.rpc('waves_storage_orphans', { p_limit: SWEEP_BATCH });
   if (error) throw new HttpError(500, 'INTERNAL', error.message);
   const rows = (data ?? []) as OrphanRow[];
 
@@ -55,7 +55,7 @@ async function sweep(service: SupabaseClient): Promise<{ expired: number; delete
     });
     if (!response.ok && response.status !== 404) continue;
 
-    const { error: clearError } = await service.rpc('baaki_storage_orphan_clear', {
+    const { error: clearError } = await service.rpc('waves_storage_orphan_clear', {
       p_logical_bucket: row.logical_bucket,
       p_path: row.path,
     });

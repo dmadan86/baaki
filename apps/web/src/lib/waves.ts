@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-import { createBaakiClient, type BaakiClient } from '@waves/api-client';
+import { createWavesClient, type WavesClient } from '@waves/api-client';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -36,4 +36,4 @@ export const supabase = createClient(url, anonKey, {
   },
 });
 
-export const baaki: BaakiClient = createBaakiClient({ supabase });
+export const waves: WavesClient = createWavesClient({ supabase });

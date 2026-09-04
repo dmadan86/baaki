@@ -12,10 +12,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   balancesOf,
-  isBaakiExport,
-  parseBaakiExport,
-  type BaakiImportGroup,
-} from '../src/import/baaki.js';
+  isWavesExport,
+  parseWavesExport,
+  type WavesImportGroup,
+} from '../src/import/waves.js';
 
 interface Member {
   id: string;
@@ -118,14 +118,14 @@ const asha: Member = { id: 'm1', name: 'Asha' };
 const ravi: Member = { id: 'm2', name: 'Ravi' };
 const priya: Member = { id: 'm3', name: 'Priya', ghost: true };
 
-function only(text: string): BaakiImportGroup {
-  const parsed = parseBaakiExport(text);
+function only(text: string): WavesImportGroup {
+  const parsed = parseWavesExport(text);
   expect(parsed.problems).toEqual([]);
   expect(parsed.groups).toHaveLength(1);
   return parsed.groups[0]!;
 }
 
-describe('a Baaki export, read back', () => {
+describe('a Waves export, read back', () => {
   it('reproduces every balance exactly — expenses and settlements together', () => {
     const file = exportFile({
       members: [asha, ravi, priya],
@@ -307,7 +307,7 @@ describe('a Baaki export, read back', () => {
   });
 
   it('names the row that does not add up and imports the rest', () => {
-    const parsed = parseBaakiExport(
+    const parsed = parseWavesExport(
       exportFile({
         members: [asha, ravi],
         expenses: [
@@ -337,7 +337,7 @@ describe('a Baaki export, read back', () => {
   });
 
   it('refuses a file from a newer version rather than dropping half of it', () => {
-    const parsed = parseBaakiExport(
+    const parsed = parseWavesExport(
       exportFile({
         members: [asha, ravi],
         expenses: [],
@@ -349,10 +349,10 @@ describe('a Baaki export, read back', () => {
   });
 
   it('says what a file is not', () => {
-    expect(isBaakiExport('date,description,cost\n2026-01-01,Dinner,300')).toBe(false);
-    expect(isBaakiExport('{')).toBe(false);
-    expect(parseBaakiExport('not json at all').problems[0]!.kind).toBe('unparseable_row');
-    expect(isBaakiExport(exportFile({ members: [asha], expenses: [] }))).toBe(true);
+    expect(isWavesExport('date,description,cost\n2026-01-01,Dinner,300')).toBe(false);
+    expect(isWavesExport('{')).toBe(false);
+    expect(parseWavesExport('not json at all').problems[0]!.kind).toBe('unparseable_row');
+    expect(isWavesExport(exportFile({ members: [asha], expenses: [] }))).toBe(true);
   });
 
   it('refuses a fractional amount instead of rounding somebody’s money', () => {
@@ -372,7 +372,7 @@ describe('a Baaki export, read back', () => {
     ) as { groups: { expenses: { versions: { amount: unknown }[] }[] }[] };
     file.groups[0]!.expenses[0]!.versions[0]!.amount = 800.5;
 
-    const group = parseBaakiExport(JSON.stringify(file)).groups[0]!;
+    const group = parseWavesExport(JSON.stringify(file)).groups[0]!;
     expect(group.expenses).toEqual([]);
     expect(group.problems[0]!.kind).toBe('unparseable_row');
   });

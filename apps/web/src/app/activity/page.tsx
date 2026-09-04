@@ -18,7 +18,7 @@ import type { ActivityGroup, ActivityRow } from '@waves/api-client';
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { describeActivity, verbEmoji } from '@/lib/activity';
 import { useStrings } from '@/i18n-context';
 
@@ -41,7 +41,7 @@ function ActivityFeed({ profileId, query }: { profileId: string; query: string }
     let active = true;
     void (async () => {
       try {
-        const feed = await baaki.recentActivity(200);
+        const feed = await waves.recentActivity(200);
         if (active) setRows(feed);
       } finally {
         if (active) setLoading(false);

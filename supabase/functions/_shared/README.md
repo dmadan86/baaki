@@ -47,7 +47,7 @@ Planned functions, by milestone:
 | `sync`                 | M2        | Batch mutation replay + change feed (TDR §4)            |
 | `invite-mint`          | M3        | Signed, expiring, revocable invite tokens               |
 | `ghost-claim`          | M3        | Transactional ghost → real member merge                 |
-| ~~`splitwise-import`~~ | M3        | Shipped as `baaki_import_splitwise` instead — see below |
+| ~~`splitwise-import`~~ | M3        | Shipped as `waves_import_splitwise` instead — see below |
 | `notify-fanout`        | M4        | Classify → resolve recipients → push/email (TDR §7.1)   |
 | `email-events`         | M4        | Resend webhook ingestion + suppression list             |
 | `email-unsubscribe`    | M4        | RFC 8058 one-click opt-out (not in the TDR — see below) |
@@ -98,7 +98,7 @@ nobody can get off the list.
 ## What gets emailed, and what never does
 
 The list is in `@waves/core` (`notifications/email.ts`) and again in SQL
-(`baaki_claim_email_notifications`), and it is four kinds long: settlement
+(`waves_claim_email_notifications`), and it is four kinds long: settlement
 confirmations, the daily digest, and a nudge to somebody with no device. Routine
 ledger activity is deliberately absent. Mailing a person every time a flatmate
 buys milk is the mistake that teaches them to filter the sender, and after that
@@ -115,7 +115,7 @@ cannot both hold: a function looping over REST writes has no transaction, and a
 half-finished import is the failure nobody can see — the balances still add up,
 they are simply the balances of a smaller group that never existed.
 
-So the import ships as `baaki_import_splitwise`, a single `SECURITY DEFINER`
+So the import ships as `waves_import_splitwise`, a single `SECURITY DEFINER`
 function in the database. A function body is one transaction, which is the
 property §10 was asking for. Parsing stays in `@waves/core` and runs on the
 client, so a file that turns out not to be a Splitwise export costs a round trip

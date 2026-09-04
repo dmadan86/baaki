@@ -59,7 +59,7 @@ async function seedPerson(options: { tokens?: number; locale?: string } = {}): P
 
 async function notify(profileId: string, groupId: string, kind = 'trip_nudge_evening') {
   const { rows } = await client.query(
-    `SELECT baaki_notify($1, $2, $3, 'Before you forget', 'What did you pay for today?',
+    `SELECT waves_notify($1, $2, $3, 'Before you forget', 'What did you pay for today?',
                          null, '{"group":"Goa"}'::jsonb, $4) AS id`,
     [profileId, groupId, kind, randomUUID()],
   );
@@ -73,7 +73,7 @@ async function notify(profileId: string, groupId: string, kind = 'trip_nudge_eve
  * one — which is exactly how this was a flake before it was this number.
  */
 const claim = async (limit = 5000): Promise<Claimed[]> => {
-  const { rows } = await client.query(`SELECT * FROM baaki_claim_push_notifications($1)`, [limit]);
+  const { rows } = await client.query(`SELECT * FROM waves_claim_push_notifications($1)`, [limit]);
   return rows as Claimed[];
 };
 
@@ -163,7 +163,7 @@ describe('finishing', () => {
     const person = await seedPerson();
     const id = await notify(person.profileId, person.groupId);
     await claim();
-    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+    await client.query(`SELECT waves_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
     expect(await statusOf(id)).toBe('sent');
   });
 
@@ -171,13 +171,13 @@ describe('finishing', () => {
     const person = await seedPerson();
     const id = await notify(person.profileId, person.groupId);
     await claim();
-    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [id]);
+    await client.query(`SELECT waves_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [id]);
     expect(await statusOf(id)).toBe('failed');
   });
 
   it('revokes a device the app was uninstalled from', async () => {
     const person = await seedPerson();
-    await client.query(`SELECT baaki_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
+    await client.query(`SELECT waves_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
       person.tokens[0],
     ]);
     const { rows } = await client.query(
@@ -190,7 +190,7 @@ describe('finishing', () => {
   it('keeps the row rather than deleting it', async () => {
     // The same token coming back later is a reinstall, not a new device.
     const person = await seedPerson();
-    await client.query(`SELECT baaki_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
+    await client.query(`SELECT waves_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
       person.tokens[0],
     ]);
     const { rows } = await client.query(
@@ -202,14 +202,14 @@ describe('finishing', () => {
 
   it('does not un-revoke a device on a second pass', async () => {
     const person = await seedPerson();
-    await client.query(`SELECT baaki_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
+    await client.query(`SELECT waves_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
       person.tokens[0],
     ]);
     const first = await client.query(
       `SELECT revoked_at FROM push_tokens WHERE expo_push_token = $1`,
       [person.tokens[0]],
     );
-    await client.query(`SELECT baaki_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
+    await client.query(`SELECT waves_finish_push('{}', '{}', ARRAY[$1]::text[])`, [
       person.tokens[0],
     ]);
     const second = await client.query(
@@ -235,7 +235,7 @@ describe('retry with backoff', () => {
   };
 
   const fail = async (notificationId: string): Promise<void> => {
-    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [notificationId]);
+    await client.query(`SELECT waves_finish_push('{}', ARRAY[$1]::uuid[], '{}')`, [notificationId]);
   };
 
   it('counts the failure and schedules a retry rather than reclaiming it right away', async () => {
@@ -255,9 +255,9 @@ describe('retry with backoff', () => {
   /**
    * The bug CodeRabbit caught: revoking a token mid-retry (the commonest
    * reason a retry ever needed to exist — `DeviceNotRegistered` revokes in
-   * the same `baaki_finish_push` call as the failure it explains) used to
+   * the same `waves_finish_push` call as the failure it explains) used to
    * leave `push_next_retry_at` sitting in the past forever, because the
-   * no-token branch below never reaches `baaki_finish_push` to advance
+   * no-token branch below never reaches `waves_finish_push` to advance
    * anything. That made the row match the retry predicate on every single
    * run until the two-day cutoff — reclaimed, found tokenless, sent back to
    * `failed` with the exact same stale timestamp, forever.
@@ -269,7 +269,7 @@ describe('retry with backoff', () => {
     // Attempt 1: fails, and — as `DeviceNotRegistered` always does — revokes
     // the token in the same call.
     await claim();
-    await client.query(`SELECT baaki_finish_push('{}', ARRAY[$1]::uuid[], ARRAY[$2]::text[])`, [
+    await client.query(`SELECT waves_finish_push('{}', ARRAY[$1]::uuid[], ARRAY[$2]::text[])`, [
       id,
       person.tokens[0],
     ]);
@@ -341,7 +341,7 @@ describe('retry with backoff', () => {
     const person = await seedPerson();
     const id = await notify(person.profileId, person.groupId);
     await claim();
-    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+    await client.query(`SELECT waves_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
 
     const { attempts, nextRetryAt } = await attemptsOf(id);
     expect(attempts).toBe(0);
@@ -371,7 +371,7 @@ describe('retry with backoff', () => {
       [id],
     );
     expect(mine(await claim(), id)).toBeDefined();
-    await client.query(`SELECT baaki_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
+    await client.query(`SELECT waves_finish_push(ARRAY[$1]::uuid[], '{}', '{}')`, [id]);
 
     expect(await statusOf(id)).toBe('sent');
     expect((await attemptsOf(id)).nextRetryAt).toBeNull();
@@ -388,10 +388,10 @@ describe('who may run it', () => {
     ]);
     await client.query(`SET ROLE authenticated`);
     try {
-      await expect(client.query(`SELECT baaki_claim_push_notifications(10)`)).rejects.toThrow(
+      await expect(client.query(`SELECT waves_claim_push_notifications(10)`)).rejects.toThrow(
         /permission denied/i,
       );
-      await expect(client.query(`SELECT baaki_finish_push()`)).rejects.toThrow(
+      await expect(client.query(`SELECT waves_finish_push()`)).rejects.toThrow(
         /permission denied/i,
       );
     } finally {

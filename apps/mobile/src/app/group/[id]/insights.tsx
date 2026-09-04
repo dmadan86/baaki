@@ -72,7 +72,7 @@ export default function InsightsScreen() {
 
   // Spending is a read of expenses the phone already mirrors, so it is computed
   // on the device (ADR-005) rather than fetched — the local-first twin of the
-  // baaki_group_spending RPC, same rows, and it works with no connection.
+  // waves_group_spending RPC, same rows, and it works with no connection.
   const spendingRows = useMemo(() => computeSpendingRows(expenses.rows), [expenses.rows]);
 
   const [scope, setScope] = useState<Scope>(Scope.Group);

@@ -49,6 +49,7 @@ import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
 import { LanguageProvider, useLanguage } from '@/i18n/language';
 import { LocaleSync } from '@/i18n/localeSync';
 import { LockProvider, useLock } from '@/lib/lock';
+import { legacyKeysMigrated } from '@/lib/legacyKeys';
 import { ReducedMotionProvider, useReducedMotion } from '@/lib/reducedMotion';
 import { RecentCountProvider } from '@/lib/recentCount';
 import { ShortcutProvider } from '@/lib/shortcut';
@@ -103,7 +104,7 @@ if (pushSupported) {
 // The device-local flag that the intro tour has been seen. Shared verbatim with
 // the value AuthFlow wrote before the tour moved here, so anybody who already
 // saw it pre-move is not shown it again.
-const TOUR_KEY = 'baaki.onboarding_seen';
+const TOUR_KEY = 'waves.onboarding_seen';
 
 // How long a forward push runs. A touch longer than a plain slide because the
 // iOS-style transition has two layers to read — the incoming page arriving and
@@ -524,7 +525,8 @@ function AuthGate() {
   const [tourSeen, setTourSeen] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void AsyncStorage.getItem(TOUR_KEY)
+    void legacyKeysMigrated
+      .then(() => AsyncStorage.getItem(TOUR_KEY))
       .then((value) => {
         if (!cancelled) setTourSeen(value === 'yes');
       })

@@ -51,7 +51,7 @@ describe('things that are the whole reason to send a report', () => {
 
   it('keeps a bare ten-digit run, because that is money and not a phone number', () => {
     // `normalisePhone` refuses a number without a country code, so a digit run
-    // with no `+` in front of it is never a phone number in Baaki.
+    // with no `+` in front of it is never a phone number in Waves.
     expect(redactText('amount 1000000000')).toBe('amount 1000000000');
   });
 

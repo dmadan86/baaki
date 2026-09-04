@@ -7,7 +7,7 @@
  * it, every expense can override it, and nothing here decides what anything is
  * worth. It decides what the picker starts on.
  *
- * Not a complete list of the world. It covers the markets Baaki is going to and
+ * Not a complete list of the world. It covers the markets Waves is going to and
  * the ones its users travel between, and everything else falls back to the
  * caller's own default rather than to a guess. A wrong currency is worse than
  * no opinion: `INR` on a group in Berlin gets typed over once, but a plausible
@@ -84,10 +84,10 @@ export function isCountryCode(value: string | null | undefined): boolean {
 /**
  * The international dialing prefix for a country, as `+<digits>`.
  *
- * Same principle as the currency map: it covers the markets Baaki is for and
+ * Same principle as the currency map: it covers the markets Waves is for and
  * the ones its users travel between, and returns null for anything else rather
  * than guessing. A null means "no opinion" — the caller keeps the field a bare
- * `+` rather than assuming +91, which is the whole point: Baaki follows the
+ * `+` rather than assuming +91, which is the whole point: Waves follows the
  * phone, it does not presume India.
  *
  * US and Canada share `+1`; that is correct, not a bug — the NANP is one plan.

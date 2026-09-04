@@ -67,7 +67,7 @@ const P = (i: number) => g.profileIds[i] as string;
 /** Add a comment as a profile; returns the new comment id. */
 async function addComment(profileId: string, body: string, id = randomUUID()): Promise<string> {
   await as(profileId, () =>
-    client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+    client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
       g.groupId,
       expenseId,
       id,
@@ -108,7 +108,7 @@ describe('expense comments — permission matrix', () => {
   it('T2 a non-member cannot add and cannot read', async () => {
     const msg = await expectDenied(
       as(outsider, () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           expenseId,
           randomUUID(),
@@ -129,7 +129,7 @@ describe('expense comments — permission matrix', () => {
     await expectDenied(visibleTo(null));
     await expectDenied(
       as(null, () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           expenseId,
           randomUUID(),
@@ -142,7 +142,7 @@ describe('expense comments — permission matrix', () => {
   it('T4 the author edits their own and it stamps edited_at', async () => {
     const id = await addComment(P(1), 'frist draft');
     await as(P(1), () =>
-      client.query(`SELECT baaki_edit_expense_comment($1, $2)`, [id, 'fixed typo']),
+      client.query(`SELECT waves_edit_expense_comment($1, $2)`, [id, 'fixed typo']),
     );
     const row = await rowById(id);
     expect(row.edited_at).not.toBeNull();
@@ -155,7 +155,7 @@ describe('expense comments — permission matrix', () => {
   it("T5 a non-author member cannot edit someone else's", async () => {
     const id = await addComment(P(1), 'my words');
     const msg = await expectDenied(
-      as(P(2), () => client.query(`SELECT baaki_edit_expense_comment($1, $2)`, [id, 'not yours'])),
+      as(P(2), () => client.query(`SELECT waves_edit_expense_comment($1, $2)`, [id, 'not yours'])),
     );
     expect(msg).toMatch(/NOT_YOUR_COMMENT/);
   });
@@ -163,14 +163,14 @@ describe('expense comments — permission matrix', () => {
   it("T6 even an admin cannot edit someone else's (edit is author-only)", async () => {
     const id = await addComment(P(1), 'my words');
     const msg = await expectDenied(
-      as(P(0), () => client.query(`SELECT baaki_edit_expense_comment($1, $2)`, [id, 'admin edit'])),
+      as(P(0), () => client.query(`SELECT waves_edit_expense_comment($1, $2)`, [id, 'admin edit'])),
     );
     expect(msg).toMatch(/NOT_YOUR_COMMENT/);
   });
 
   it('T7 the author deletes their own', async () => {
     const id = await addComment(P(1), 'delete me');
-    await as(P(1), () => client.query(`SELECT baaki_delete_expense_comment($1)`, [id]));
+    await as(P(1), () => client.query(`SELECT waves_delete_expense_comment($1)`, [id]));
     const row = await rowById(id);
     expect(row.deleted_at).not.toBeNull();
     expect(await visibleTo(P(2))).toBe(0);
@@ -179,7 +179,7 @@ describe('expense comments — permission matrix', () => {
   it("T8 a non-admin member cannot delete someone else's", async () => {
     const id = await addComment(P(1), 'not yours to remove');
     const msg = await expectDenied(
-      as(P(2), () => client.query(`SELECT baaki_delete_expense_comment($1)`, [id])),
+      as(P(2), () => client.query(`SELECT waves_delete_expense_comment($1)`, [id])),
     );
     expect(msg).toMatch(/CANNOT_DELETE/);
     expect(await visibleTo(P(2))).toBe(1);
@@ -187,7 +187,7 @@ describe('expense comments — permission matrix', () => {
 
   it("T9 an admin deletes anyone's, and it records who removed it", async () => {
     const id = await addComment(P(1), 'admin will remove this');
-    await as(P(0), () => client.query(`SELECT baaki_delete_expense_comment($1)`, [id]));
+    await as(P(0), () => client.query(`SELECT waves_delete_expense_comment($1)`, [id]));
     const row = await rowById(id);
     expect(row.deleted_at).not.toBeNull();
     expect(String(row.deleted_by)).toBe(g.memberIds[0]);
@@ -196,29 +196,29 @@ describe('expense comments — permission matrix', () => {
 
   it('T10 any member flags/reports; the first flagger is kept', async () => {
     const id = await addComment(P(1), 'questionable');
-    await as(P(2), () => client.query(`SELECT baaki_flag_expense_comment($1, true)`, [id]));
+    await as(P(2), () => client.query(`SELECT waves_flag_expense_comment($1, true)`, [id]));
     let row = await rowById(id);
     expect(row.flagged_at).not.toBeNull();
     expect(String(row.flagged_by)).toBe(g.memberIds[2]);
     // A second flag does not overwrite the first flagger.
-    await as(P(0), () => client.query(`SELECT baaki_flag_expense_comment($1, true)`, [id]));
+    await as(P(0), () => client.query(`SELECT waves_flag_expense_comment($1, true)`, [id]));
     row = await rowById(id);
     expect(String(row.flagged_by)).toBe(g.memberIds[2]);
   });
 
   it('T11 a non-admin cannot clear a flag', async () => {
     const id = await addComment(P(1), 'reported');
-    await as(P(2), () => client.query(`SELECT baaki_flag_expense_comment($1, true)`, [id]));
+    await as(P(2), () => client.query(`SELECT waves_flag_expense_comment($1, true)`, [id]));
     const msg = await expectDenied(
-      as(P(1), () => client.query(`SELECT baaki_flag_expense_comment($1, false)`, [id])),
+      as(P(1), () => client.query(`SELECT waves_flag_expense_comment($1, false)`, [id])),
     );
     expect(msg).toMatch(/ADMIN_ONLY/);
   });
 
   it('T12 an admin resolves a report', async () => {
     const id = await addComment(P(1), 'reported then resolved');
-    await as(P(2), () => client.query(`SELECT baaki_flag_expense_comment($1, true)`, [id]));
-    await as(P(0), () => client.query(`SELECT baaki_flag_expense_comment($1, false)`, [id]));
+    await as(P(2), () => client.query(`SELECT waves_flag_expense_comment($1, true)`, [id]));
+    await as(P(0), () => client.query(`SELECT waves_flag_expense_comment($1, false)`, [id]));
     const row = await rowById(id);
     expect(row.flagged_at).toBeNull();
     expect(row.flagged_by).toBeNull();
@@ -245,7 +245,7 @@ describe('expense comments — permission matrix', () => {
     // m1 is in g, not in `other` — claims g's group but a foreign expense.
     const msg = await expectDenied(
       as(P(1), () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           otherExpense,
           randomUUID(),
@@ -259,7 +259,7 @@ describe('expense comments — permission matrix', () => {
   it('T15 an empty comment is refused', async () => {
     const msg = await expectDenied(
       as(P(1), () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           expenseId,
           randomUUID(),
@@ -281,7 +281,7 @@ describe('expense comments — permission matrix', () => {
     const id = randomUUID();
     // A genuine comment in `other`, owned by other.profileIds[0].
     await as(other.profileIds[0] as string, () =>
-      client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+      client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
         other.groupId,
         otherExpense,
         id,
@@ -293,7 +293,7 @@ describe('expense comments — permission matrix', () => {
     // no row inserted into g; now it is a clean conflict.
     const msg = await expectDenied(
       as(P(1), () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           expenseId,
           id,
@@ -318,7 +318,7 @@ describe('expense comments — permission matrix', () => {
     const id = await addComment(P(1), 'on the first expense');
     const msg = await expectDenied(
       as(P(1), () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           secondExpense,
           id,
@@ -333,7 +333,7 @@ describe('expense comments — permission matrix', () => {
     const id = await addComment(P(1), "P1's comment");
     const msg = await expectDenied(
       as(P(2), () =>
-        client.query(`SELECT baaki_add_expense_comment($1, $2, $3, $4)`, [
+        client.query(`SELECT waves_add_expense_comment($1, $2, $3, $4)`, [
           g.groupId,
           expenseId,
           id,

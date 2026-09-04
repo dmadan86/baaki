@@ -11,7 +11,7 @@
  * None of this is enforced on the device — a client that counted its own
  * devices is a client somebody could edit, the same mistake as trusting a row
  * to say who it belongs to (see `readEntitlement`). The numbers are decided by
- * `baaki_register_device` in the database; this module is the shared vocabulary
+ * `waves_register_device` in the database; this module is the shared vocabulary
  * both sides speak, and the part worth testing without a phone.
  */
 
@@ -21,7 +21,7 @@ import type { PlanTier } from '../billing/plans';
  * The default caps, and only the defaults. As of the device-cap A/B work the
  * real numbers live server-side: the `device_cap_free` / `device_cap_plus`
  * knobs in `app_config`, overridden per account by the `device_cap_free_ab` /
- * `device_cap_plus_ab` experiments, all resolved by `baaki_device_cap` and
+ * `device_cap_plus_ab` experiments, all resolved by `waves_device_cap` and
  * handed back in the registration `status`. These constants are the floor the
  * database itself falls back to, and the value `deviceLimitFor` returns for a
  * caller that has no server status — never the source of truth for the gate,

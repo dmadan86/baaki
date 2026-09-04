@@ -180,7 +180,7 @@ export async function requireMembership(
     throw new HttpError(401, 'NOT_AUTHENTICATED', 'Sign in first');
   }
 
-  const { data: memberId, error } = await caller.rpc('baaki_my_member_id', {
+  const { data: memberId, error } = await caller.rpc('waves_my_member_id', {
     p_group_id: groupId,
   });
   if (error) throw new HttpError(500, 'INTERNAL', error.message);

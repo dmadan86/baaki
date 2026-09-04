@@ -1,4 +1,4 @@
-// Baaki data model — TDR §2. Prisma is the schema source of truth (TDR §2.0).
+// Waves data model — TDR §2. Prisma is the schema source of truth (TDR §2.0).
 //
 // Rules that this file obeys:
 //  * Every money column is BigInt minor units (ADR-003). No Float, no Decimal.
@@ -149,14 +149,14 @@ model Profile {
   notificationPrefs Json     @default("{}") @map("notification_prefs")
   /// Per-owner monotonic counter behind the personal sync scope (TDR A34), the
   /// captures equivalent of `groups.updated_seq`. Bumped under row lock by
-  /// `baaki_next_capture_seq`.
+  /// `waves_next_capture_seq`.
   capturesSeq       BigInt   @default(0) @map("captures_seq")
   ghostMergesSeq    BigInt   @default(0) @map("ghost_merges_seq")
   /// Per-owner counter behind the personal category-tag catalog scope, the
-  /// captures equivalent for `category_tags`. Bumped by `baaki_next_category_tag_seq`.
+  /// captures equivalent for `category_tags`. Bumped by `waves_next_category_tag_seq`.
   categoryTagsSeq   BigInt   @default(0) @map("category_tags_seq")
   /// Per-owner counter behind the personal-finance scope (A48), covering every
-  /// `personal_records` row. Bumped by `baaki_next_personal_seq`.
+  /// `personal_records` row. Bumped by `waves_next_personal_seq`.
   personalSeq       BigInt   @default(0) @map("personal_seq")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -198,7 +198,7 @@ model Group {
   /// Object path in the private `group-photos` bucket, read via a signed URL.
   photoPath       String?   @map("photo_path")
   /// The raw token of the group's durable join link (WhatsApp-style), re-showable
-  /// as a QR. Written only by baaki_ensure/reset_group_join_token; a member-only
+  /// as a QR. Written only by waves_ensure/reset_group_join_token; a member-only
   /// bearer credential (the group row is RLS-scoped).
   joinToken       String?   @map("join_token")
   type            GroupType @default(other)
@@ -223,7 +223,7 @@ model Group {
   /// Group-visible and admin-set like the overall budget — a category cap is a
   /// group signal, never private, so it lives on the group row, not its own
   /// table. NULL / absent is "no category caps". Written only via
-  /// `baaki_set_category_budget`.
+  /// `waves_set_category_budget`.
   categoryBudgets Json?   @map("category_budgets")
 
   /// The trip's pinned exchange rates, as a JSON map keyed by the currency paid
@@ -232,7 +232,7 @@ model Group {
   /// `{ "VND": { num, den, … } }` and every member's VND bill starts from it.
   /// Group-visible and admin-set like the budgets — one shared rate is a group
   /// signal — so it lives on the group row, not its own table. NULL / absent is
-  /// "no pinned rates". Written only via `baaki_set_group_fx_rate`; a person's
+  /// "no pinned rates". Written only via `waves_set_group_fx_rate`; a person's
   /// own card rate and a per-bill override live off the group (device-local and
   /// on `expense_versions.fx` respectively).
   fxRates         Json?   @map("fx_rates")
@@ -361,7 +361,7 @@ model GroupMember {
 
 /// A ghost folded into a merged person, from one viewer's point of view
 /// (Friends screen). Private to `owner`; never edits the shared ledger — only
-/// changes which `person_key` a ghost rolls up under in `baaki_people_i_owe`,
+/// changes which `person_key` a ghost rolls up under in `waves_people_i_owe`,
 /// and only for the owner. `personId` is the shared identity across every ghost
 /// in one merge; `displayName` is the name the owner chose. See the
 /// `20260815160000_merge_ghosts` migration for why this is a safe, per-viewer
@@ -386,7 +386,7 @@ model GhostMerge {
 
 /// Somebody asking to take a ghost member's place, and an admin of the group
 /// deciding (ADR-006). The claim itself is one UPDATE inside
-/// `baaki_decide_member_claim` — the ghost row becomes theirs, so every share
+/// `waves_decide_member_claim` — the ghost row becomes theirs, so every share
 /// and settlement already filed against that name comes with it.
 ///
 /// "One open request per person per place" is enforced in that function rather
@@ -760,11 +760,11 @@ model Notification {
   readAt      DateTime?       @map("read_at") @db.Timestamptz(6)
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  /// How many times a push has been tried. `baaki_finish_push` counts a
+  /// How many times a push has been tried. `waves_finish_push` counts a
   /// failure up to 3 before it stops scheduling another attempt.
   pushAttempts    Int       @default(0) @map("push_attempts")
   /// When the next retry is allowed; null once retries are exhausted (or the
-  /// row never failed). Backoff, not a queue — `baaki_claim_push_notifications`
+  /// row never failed). Backoff, not a queue — `waves_claim_push_notifications`
   /// reads this rather than firing again immediately.
   pushNextRetryAt DateTime? @map("push_next_retry_at") @db.Timestamptz(6)
 
@@ -844,7 +844,7 @@ model UsageEvent {
 // ───────────────────────────────────────────────── derived (trigger-fed) ──
 
 /// Maintained transactionally by trigger. The aggregate query in
-/// `baaki_group_balances_truth()` is the ground truth; CI asserts they match
+/// `waves_group_balances_truth()` is the ground truth; CI asserts they match
 /// and that Σ balance = 0 per (group, currency) — ADR-004.
 model GroupBalance {
   groupId   String   @map("group_id") @db.Uuid
@@ -904,7 +904,7 @@ model SyncMutation {
 /// ordinary `expenses` row in the chosen group and this row flips to
 /// `assigned`, which removes it from the inbox. Writes go through `/sync` as
 /// the caller; owner-only RLS is the gate. `updated_seq` is stamped per owner
-/// by `baaki_next_capture_seq` (the personal mirror of the group counter).
+/// by `waves_next_capture_seq` (the personal mirror of the group counter).
 model Capture {
   id                String    @id @db.Uuid
   ownerUserId       String    @map("owner_user_id") @db.Uuid
@@ -1033,7 +1033,7 @@ model AppRelease {
 /// somebody could confirm themselves.
 ///
 /// Who sees which arm is not stored anywhere. It is hashed from the flag key
-/// and the profile id, identically in `baaki_variant` and in `bucketOf` from
+/// and the profile id, identically in `waves_variant` and in `bucketOf` from
 /// `@waves/core`, so the answer needs no round trip and the analysis is a join
 /// rather than a pipeline of exposure events.
 model FeatureFlag {
@@ -1074,7 +1074,7 @@ model PromoCode {
   @@schema("public")
 }
 
-/// Who used which code. Written only by `baaki_redeem_promo`, which is
+/// Who used which code. Written only by `waves_redeem_promo`, which is
 /// SECURITY DEFINER so the client never touches `subscriptions` itself.
 model PromoRedemption {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -1096,7 +1096,7 @@ model PromoRedemption {
 /// A promotion somebody is actually told about.
 ///
 /// Closed to clients entirely. The app never selects from here — it asks
-/// `baaki_my_campaign()`, which answers with the one campaign the caller should
+/// `waves_my_campaign()`, which answers with the one campaign the caller should
 /// see. Reading the table would expose campaigns aimed elsewhere, campaigns not
 /// yet started, and the caller's own holdout status, which is the one thing
 /// that must not leak: a holdout who knows they are a holdout has stopped being
@@ -1244,7 +1244,7 @@ model Subscription {
 /// One phone signed into one account. GoTrue tracks refresh tokens; this tracks
 /// the thing a person recognises — a labelled device with a last-seen — and is
 /// what the free-tier two-device cap counts. Written only by
-/// `baaki_register_device` / `baaki_sign_out_other_devices`; the client reads
+/// `waves_register_device` / `waves_sign_out_other_devices`; the client reads
 /// its own rows and never writes them.
 model DeviceSession {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -1266,7 +1266,7 @@ model DeviceSession {
 }
 
 /// One group, thirty days, bought by one person and enjoyed by everybody in
-/// it — the shape that fits how Baaki is actually used.
+/// it — the shape that fits how Waves is actually used.
 model GroupPass {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId     String   @map("group_id") @db.Uuid
@@ -1402,7 +1402,7 @@ model ExpenseComment {
 /// another line, not an erasure.
 ///
 /// `visibility` inherits the image it describes: a `parties` attachment's events
-/// are party-only too (the SELECT policy embeds `baaki_is_expense_party`), so a
+/// are party-only too (the SELECT policy embeds `waves_is_expense_party`), so a
 /// non-party never learns a private attachment existed. Writes are RPC-only, the
 /// actor taken from the session, so the line cannot be forged.
 model ExpenseImageEvent {
@@ -1552,7 +1552,7 @@ model RateLimitHit {
 
 /// Admin-editable overrides for the abuse limiter. A row per bucket overrides
 /// the code default in `_shared/rateLimit.ts`; a bucket with no row is limited
-/// exactly as the code says. `baaki_rate_limit` reads this on every call.
+/// exactly as the code says. `waves_rate_limit` reads this on every call.
 model RateLimitRule {
   bucket        String   @id
   enabled       Boolean  @default(true)
@@ -1607,7 +1607,7 @@ model ServiceConfig {
 /// Per-person monthly cloud-STT usage meter (A48). One row per (profile, YYYY-MM
 /// calendar month); a new month is a new period key, so the free allowance
 /// resets with no cron. Written only by the service role through
-/// `baaki_voice_stt_record`; a person may read their own row.
+/// `waves_voice_stt_record`; a person may read their own row.
 model VoiceSttUsage {
   profileId String   @map("profile_id") @db.Uuid
   period    String
@@ -1623,8 +1623,8 @@ model VoiceSttUsage {
 
 /// A failed voice quick-add, reported from the device so the parser can be
 /// improved against what people actually said (reverses the old on-device log).
-/// Written through `baaki_log_voice_attempt`, which stamps the author from the
-/// JWT; read only by the admin console via `baaki_admin_voice_attempts`. RLS
+/// Written through `waves_log_voice_attempt`, which stamps the author from the
+/// JWT; read only by the admin console via `waves_admin_voice_attempts`. RLS
 /// grants a user INSERT of their own and grants SELECT to nobody but the service
 /// role, so raw transcripts never reach another person.
 model VoiceAttempt {
@@ -1656,7 +1656,7 @@ model VoiceAttempt {
 /// are recorded here at write time, and the free-tier byte cap is measured
 /// against it. `pending` marks a reservation whose PUT has not yet been
 /// committed; it still counts against the cap. Written only by the service role
-/// through the `baaki_storage_*` functions (RLS + REVOKE live in the migration).
+/// through the `waves_storage_*` functions (RLS + REVOKE live in the migration).
 model StorageObject {
   logicalBucket  String   @map("logical_bucket")
   path           String

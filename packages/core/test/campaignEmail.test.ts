@@ -22,7 +22,7 @@ const base = {
   to: 'reader@example.com',
 } as const;
 
-const options = { webUrl: 'https://baaki.example', unsubscribeUrl: 'https://fn/unsub?sig=abc' };
+const options = { webUrl: 'https://waves.example', unsubscribeUrl: 'https://fn/unsub?sig=abc' };
 
 describe('renderCampaignEmail', () => {
   it('carries the announcement through as the subject and body', () => {
@@ -37,7 +37,7 @@ describe('renderCampaignEmail', () => {
     const mail = renderCampaignEmail(base, options);
     expect(mail.html).toContain('DIWALI26');
     // Button lands on the configured web URL, not a dead deep link.
-    expect(mail.html).toContain('href="https://baaki.example"');
+    expect(mail.html).toContain('href="https://waves.example"');
     expect(mail.html).toContain('Claim it');
   });
 
@@ -60,7 +60,7 @@ describe('renderCampaignEmail', () => {
   it('renders no button when there is nothing to act on', () => {
     const mail = renderCampaignEmail({ ...base, ctaLabel: '', promoCode: null }, options);
     // No call to action, no button, but still a mail worth reading.
-    expect(mail.html).not.toContain('<a href="https://baaki.example"');
+    expect(mail.html).not.toContain('<a href="https://waves.example"');
     expect(mail.html).toContain(base.body);
   });
 
@@ -68,19 +68,19 @@ describe('renderCampaignEmail', () => {
     const mail = renderCampaignEmail({ ...base, locale: 'ar' }, options);
     expect(mail.html).toContain('dir="rtl"');
     // The footer reason is the Arabic one, not a group line that names nothing.
-    expect(mail.html).toContain('باقي');
+    expect(mail.html).toContain('وصلك هذا البريد لأنك تستخدم Waves.');
   });
 
   it('names no group in the footer — a campaign has none', () => {
     const mail = renderCampaignEmail(base, options);
-    expect(mail.html).toContain('because you use Baaki');
+    expect(mail.html).toContain('because you use Waves');
     expect(mail.html).not.toContain('{group}');
   });
 });
 
 describe('campaignCtaUrl', () => {
   it('prefers a configured web URL, trimmed of a trailing slash', () => {
-    expect(campaignCtaUrl('DIWALI26', 'https://baaki.example/')).toBe('https://baaki.example');
+    expect(campaignCtaUrl('DIWALI26', 'https://waves.example/')).toBe('https://waves.example');
   });
 
   it('falls back to a redeem deep link when only a code is known', () => {

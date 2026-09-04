@@ -11,7 +11,7 @@
  *   * **A no stays a no.** A bounce, a complaint or an unsubscribe has to stop
  *     the next send, and the check has to happen before anything is handed to
  *     Resend. Mailing an address that complained is how a sending domain dies.
- *   * **Nobody signed in can reach any of it.** `baaki_email_for` turns a
+ *   * **Nobody signed in can reach any of it.** `waves_email_for` turns a
  *     profile id — which every group member can see — into somebody's email
  *     address, and it is the sharpest function in the schema for that reason.
  */
@@ -28,7 +28,7 @@ let client: Client;
 beforeAll(async () => {
   client = await connect();
   // CI runs against bare Postgres, which has no `auth` schema — Supabase owns
-  // that one. `baaki_email_for` looks it up dynamically and returns NULL when it
+  // that one. `waves_email_for` looks it up dynamically and returns NULL when it
   // is absent, which is correct and also untestable. This is the smallest shim
   // that lets the address path be exercised at all: the three columns the
   // function reads, and nothing else.
@@ -94,7 +94,7 @@ async function notify(
   kind = 'settlement_confirm_request',
 ): Promise<string> {
   const { rows } = await client.query(
-    `SELECT baaki_notify($1, $2, $3, 'They say they paid you', 'Confirm so your baaki stays right',
+    `SELECT waves_notify($1, $2, $3, 'They say they paid you', 'Confirm so your waves stays right',
                          null, '{"amount":"42000","currency":"INR"}'::jsonb, $4) AS id`,
     [profileId, groupId, kind, randomUUID()],
   );
@@ -104,7 +104,7 @@ async function notify(
 /**
  * Reports the rows claimed for one profile.
  *
- * The claim itself is NOT scoped to that profile: baaki_claim_email_notifications(500)
+ * The claim itself is NOT scoped to that profile: waves_claim_email_notifications(500)
  * claims up to 500 rows across the whole notifications table and marks them
  * `queued`. The `JOIN … WHERE n.profile_id = $1` only filters which of those
  * already-claimed rows are returned here — rows belonging to other profiles are
@@ -114,7 +114,7 @@ async function notify(
  */
 async function claimFor(profileId: string): Promise<Claimed[]> {
   const { rows } = await client.query<Claimed>(
-    `SELECT c.* FROM baaki_claim_email_notifications(500) c
+    `SELECT c.* FROM waves_claim_email_notifications(500) c
        JOIN notifications n ON n.id = c.id
       WHERE n.profile_id = $1`,
     [profileId],
@@ -244,7 +244,7 @@ describe('who does not get mailed', () => {
 
   it('skips an address on the suppression list', async () => {
     const { profileId, groupId, address } = await seedPerson();
-    await client.query(`SELECT baaki_suppress_email($1, 'complained')`, [address]);
+    await client.query(`SELECT waves_suppress_email($1, 'complained')`, [address]);
     const id = await notify(profileId, groupId);
 
     expect(await claimFor(profileId)).toHaveLength(0);
@@ -253,7 +253,7 @@ describe('who does not get mailed', () => {
 
   it('matches the suppression however the address was typed', async () => {
     const { profileId, groupId, address } = await seedPerson();
-    await client.query(`SELECT baaki_suppress_email($1, 'bounced')`, [
+    await client.query(`SELECT waves_suppress_email($1, 'bounced')`, [
       `  ${address.toUpperCase()} `,
     ]);
     await notify(profileId, groupId);
@@ -334,7 +334,7 @@ describe('who does not get mailed', () => {
       // A generous limit, same reasoning as m4-push-fanout.test.ts's `claim`:
       // this suite shares one Postgres with every other file, and the oldest
       // unclaimed rows written by all of them sit ahead of this one.
-      await client.query(`SELECT baaki_claim_push_notifications(5000)`);
+      await client.query(`SELECT waves_claim_push_notifications(5000)`);
       expect(await pushStateOf(id)).toEqual({ pushStatus: 'failed', pushNextRetryAt: null });
 
       expect(await claimFor(profileId)).toHaveLength(1);
@@ -432,7 +432,7 @@ describe('two runs at once', () => {
       const counts = await Promise.all(
         clients.map(async (each) => {
           const { rows } = await each.query(
-            `SELECT c.id FROM baaki_claim_email_notifications(500) c
+            `SELECT c.id FROM waves_claim_email_notifications(500) c
                JOIN notifications n ON n.id = c.id
               WHERE n.profile_id = $1`,
             [profileId],
@@ -454,7 +454,7 @@ describe('recording what happened', () => {
     const id = await notify(profileId, groupId);
     await claimFor(profileId);
 
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([
         { id, status: 'sent', resend_email_id: 'resend-abc', template: 'settlement-confirm' },
       ]),
@@ -476,7 +476,7 @@ describe('recording what happened', () => {
     const id = await notify(profileId, groupId);
     await claimFor(profileId);
 
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([{ id, status: 'failed', template: 'settlement-confirm' }]),
     ]);
 
@@ -498,7 +498,7 @@ describe('recording what happened', () => {
     const id = await notify(profileId, groupId);
     await claimFor(profileId);
 
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([{ id, status: 'retry', template: 'settlement-confirm' }]),
     ]);
 
@@ -511,7 +511,7 @@ describe('recording what happened', () => {
     const id = await notify(profileId, groupId);
     await claimFor(profileId);
 
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([{ id, status: 'probably-fine', template: 'settlement-confirm' }]),
     ]);
 
@@ -525,7 +525,7 @@ describe('what the webhook does', () => {
     const id = await notify(profileId, groupId);
     await claimFor(profileId);
     const resendId = `resend-${randomUUID()}`;
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([
         { id, status: 'sent', resend_email_id: resendId, template: 'settlement-confirm' },
       ]),
@@ -540,7 +540,7 @@ describe('what the webhook does', () => {
     payload: unknown = {},
   ): Promise<{ matched: boolean; suppressed: boolean }> {
     const { rows } = await client.query(
-      `SELECT baaki_record_email_event($1, $2, $3, $4::jsonb) AS result`,
+      `SELECT waves_record_email_event($1, $2, $3, $4::jsonb) AS result`,
       [resendId, event, address, JSON.stringify(payload)],
     );
     return rows[0]?.result;
@@ -615,7 +615,7 @@ describe('what the webhook does', () => {
     const first = await notify(profileId, groupId);
     await claimFor(profileId);
     const resendId = `resend-${randomUUID()}`;
-    await client.query(`SELECT baaki_finish_email($1::jsonb)`, [
+    await client.query(`SELECT waves_finish_email($1::jsonb)`, [
       JSON.stringify([{ id: first, status: 'sent', resend_email_id: resendId, template: 'x' }]),
     ]);
     await record(resendId, 'complained', address);
@@ -635,8 +635,8 @@ describe('what the webhook does', () => {
 
   it('keeps the first reason when an address is suppressed twice', async () => {
     const address = `${randomUUID()}@example.com`;
-    await client.query(`SELECT baaki_suppress_email($1, 'bounced')`, [address]);
-    await client.query(`SELECT baaki_suppress_email($1, 'unsubscribed')`, [address]);
+    await client.query(`SELECT waves_suppress_email($1, 'bounced')`, [address]);
+    await client.query(`SELECT waves_suppress_email($1, 'unsubscribed')`, [address]);
 
     const { rows } = await client.query(
       `SELECT reason FROM email_suppressions WHERE address = $1`,
@@ -647,7 +647,7 @@ describe('what the webhook does', () => {
   });
 
   it('refuses an event with no name', async () => {
-    await expectDenied(client.query(`SELECT baaki_record_email_event('x', '')`));
+    await expectDenied(client.query(`SELECT waves_record_email_event('x', '')`));
   });
 });
 
@@ -659,7 +659,7 @@ describe('nobody signed in may touch any of it', () => {
   it('will not tell a signed-in caller anybody’s address', async () => {
     const { profileId } = await seedPerson();
     const message = await asRole(client, 'authenticated', { sub: profileId }, () =>
-      expectDenied(client.query(`SELECT baaki_email_for($1)`, [profileId])),
+      expectDenied(client.query(`SELECT waves_email_for($1)`, [profileId])),
     );
     expect(message).toMatch(/permission denied/i);
   });
@@ -688,7 +688,7 @@ describe('nobody signed in may touch any of it', () => {
   it('will not let a signed-in caller unsubscribe somebody else', async () => {
     const message = await asRole(client, 'authenticated', {}, () =>
       expectDenied(
-        client.query(`SELECT baaki_suppress_email('victim@example.com', 'unsubscribed')`),
+        client.query(`SELECT waves_suppress_email('victim@example.com', 'unsubscribed')`),
       ),
     );
     expect(message).toMatch(/permission denied/i);
@@ -696,23 +696,23 @@ describe('nobody signed in may touch any of it', () => {
 
   it('will not let a signed-in caller claim other people’s mail', async () => {
     const message = await asRole(client, 'authenticated', {}, () =>
-      expectDenied(client.query(`SELECT * FROM baaki_claim_email_notifications(1)`)),
+      expectDenied(client.query(`SELECT * FROM waves_claim_email_notifications(1)`)),
     );
     expect(message).toMatch(/permission denied/i);
   });
 
   it('will not let a signed-in caller forge a delivery report', async () => {
     const message = await asRole(client, 'authenticated', {}, () =>
-      expectDenied(client.query(`SELECT baaki_record_email_event('x', 'complained', 'a@b.com')`)),
+      expectDenied(client.query(`SELECT waves_record_email_event('x', 'complained', 'a@b.com')`)),
     );
     expect(message).toMatch(/permission denied/i);
   });
 
   it('lets the service role do all of it', async () => {
     const { rows } = await client.query(
-      `SELECT has_function_privilege('service_role', 'public.baaki_claim_email_notifications(integer)', 'EXECUTE') AS claim,
-              has_function_privilege('service_role', 'public.baaki_record_email_event(text, text, text, jsonb)', 'EXECUTE') AS record,
-              has_function_privilege('service_role', 'public.baaki_email_for(uuid)', 'EXECUTE') AS address`,
+      `SELECT has_function_privilege('service_role', 'public.waves_claim_email_notifications(integer)', 'EXECUTE') AS claim,
+              has_function_privilege('service_role', 'public.waves_record_email_event(text, text, text, jsonb)', 'EXECUTE') AS record,
+              has_function_privilege('service_role', 'public.waves_email_for(uuid)', 'EXECUTE') AS address`,
     );
     expect(rows[0]).toEqual({ claim: true, record: true, address: true });
   });
@@ -738,7 +738,7 @@ describe('the suppression table itself', () => {
       client.query(`INSERT INTO email_suppressions (address, reason) VALUES ('', 'bounced')`),
     );
     expect(
-      (await client.query(`SELECT baaki_suppress_email('   ', 'bounced') AS ok`)).rows[0]?.ok,
+      (await client.query(`SELECT waves_suppress_email('   ', 'bounced') AS ok`)).rows[0]?.ok,
     ).toBe(false);
   });
 });

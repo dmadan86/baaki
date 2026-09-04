@@ -78,7 +78,7 @@ export interface EmailChrome {
   readonly why: string;
   /**
    * The footer reason on a campaign mail, which has no group to name. A
-   * promotion reaches somebody because they use Baaki, not because of anything
+   * promotion reaches somebody because they use Waves, not because of anything
    * that happened in a ledger — saying so is what keeps it honest and out of
    * spam.
    */
@@ -105,7 +105,7 @@ const en: CopyStrings = {
     youOwe: 'You owe {amount}',
     settled: 'All settled',
     netPositive: 'You are owed {amount} overall',
-    netNegative: 'Your baaki is {amount}',
+    netNegative: 'Your balance is {amount}',
   },
   notifications: {
     [NotificationKind.ExpenseAdded]: {
@@ -127,7 +127,7 @@ const en: CopyStrings = {
     },
     [NotificationKind.SettlementConfirmRequest]: {
       title: '{actor} says they paid you {amount}',
-      body: 'Confirm so your baaki stays right',
+      body: 'Confirm so your balance stays right',
     },
     [NotificationKind.SettlementConfirmed]: {
       title: 'Settled with {actor}',
@@ -144,7 +144,7 @@ const en: CopyStrings = {
     [NotificationKind.GroupInviteAccepted]: { title: '{actor} joined {group}', body: 'Say hello' },
     [NotificationKind.DigestDaily]: {
       title: 'Today in {group}',
-      body: '{count} updates · your baaki is {amount}',
+      body: '{count} updates · your balance is {amount}',
     },
     [NotificationKind.TripNudgeMorning]: {
       title: 'Anything from yesterday?',
@@ -181,11 +181,11 @@ const en: CopyStrings = {
   },
   email: {
     confirmAction: 'Confirm you received it',
-    openAction: 'Open Baaki',
-    why: 'You are getting this because of {group} on Baaki.',
-    promoReason: 'You are getting this because you use Baaki.',
+    openAction: 'Open Waves',
+    why: 'You are getting this because of {group} on Waves.',
+    promoReason: 'You are getting this because you use Waves.',
     unsubscribe: 'Stop emails like this',
-    signature: 'Baaki',
+    signature: 'Waves',
   },
 };
 
@@ -277,11 +277,11 @@ const ta: CopyStrings = {
   },
   email: {
     confirmAction: 'கிடைத்தது என உறுதிப்படுத்தவும்',
-    openAction: 'பாக்கியைத் திறக்கவும்',
-    why: 'பாக்கியில் {group} காரணமாக இந்த மின்னஞ்சல் வந்துள்ளது.',
-    promoReason: 'நீங்கள் பாக்கியைப் பயன்படுத்துவதால் இந்த மின்னஞ்சல் வந்துள்ளது.',
+    openAction: 'Waves-ஐத் திறக்கவும்',
+    why: 'Waves-இல் {group} காரணமாக இந்த மின்னஞ்சல் வந்துள்ளது.',
+    promoReason: 'நீங்கள் Waves-ஐப் பயன்படுத்துவதால் இந்த மின்னஞ்சல் வந்துள்ளது.',
     unsubscribe: 'இதுபோன்ற மின்னஞ்சல்களை நிறுத்தவும்',
-    signature: 'பாக்கி',
+    signature: 'Waves',
   },
 };
 
@@ -370,11 +370,11 @@ const hi: CopyStrings = {
   },
   email: {
     confirmAction: 'मिलने की पुष्टि करें',
-    openAction: 'बाकी खोलें',
-    why: 'यह मेल बाकी पर {group} की वजह से आया है।',
-    promoReason: 'यह मेल इसलिए आया है क्योंकि आप बाकी इस्तेमाल करते हैं।',
+    openAction: 'Waves खोलें',
+    why: 'यह मेल Waves पर {group} की वजह से आया है।',
+    promoReason: 'यह मेल इसलिए आया है क्योंकि आप Waves इस्तेमाल करते हैं।',
     unsubscribe: 'ऐसे मेल बंद करें',
-    signature: 'बाकी',
+    signature: 'Waves',
   },
 };
 
@@ -463,11 +463,11 @@ const ar: CopyStrings = {
   },
   email: {
     confirmAction: 'أكّد استلامك للمبلغ',
-    openAction: 'افتح باقي',
-    why: 'وصلك هذا البريد بسبب {group} في باقي.',
-    promoReason: 'وصلك هذا البريد لأنك تستخدم باقي.',
+    openAction: 'افتح Waves',
+    why: 'وصلك هذا البريد بسبب {group} في Waves.',
+    promoReason: 'وصلك هذا البريد لأنك تستخدم Waves.',
     unsubscribe: 'أوقف هذه الرسائل',
-    signature: 'باقي',
+    signature: 'Waves',
   },
 };
 

@@ -15,9 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+  SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves_shadow?schema=public
 
 jobs:
   static:

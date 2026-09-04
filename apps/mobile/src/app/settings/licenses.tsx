@@ -17,7 +17,7 @@ import {
 import { useStrings } from '@/i18n';
 
 /**
- * The open-source software Baaki stands on.
+ * The open-source software Waves stands on.
  *
  * A flat, honest list rather than a generated dump: every direct runtime
  * dependency in `apps/mobile/package.json` (the workspace `@waves/*` packages

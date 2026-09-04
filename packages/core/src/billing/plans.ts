@@ -10,7 +10,7 @@
  *
  * Two things are *not* decided here.
  *
- * **The scan limit is enforced in SQL**, by `baaki_receipt_scan_quota()`. The
+ * **The scan limit is enforced in SQL**, by `waves_receipt_scan_quota()`. The
  * numbers below are the same numbers, kept here so a screen can say "300 scans"
  * without a round trip — but a client that disagreed with the database would
  * simply be wrong, and the database is what refuses the scan. A limit enforced
@@ -37,7 +37,7 @@ export enum BillingPeriod {
   /**
    * One group, thirty days, bought by one person and enjoyed by everyone in it.
    *
-   * The one that fits how Baaki is actually used: a Goa trip, a wedding, a
+   * The one that fits how Waves is actually used: a Goa trip, a wedding, a
    * flatshare month. Asking somebody to subscribe annually for four trips a
    * year loses; ₹149 that also covers the five people they are travelling with
    * makes the buyer generous rather than out of pocket, and puts the paid
@@ -135,7 +135,7 @@ export const PRICED_COUNTRIES: readonly string[] = Object.keys(PRICES);
 /**
  * What the person is actually entitled to, as the database resolved it.
  *
- * Comes from `baaki_my_plan()` and is never computed on the device. A client
+ * Comes from `waves_my_plan()` and is never computed on the device. A client
  * that decided its own tier would be a client somebody could edit — the same
  * mistake as a policy that trusts a row to say who it belongs to.
  */

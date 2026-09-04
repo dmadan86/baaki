@@ -61,7 +61,7 @@ if (authError) {
 const me = (await client.auth.getUser()).data.user.id;
 await client.from('profiles').update({ display_name: 'Asha' }).eq('id', me);
 
-const { data: groupId, error: groupError } = await client.rpc('baaki_create_group', {
+const { data: groupId, error: groupError } = await client.rpc('waves_create_group', {
   p_name: 'Imported from Splitwise',
   p_type: 'other',
   p_currency: 'INR',
@@ -101,7 +101,7 @@ const payload = {
   })),
 };
 
-const { data: result, error: importError } = await client.rpc('baaki_import_splitwise', payload);
+const { data: result, error: importError } = await client.rpc('waves_import_splitwise', payload);
 check('the import runs', Boolean(result), importError?.message ?? '');
 if (!result) {
   console.log(`\n${pass.length} passed, ${fail.length} failed`);
@@ -158,7 +158,7 @@ check(
 
 // A second tap on Import — or a retry after a dropped response — must replay,
 // not duplicate. Same mutation ids, same payload.
-const { data: again, error: againError } = await client.rpc('baaki_import_splitwise', payload);
+const { data: again, error: againError } = await client.rpc('waves_import_splitwise', payload);
 check('a repeated import writes nothing new', again?.expenses === 0, againError?.message ?? `${again?.expenses}`);
 
 const { count: expenseCount } = await client
@@ -174,7 +174,7 @@ const { count: beforeCount } = await client
   .select('id', { count: 'exact', head: true })
   .eq('group_id', groupId);
 
-const { error: partialError } = await client.rpc('baaki_import_splitwise', {
+const { error: partialError } = await client.rpc('waves_import_splitwise', {
   p_group_id: groupId,
   p_people: [{ name: 'Asha', memberId: mine.id }],
   p_expenses: [

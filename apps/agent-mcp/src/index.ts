@@ -7,11 +7,11 @@
  * of a signed-in person. Every write goes through the same authorized path the
  * mobile app uses:
  *
- *   - create_group      → rpc('baaki_create_group')          (user JWT)
+ *   - create_group      → rpc('waves_create_group')          (user JWT)
  *   - add_expense        → functions.invoke('expense-write')  (user JWT; the
  *                          edge function recomputes the split and calls the
- *                          service-role-only baaki_apply_expense for us — #274)
- *   - record_settlement  → rpc('baaki_record_settlement')     (user JWT)
+ *                          service-role-only waves_apply_expense for us — #274)
+ *   - record_settlement  → rpc('waves_record_settlement')     (user JWT)
  *
  * Two things this server deliberately does NOT do:
  *   - It never runs raw SQL. There is no query tool. Every write is one named,
@@ -226,7 +226,7 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
       },
     },
     async ({ name, type, currency, country, emoji, simplify }): Promise<ToolResult> => {
-      const { data, error } = await supabase.rpc('baaki_create_group', {
+      const { data, error } = await supabase.rpc('waves_create_group', {
         p_name: name?.trim() || null,
         p_type: type,
         p_currency: currency,
@@ -348,7 +348,7 @@ function registerWriteTools(server: McpServer, supabase: SupabaseClient): void {
       )
         ? rail
         : 'other';
-      const { data, error } = await supabase.rpc('baaki_record_settlement', {
+      const { data, error } = await supabase.rpc('waves_record_settlement', {
         p_group_id: groupId,
         p_from_member_id: fromMemberId,
         p_to_member_id: toMemberId,

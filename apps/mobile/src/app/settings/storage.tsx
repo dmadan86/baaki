@@ -6,7 +6,7 @@
  * upgrade when it is full. A paid account is uncapped, so it gets a plain
  * "Unlimited" statement rather than a bar that would always read empty.
  *
- * The figure is a live server read (`baaki_my_storage_usage`), not the local
+ * The figure is a live server read (`waves_my_storage_usage`), not the local
  * mirror: byte accounting lives only server-side, where the cap is enforced, so
  * there is nothing on-device to reconcile it against.
  */

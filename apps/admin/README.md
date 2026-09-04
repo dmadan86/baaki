@@ -1,4 +1,4 @@
-# Baaki admin
+# Waves admin
 
 A private console for one operator. Aggregates only — how the app is being
 used, not what anybody spent money on.
@@ -20,12 +20,12 @@ profile id.
 
 | Function               | Answers                                              |
 | ---------------------- | ---------------------------------------------------- |
-| `baaki_admin_overview` | People, groups, expenses, settlements, active counts |
-| `baaki_admin_daily`    | A row per day for 30 days, including empty ones      |
-| `baaki_admin_geo`      | Counts per country                                   |
-| `baaki_admin_money`    | Volume per currency, never converted                 |
-| `baaki_admin_ai_cost`  | The receipt pipeline's bill (ADR-008/011)            |
-| `baaki_admin_logins`   | Sign-ins per day, while Supabase still has them      |
+| `waves_admin_overview` | People, groups, expenses, settlements, active counts |
+| `waves_admin_daily`    | A row per day for 30 days, including empty ones      |
+| `waves_admin_geo`      | Counts per country                                   |
+| `waves_admin_money`    | Volume per currency, never converted                 |
+| `waves_admin_ai_cost`  | The receipt pipeline's bill (ADR-008/011)            |
+| `waves_admin_logins`   | Sign-ins per day, while Supabase still has them      |
 
 They are revoked from `PUBLIC`, `anon` and `authenticated`, and granted to
 `service_role` alone. That REVOKE is load-bearing: Postgres grants EXECUTE to
@@ -52,7 +52,7 @@ pnpm admin                                         # http://localhost:3100
 
 ## Deploying to Vercel
 
-Already deployed, as the `baaki-admin` project. What follows is what it took,
+Already deployed, as the `waves-admin` project. What follows is what it took,
 because most of it is not obvious from the app's own config.
 
 1. **Root Directory must be `apps/admin`** — Settings → General on the
@@ -75,7 +75,7 @@ because most of it is not obvious from the app's own config.
      "The custom domain took that door away" below. **In production, if this is
      unset the proxy refuses every request** (fail-closed), so set it and the
      Cloudflare Transform Rule together.
-   - `ADMIN_ALLOWED_ORIGIN` — optional, e.g. `https://baaki.dmadan.com`. Pins
+   - `ADMIN_ALLOWED_ORIGIN` — optional, e.g. `https://waves.dmadan.com`. Pins
      the origin the CSRF check compares against; leave it unset to derive the
      expected origin from the request `Host`, which is correct for a normal
      single-domain deployment.
@@ -108,14 +108,14 @@ another door_, and a bad one on its own.
 ### The custom domain took that door away
 
 **Current state, and it is not the state above.** The console answers on
-`baaki.dmadan.com`, and pointing a custom domain at a Vercel project removes it
+`waves.dmadan.com`, and pointing a custom domain at a Vercel project removes it
 from Vercel Authentication's scope. Verified rather than assumed:
 
 ```
-baaki-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
-baaki-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
-baaki-admin.vercel.app                   307 → baaki.dmadan.com     (open)
-baaki.dmadan.com                         307 → /login               (open)
+waves-admin-dmadan.vercel.app            302 → vercel.com/sso-api   (protected)
+waves-admin-git-main-dmadan.vercel.app   302 → vercel.com/sso-api   (protected)
+waves-admin.vercel.app                   307 → waves.dmadan.com     (open)
+waves.dmadan.com                         307 → /login               (open)
 ```
 
 The project is on the **Hobby** plan with
@@ -127,17 +127,17 @@ Advanced Deployment Protection add-on at $150/month with a 30-day minimum, and
 Trusted IPs is Enterprise-only.
 
 So the second door has to come from somewhere other than Vercel. `dmadan.com`
-runs on Cloudflare and `baaki.dmadan.com` is currently DNS-only, which makes
+runs on Cloudflare and `waves.dmadan.com` is currently DNS-only, which makes
 **Cloudflare Access** the cheap answer: free to 50 seats, and a real second
 factor by one-time PIN.
 
 Two things that must be true together, or neither is worth doing:
 
-1. `baaki.dmadan.com` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
+1. `waves.dmadan.com` proxied (orange cloud), SSL/TLS **Full (strict)**, with a
    Zero Trust Access application in front of it.
-2. **The `.vercel.app` back door closed.** `baaki-admin.vercel.app` still serves
+2. **The `.vercel.app` back door closed.** `waves-admin.vercel.app` still serves
    this console, and a request sent straight to Vercel's IP with
-   `Host: baaki.dmadan.com` walks around Cloudflare entirely. Closing it means a
+   `Host: waves.dmadan.com` walks around Cloudflare entirely. Closing it means a
    secret header injected by a Cloudflare Transform Rule that `src/proxy.ts`
    requires — a host check alone does not do it, because the host is exactly
    what an attacker sets.
@@ -151,9 +151,9 @@ attacker on the open origin could obtain or replay. The compare is constant-time
 Ops steps to make it hold, in Cloudflare's dashboard:
 
 1. **Zero Trust → Access → Applications**: add a self-hosted application for
-   `baaki.dmadan.com` with a one-time-PIN (or stricter) policy for your email.
+   `waves.dmadan.com` with a one-time-PIN (or stricter) policy for your email.
 2. **Rules → Transform Rules → Modify Request Header**: on requests to
-   `baaki.dmadan.com`, _set_ `x-admin-origin-secret` to the same value you put
+   `waves.dmadan.com`, _set_ `x-admin-origin-secret` to the same value you put
    in the `ADMIN_ORIGIN_SECRET` env var. Set (not add), so a value a client
    tried to send cannot survive.
 3. Set `ADMIN_ORIGIN_SECRET` in Vercel Production to that value and redeploy.
@@ -170,7 +170,7 @@ control on a public hostname, and size it accordingly.
 
 `src/lib/loginThrottle.ts` caps failed password attempts per client address
 (ten per fifteen minutes) using the same Postgres limiter the edge functions use
-(`baaki_rate_limit`), so it works across Vercel's many short-lived isolates
+(`waves_rate_limit`), so it works across Vercel's many short-lived isolates
 where an in-memory counter would not. A lockout logs a line prefixed
 `[ALERT] admin-login lockout` for log-based alerting to key on. It fails open: a
 database blip lets the one operator in rather than locking them out. No
@@ -209,6 +209,6 @@ public hostname with only the password in front of it:
   `requireSession()`. This is not belt-and-braces for its own sake: during
   development the proxy sat at the project root, where Next silently does not
   load it, and only the second check stopped unauthenticated requests.
-- Reads go through the `baaki_admin_*` functions rather than selecting from
+- Reads go through the `waves_admin_*` functions rather than selecting from
   tables, so what this console is able to see stays one reviewable list in one
   migration instead of a habit spread across pages.

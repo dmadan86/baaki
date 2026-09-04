@@ -71,7 +71,7 @@ async function request(
   name: string | null = null,
 ): Promise<{ ok: boolean; reason?: string; claim_id?: string; already_pending?: boolean }> {
   const { rows } = await client.query(
-    'SELECT public.baaki_request_member_claim($1, $2, $3, $4) AS verdict',
+    'SELECT public.waves_request_member_claim($1, $2, $3, $4) AS verdict',
     [groupId, id(memberId, 'member'), profileId, name],
   );
   return rows[0].verdict;
@@ -83,7 +83,7 @@ async function decide(
   as: string | undefined,
 ): Promise<{ ok: boolean; reason?: string; status?: string }> {
   return asProfile(id(as, 'admin profile'), async () => {
-    const { rows } = await client.query('SELECT public.baaki_decide_member_claim($1, $2) AS v', [
+    const { rows } = await client.query('SELECT public.waves_decide_member_claim($1, $2) AS v', [
       claimId,
       approve,
     ]);
@@ -362,7 +362,7 @@ describe('the ways a claim stops making sense', () => {
     const { claim_id } = await request(groupId, memberIds[2], arrival);
 
     const byAdmin = await asProfile(id(profileIds[0], 'admin profile'), async () => {
-      const { rows } = await client.query('SELECT public.baaki_withdraw_member_claim($1) AS v', [
+      const { rows } = await client.query('SELECT public.waves_withdraw_member_claim($1) AS v', [
         claim_id,
       ]);
       return rows[0].v;
@@ -370,7 +370,7 @@ describe('the ways a claim stops making sense', () => {
     expect(byAdmin.ok).toBe(false);
 
     const byThem = await asProfile(arrival, async () => {
-      const { rows } = await client.query('SELECT public.baaki_withdraw_member_claim($1) AS v', [
+      const { rows } = await client.query('SELECT public.waves_withdraw_member_claim($1) AS v', [
         claim_id,
       ]);
       return rows[0].v;

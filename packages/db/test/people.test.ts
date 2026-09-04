@@ -49,7 +49,7 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 async function makeGroup(owner: string, currency = 'INR'): Promise<string> {
   return asUser(owner, async () => {
     const { rows } = await client.query(
-      `SELECT baaki_create_group('Trip', 'trip', $1, NULL, false, NULL, NULL) AS id`,
+      `SELECT waves_create_group('Trip', 'trip', $1, NULL, false, NULL, NULL) AS id`,
       [currency],
     );
     return String(rows[0].id);
@@ -58,7 +58,7 @@ async function makeGroup(owner: string, currency = 'INR'): Promise<string> {
 
 async function addGhost(owner: string, groupId: string, name: string): Promise<string> {
   return asUser(owner, async () => {
-    const { rows } = await client.query(`SELECT baaki_add_ghost_member($1::uuid, $2::text) AS id`, [
+    const { rows } = await client.query(`SELECT waves_add_ghost_member($1::uuid, $2::text) AS id`, [
       groupId,
       name,
     ]);
@@ -94,12 +94,12 @@ async function expense(
 ): Promise<void> {
   const half = amount / 2n;
   const author = await myMember(groupId, owner);
-  // Seeded on the owner connection: `baaki_apply_expense` is service-role only,
+  // Seeded on the owner connection: `waves_apply_expense` is service-role only,
   // so seeding it as `authenticated` would now be denied. The owner bypasses the
   // grant and the null-profile branch treats it as a trusted (service) caller —
   // the same door the edge functions use.
   await client.query(
-    `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
+    `SELECT waves_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
                                 '2026-08-06'::date, $4::char(3), $5::bigint,
                                 'equal'::text, '{"kind":"equal"}'::jsonb,
                                 $6::jsonb, $7::jsonb, $8::uuid)`,
@@ -121,7 +121,7 @@ async function expense(
 
 async function people(profileId: string) {
   return asUser(profileId, async () => {
-    const { rows } = await client.query(`SELECT * FROM baaki_people_i_owe()`);
+    const { rows } = await client.query(`SELECT * FROM waves_people_i_owe()`);
     return rows;
   });
 }

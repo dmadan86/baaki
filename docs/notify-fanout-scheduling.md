@@ -5,19 +5,19 @@ via Expo and mail via Resend, and closes them out. Deployed as an edge
 function, it does nothing on its own — something has to call it. Two things
 do, and they cover different gaps:
 
-- **A realtime trigger** (`baaki_notify_fanout_on_insert`, migration
+- **A realtime trigger** (`waves_notify_fanout_on_insert`, migration
   `20260903180000_notify_fanout_realtime_trigger`) fires the instant a fresh
   row is written, so a `group_added` push or a settlement confirmation
   doesn't sit waiting on the next cron tick.
-- **A `pg_cron` job**, `baaki-notify-fanout`, every 5 minutes. This is the one
+- **A `pg_cron` job**, `waves-notify-fanout`, every 5 minutes. This is the one
   a trigger structurally cannot replace: a push retry becomes due purely
   because time passed (`push_next_retry_at <= now()`), with no new row for an
   `AFTER INSERT` trigger to fire off. Belt and suspenders, not either/or.
 
 Neither is migration-tracked for the cron job specifically, following this
-project's existing convention — every `cron.job` row here (`baaki-auto-archive`,
-`baaki-auto-confirm`, `baaki-storage-expire-pending`, `baaki-sweep-rate-limits`,
-`baaki-trip-nudges`, and this one) is set up directly against the live project
+project's existing convention — every `cron.job` row here (`waves-auto-archive`,
+`waves-auto-confirm`, `waves-storage-expire-pending`, `waves-sweep-rate-limits`,
+`waves-trip-nudges`, and this one) is set up directly against the live project
 rather than in `prisma/migrations`, because a `cron.schedule()` call and the
 Vault secret it reads are both environment-specific — a fresh clone or a
 different Supabase project has neither, and a migration can't safely carry a
@@ -42,7 +42,7 @@ trigger; this is the piece that isn't tracked):
 
 ```sql
 select cron.schedule(
-  'baaki-notify-fanout', '*/5 * * * *',
+  'waves-notify-fanout', '*/5 * * * *',
   $$ select net.http_post(
        url     := 'https://<project-ref>.supabase.co/functions/v1/notify-fanout',
        headers := jsonb_build_object(

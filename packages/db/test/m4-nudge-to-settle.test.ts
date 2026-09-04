@@ -5,7 +5,7 @@
  * what is pinned here:
  *
  *   - a nudge only goes when the debt is real, in the currency named;
- *   - a second nudge the same day is refused, so Baaki cannot be turned into a
+ *   - a second nudge the same day is refused, so Waves cannot be turned into a
  *     machine that pesters;
  *   - a ghost, who has no inbox, is never nudged;
  *   - and only a member of the group can nudge inside it.
@@ -53,7 +53,7 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 async function makeGroup(owner: string): Promise<string> {
   return asUser(owner, async () => {
     const { rows } = await client.query(
-      `SELECT baaki_create_group('Goa', 'trip', 'INR', NULL, false, NULL, NULL) AS id`,
+      `SELECT waves_create_group('Goa', 'trip', 'INR', NULL, false, NULL, NULL) AS id`,
     );
     return String(rows[0].id);
   });
@@ -68,7 +68,7 @@ async function join(groupId: string, profileId: string): Promise<void> {
 
 async function addGhost(owner: string, groupId: string, name: string): Promise<string> {
   return asUser(owner, async () => {
-    const { rows } = await client.query(`SELECT baaki_add_ghost_member($1::uuid, $2::text) AS id`, [
+    const { rows } = await client.query(`SELECT waves_add_ghost_member($1::uuid, $2::text) AS id`, [
       groupId,
       name,
     ]);
@@ -94,11 +94,11 @@ async function expense(
 ): Promise<void> {
   const half = amount / 2n;
   const author = await myMember(groupId, owner);
-  // Seeded on the owner connection: `baaki_apply_expense` is service-role only,
+  // Seeded on the owner connection: `waves_apply_expense` is service-role only,
   // so seeding it as `authenticated` would now be denied. The owner bypasses the
   // grant and the null-profile branch treats it as a trusted (service) caller.
   await client.query(
-    `SELECT baaki_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
+    `SELECT waves_apply_expense($1::uuid, $2::uuid, $3::uuid, 'Dinner', NULL::text,
                                 '2026-08-06'::date, 'INR'::char(3), $4::bigint,
                                 'equal'::text, '{"kind":"equal"}'::jsonb,
                                 $5::jsonb, $6::jsonb, $7::uuid)`,
@@ -119,7 +119,7 @@ async function expense(
 
 function nudge(caller: string, groupId: string, toMemberId: string, currency = 'INR') {
   return asUser(caller, () =>
-    client.query(`SELECT baaki_nudge_to_settle($1::uuid, $2::uuid, $3::char(3)) AS id`, [
+    client.query(`SELECT waves_nudge_to_settle($1::uuid, $2::uuid, $3::char(3)) AS id`, [
       groupId,
       toMemberId,
       currency,

@@ -51,7 +51,7 @@ beforeEach(async () => {
 /** Call the client-facing summary RPC as a given signed-in profile. */
 async function myAccess(profileId: string): Promise<Record<string, unknown>> {
   return asRole(client, 'authenticated', { sub: profileId, role: 'authenticated' }, async () => {
-    const { rows } = await client.query(`SELECT public.baaki_my_voice_access() AS a`);
+    const { rows } = await client.query(`SELECT public.waves_my_voice_access() AS a`);
     return rows[0].a as Record<string, unknown>;
   });
 }
@@ -74,13 +74,13 @@ describe('voice STT entitlement (A48 Phase 1)', () => {
   });
 
   it('counts recorded seconds down from the allowance', async () => {
-    await client.query(`SELECT public.baaki_voice_stt_record($1, 100)`, [free]);
+    await client.query(`SELECT public.waves_voice_stt_record($1, 100)`, [free]);
     let access = await myAccess(free);
     expect(access.usedSeconds).toBe(100);
     expect(access.remainingSeconds).toBe(200);
 
     // A second clip adds to the same month and clamps at zero, never negative.
-    await client.query(`SELECT public.baaki_voice_stt_record($1, 250)`, [free]);
+    await client.query(`SELECT public.waves_voice_stt_record($1, 250)`, [free]);
     access = await myAccess(free);
     expect(access.usedSeconds).toBe(350);
     expect(access.remainingSeconds).toBe(0);
@@ -88,12 +88,12 @@ describe('voice STT entitlement (A48 Phase 1)', () => {
 
   it('treats a paid person as unlimited (remaining = null), ignoring usage', async () => {
     await makePaid(paid);
-    await client.query(`SELECT public.baaki_voice_stt_record($1, 500)`, [paid]);
+    await client.query(`SELECT public.waves_voice_stt_record($1, 500)`, [paid]);
     const access = await myAccess(paid);
     expect(access.paid).toBe(true);
     expect(access.remainingSeconds).toBeNull();
     const { rows } = await client.query(
-      `SELECT public.baaki_voice_stt_remaining_seconds($1) AS r`,
+      `SELECT public.waves_voice_stt_remaining_seconds($1) AS r`,
       [paid],
     );
     expect(rows[0].r).toBeNull();
@@ -122,7 +122,7 @@ describe('voice STT entitlement (A48 Phase 1)', () => {
     await client.query('BEGIN');
     try {
       await client.query(`UPDATE app_config SET value = 120 WHERE key = 'voice_stt_free_seconds'`);
-      const { rows } = await client.query(`SELECT public.baaki_voice_stt_free_seconds() AS s`);
+      const { rows } = await client.query(`SELECT public.waves_voice_stt_free_seconds() AS s`);
       expect(rows[0].s).toBe(120);
     } finally {
       await client.query('ROLLBACK'); // keep the seeded default for other tests
@@ -131,18 +131,18 @@ describe('voice STT entitlement (A48 Phase 1)', () => {
 });
 
 describe('voice STT metering is not client-forgeable', () => {
-  it('refuses baaki_voice_stt_record to an ordinary authenticated caller', async () => {
+  it('refuses waves_voice_stt_record to an ordinary authenticated caller', async () => {
     // The EXECUTE grant is service-role only; authenticated is denied.
     const message = await expectDenied(
       asRole(client, 'authenticated', { sub: free, role: 'authenticated' }, () =>
-        client.query(`SELECT public.baaki_voice_stt_record($1, 50)`, [free]),
+        client.query(`SELECT public.waves_voice_stt_record($1, 50)`, [free]),
       ),
     );
     expect(message).toMatch(/permission denied|not.*allowed/i);
   });
 
   it("does not let one user read another user's usage row", async () => {
-    await client.query(`SELECT public.baaki_voice_stt_record($1, 42)`, [free]);
+    await client.query(`SELECT public.waves_voice_stt_record($1, 42)`, [free]);
     const seen = await asRole(
       client,
       'authenticated',
@@ -160,7 +160,7 @@ describe('voice STT metering is not client-forgeable', () => {
 
   it('rejects a negative record', async () => {
     const message = await expectDenied(
-      client.query(`SELECT public.baaki_voice_stt_record($1, -5)`, [free]),
+      client.query(`SELECT public.waves_voice_stt_record($1, -5)`, [free]),
     );
     expect(message).toContain('VOICE_STT_BAD_SECONDS');
   });

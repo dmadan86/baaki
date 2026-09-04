@@ -37,7 +37,7 @@ describe('recordLoginAttempt', () => {
       allowed: true,
       retryAfter: 0,
     });
-    expect(rpc).toHaveBeenCalledWith('baaki_rate_limit', {
+    expect(rpc).toHaveBeenCalledWith('waves_rate_limit', {
       p_subject: 'ip:1.2.3.4',
       p_bucket: 'admin-login',
       p_limit: 10,

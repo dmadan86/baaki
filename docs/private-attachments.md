@@ -15,7 +15,7 @@ again at the presign (`r2-sign`), never in the client.
   `parties` = the expense's payers + author). A restricted path is **never** a
   column on a group-visible row, so it cannot ship to non-parties through the
   pull or a direct PostgREST read.
-- **Party predicates** `baaki_is_settlement_party` / `baaki_is_expense_party`
+- **Party predicates** `waves_is_settlement_party` / `waves_is_expense_party`
   (SECURITY DEFINER, answer only about the caller). SELECT policies embed them;
   writes are RPC-only so `uploader_member_id` is the session's, never a client
   argument.

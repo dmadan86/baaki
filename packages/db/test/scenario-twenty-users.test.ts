@@ -9,7 +9,7 @@
  * size: the derived balances still equal the ground-truth aggregate and still
  * sum to zero in every group (ADR-004 / ADR-014), every expense's shares and
  * payers reconcile to its total (ADR-003), and a member excluded from a split
- * carries no share for it. If the app's core promise ("your baaki is always
+ * carries no share for it. If the app's core promise ("your waves is always
  * right") survives 150 mixed expenses across twenty people, it survives a trip.
  *
  * Runs against the local Postgres test DB (see `helpers.CONNECTION_STRING`),

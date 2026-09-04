@@ -101,7 +101,7 @@ const attachProof = async (sid: string, path: string, id: string | null = null) 
     path,
     ownerProfileId: g.profileIds[0] as string,
   });
-  return client.query(`SELECT baaki_attach_settlement_proof($1, $2, $3) AS id`, [sid, path, id]);
+  return client.query(`SELECT waves_attach_settlement_proof($1, $2, $3) AS id`, [sid, path, id]);
 };
 
 const attachExpense = async (
@@ -115,7 +115,7 @@ const attachExpense = async (
     path,
     ownerProfileId: g.profileIds[0] as string,
   });
-  return client.query(`SELECT baaki_attach_expense_attachment($1, $2, $3, $4) AS id`, [
+  return client.query(`SELECT waves_attach_expense_attachment($1, $2, $3, $4) AS id`, [
     eid,
     path,
     visibility,
@@ -128,7 +128,7 @@ describe('T13 — party predicates', () => {
     const settlementParty = (pid: string) =>
       as(pid, () =>
         client
-          .query(`SELECT baaki_is_settlement_party($1) AS x`, [settlementId])
+          .query(`SELECT waves_is_settlement_party($1) AS x`, [settlementId])
           .then((r) => r.rows[0].x as boolean),
       );
     expect(await settlementParty(g.profileIds[0] as string)).toBe(true);
@@ -138,7 +138,7 @@ describe('T13 — party predicates', () => {
     const expenseParty = (pid: string) =>
       as(pid, () =>
         client
-          .query(`SELECT baaki_is_expense_party($1) AS x`, [expenseId])
+          .query(`SELECT waves_is_expense_party($1) AS x`, [expenseId])
           .then((r) => r.rows[0].x as boolean),
       );
     expect(await expenseParty(g.profileIds[0] as string)).toBe(true);
@@ -215,7 +215,7 @@ describe('settlement proofs', () => {
     });
     // Remove, then re-attach with a fresh key → different storage_path.
     await as(g.profileIds[1] as string, () =>
-      client.query(`SELECT baaki_remove_settlement_proof($1)`, [proofId]),
+      client.query(`SELECT waves_remove_settlement_proof($1)`, [proofId]),
     );
     const secondPath = `${settlementId}/${randomUUID()}.webp`;
     await as(g.profileIds[0] as string, () => attachProof(settlementId, secondPath));
@@ -284,7 +284,7 @@ describe('T17 — the per-expense gallery cap (A46)', () => {
     );
     // Remove one → a live count of 1 → the next add is allowed again.
     await as(g.profileIds[0] as string, () =>
-      client.query(`SELECT baaki_remove_expense_attachment($1)`, [secondId]),
+      client.query(`SELECT waves_remove_expense_attachment($1)`, [secondId]),
     );
     await as(g.profileIds[0] as string, () => addOne(expenseId));
     // Two live (the first and the re-add); the soft-deleted one is not counted.
@@ -307,7 +307,7 @@ describe('T17 — the per-expense gallery cap (A46)', () => {
       amount: 1000n,
     });
     // One member holds an active subscription → the whole group is paid, so the
-    // cap does not apply (baaki_group_is_paid).
+    // cap does not apply (waves_group_is_paid).
     await client.query(
       `INSERT INTO subscriptions (profile_id, tier, period, status, current_period_end, store)
        VALUES ($1, 'plus', 'monthly', 'active', now() + interval '30 days', 'play')`,

@@ -10,7 +10,7 @@ import {
 import { isCurrencyCode, minorUnitExponent } from '../src/money/currency';
 
 describe('what a country counts in', () => {
-  it('knows the markets Baaki is going to', () => {
+  it('knows the markets Waves is going to', () => {
     expect(currencyForCountry('IN')).toBe('INR');
     expect(currencyForCountry('AE')).toBe('AED');
     expect(currencyForCountry('SA')).toBe('SAR');

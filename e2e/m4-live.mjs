@@ -32,7 +32,7 @@ const check = (label, condition, detail = '') => {
 const client = createClient(URL, ANON, { auth: { persistSession: false } });
 await client.auth.signInAnonymously();
 
-const { data: groupId } = await client.rpc('baaki_create_group', {
+const { data: groupId } = await client.rpc('waves_create_group', {
   p_name: 'M4 live',
   p_type: 'trip',
   p_currency: 'INR',
@@ -40,7 +40,7 @@ const { data: groupId } = await client.rpc('baaki_create_group', {
   p_simplify: true,
 });
 
-const { data: ghostId } = await client.rpc('baaki_add_ghost_member', {
+const { data: ghostId } = await client.rpc('waves_add_ghost_member', {
   p_group_id: groupId,
   p_name: 'Ravi',
   p_member_id: null,
@@ -110,7 +110,7 @@ const balancesBefore = await client
 
 // ── declining it ────────────────────────────────────────────────────────────
 
-const raised = await client.rpc('baaki_dispute_expense', {
+const raised = await client.rpc('waves_dispute_expense', {
   p_expense_id: expenseId,
   p_reason: 'I was not there',
 });
@@ -138,7 +138,7 @@ check(
   JSON.stringify(balancesAfter.data),
 );
 
-const selfResolve = await client.rpc('baaki_resolve_dispute', {
+const selfResolve = await client.rpc('waves_resolve_dispute', {
   p_dispute_id: disputes?.[0]?.id,
   p_accept: true,
   p_note: null,
@@ -151,7 +151,7 @@ check(
   selfResolve.error?.message ?? 'allowed',
 );
 
-const withdrawn = await client.rpc('baaki_withdraw_dispute', { p_expense_id: expenseId });
+const withdrawn = await client.rpc('waves_withdraw_dispute', { p_expense_id: expenseId });
 check('a complaint can be taken back', !withdrawn.error, withdrawn.error?.message ?? '');
 
 // ── the fanout is not for clients ───────────────────────────────────────────
@@ -171,10 +171,10 @@ check(
 // notification text and their device tokens; auto-confirm settles strangers'
 // money. This block is the only thing that would have noticed.
 for (const [name, args] of [
-  ['baaki_auto_confirm_settlements', {}],
-  ['baaki_trip_nudges', {}],
-  ['baaki_claim_push_notifications', { p_limit: 1 }],
-  ['baaki_finish_push', {}],
+  ['waves_auto_confirm_settlements', {}],
+  ['waves_trip_nudges', {}],
+  ['waves_claim_push_notifications', { p_limit: 1 }],
+  ['waves_finish_push', {}],
 ]) {
   const attempt = await client.rpc(name, args);
   check(
@@ -192,8 +192,8 @@ for (const [name, args] of [
 // — not PostgREST's "could not find the function", which is exactly how a missing
 // migration or a lost grant would show up instead.
 for (const [name, args] of [
-  ['baaki_cancel_settlement', { p_settlement_id: randomUUID() }],
-  ['baaki_dispute_settlement', { p_settlement_id: randomUUID(), p_reason: null }],
+  ['waves_cancel_settlement', { p_settlement_id: randomUUID() }],
+  ['waves_dispute_settlement', { p_settlement_id: randomUUID(), p_reason: null }],
 ]) {
   const attempt = await client.rpc(name, args);
   check(

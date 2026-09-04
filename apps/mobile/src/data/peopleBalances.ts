@@ -1,7 +1,7 @@
 /**
  * Who owes you and who you owe, across every group — computed on the device.
  *
- * The local-first twin of the `baaki_people_i_owe` RPC (A11/A36/A38). The RPC
+ * The local-first twin of the `waves_people_i_owe` RPC (A11/A36/A38). The RPC
  * takes the pairwise balance between you and each other member in every group
  * you share (`pairwise_balances`), folds the rows that are really one person,
  * and sums per currency. This does the same from the mirror: the caller feeds
@@ -84,7 +84,7 @@ interface Group {
 
 /**
  * Fold per-group contributions into one row per person and currency, exactly as
- * `baaki_people_i_owe` returns them: summed net (a person square in a currency
+ * `waves_people_i_owe` returns them: summed net (a person square in a currency
  * is dropped), a group count with the single group id when there is only one,
  * and the newest activity. Ordered by the size of the balance, then name.
  */

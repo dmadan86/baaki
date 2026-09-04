@@ -1,6 +1,6 @@
 /**
  * The one serialization contract for writing an expense — shared by every path
- * that reaches `baaki_apply_expense`, so an expense written online, offline, from
+ * that reaches `waves_apply_expense`, so an expense written online, offline, from
  * the phone or from the browser carries the *same* fields (TDR §4).
  *
  * There are two boundaries an expense write crosses, and this module owns both:
@@ -12,7 +12,7 @@
  *
  *   2. **edge → RPC** ({@link buildApplyExpenseArgs}): the named arguments both
  *      the `expense-write` and the `/sync` edge functions pass to
- *      `baaki_apply_expense`. Built here, so the direct write and the queued
+ *      `waves_apply_expense`. Built here, so the direct write and the queued
  *      write are byte-for-byte the same call — the bug this module exists to
  *      prevent was `expense-write` silently omitting `p_category_meta` and
  *      `p_base_version_no`, which made a direct edit lose custom-tag display and
@@ -216,7 +216,7 @@ export interface ApplyExpenseArgsInput {
   readonly location?: unknown;
 }
 
-/** The named arguments passed to `baaki_apply_expense`. `p_source` is left to
+/** The named arguments passed to `waves_apply_expense`. `p_source` is left to
  *  its default ('manual') by every caller, so it is not built here. */
 export interface ApplyExpenseRpcArgs {
   readonly p_group_id: string;
@@ -243,7 +243,7 @@ export interface ApplyExpenseRpcArgs {
 }
 
 /**
- * Build the `baaki_apply_expense` arguments. Both the direct (`expense-write`)
+ * Build the `waves_apply_expense` arguments. Both the direct (`expense-write`)
  * and the queued (`/sync`) edge paths call this, so the RPC receives an
  * identical set of fields whichever path a write took — the single source of
  * truth for "what a write consists of".

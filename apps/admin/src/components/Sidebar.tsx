@@ -114,7 +114,7 @@ export function Sidebar() {
     <nav className="sidebar" aria-label="Sections">
       <div className="brand">
         <span className="mark">B</span>
-        <span>Baaki</span>
+        <span>Waves</span>
       </div>
       {SECTIONS.map((section) => (
         <div key={section.heading}>

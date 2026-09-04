@@ -33,7 +33,7 @@ import { useAuth } from '@/lib/auth';
 
 /**
  * Whole days left before a pending settlement auto-confirms — the 7-day window
- * the server's `baaki_auto_confirm_settlements` job enforces, counted from the
+ * the server's `waves_auto_confirm_settlements` job enforces, counted from the
  * moment the payer recorded it. Never below one; a claim past the window is
  * auto-confirmed by the cron and has already left this list. (Mirrors the same
  * helper on the group screen's hero.)

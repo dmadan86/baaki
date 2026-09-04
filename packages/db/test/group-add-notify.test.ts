@@ -95,7 +95,7 @@ async function person(name: string): Promise<Person> {
 async function group(owner: string): Promise<string> {
   return asUser(owner, async () => {
     const { rows } = await client.query(
-      `SELECT baaki_create_group('Goa', 'trip', 'INR', NULL, true, NULL, NULL) AS id`,
+      `SELECT waves_create_group('Goa', 'trip', 'INR', NULL, true, NULL, NULL) AS id`,
     );
     return String(rows[0].id);
   });
@@ -108,7 +108,7 @@ async function addGhost(
 ): Promise<string> {
   return asUser(caller, async () => {
     const { rows } = await client.query(
-      `SELECT baaki_add_ghost_member($1::uuid, $2::text, NULL::uuid, $3::text, $4::text) AS id`,
+      `SELECT waves_add_ghost_member($1::uuid, $2::text, NULL::uuid, $3::text, $4::text) AS id`,
       [groupId, fields.name ?? null, fields.email ?? null, fields.phone ?? null],
     );
     return String(rows[0].id);
@@ -142,7 +142,7 @@ describe('adding someone already on Waves', () => {
     expect(notes).toHaveLength(1);
     expect(notes[0]?.kind).toBe('group_added');
     expect(notes[0]?.group_id).toBe(groupId);
-    expect(notes[0]?.deep_link).toBe(`baaki://group/${groupId}`);
+    expect(notes[0]?.deep_link).toBe(`waves://group/${groupId}`);
     // `counterparty` is the fact the reader's `{actor}` renders from.
     expect(notes[0]?.payload?.counterparty).toBe('Asha');
   });

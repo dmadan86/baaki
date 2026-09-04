@@ -170,11 +170,11 @@ serveWithCors(async (request) => {
     //
     // The argument object is built by the one shared builder `/sync` uses too
     // (`buildApplyExpenseArgs` in @waves/core), so a direct write and a queued
-    // write reach `baaki_apply_expense` with an identical set of fields —
+    // write reach `waves_apply_expense` with an identical set of fields —
     // including `p_category_meta` and `p_base_version_no`, which this path used
     // to drop. Its sanitisers validate the category snapshot and the location.
     const { data: applied, error: applyError } = await service.rpc(
-      'baaki_apply_expense',
+      'waves_apply_expense',
       buildApplyExpenseArgs({
         groupId: body.groupId,
         expenseId: body.expenseId ?? expenseId,

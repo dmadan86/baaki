@@ -1,7 +1,7 @@
 /**
  * The trip, day by day: what was planned, and what it actually cost.
  *
- * The reason this lives in Baaki rather than in a notes app is the second half.
+ * The reason this lives in Waves rather than in a notes app is the second half.
  * Anything can hold "Dudhsagar falls" under Saturday. Only the app that already
  * has the ledger can put ₹2,000 planned beside ₹3,150 spent, and say the trip
  * is ₹4,000 over on day four.

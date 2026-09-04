@@ -186,7 +186,7 @@ export interface CaptureRow {
 }
 
 /**
- * A line in the inbox — everything Baaki has told this person, whether or not a
+ * A line in the inbox — everything Waves has told this person, whether or not a
  * push ever reached the device (TDR §7.1 calls it the ledger of record). Which
  * rows are whose is decided by the `notifications_select_own` RLS policy, not
  * by any filter here.
@@ -203,7 +203,7 @@ export interface NotificationRow {
   created_at: string;
 }
 
-/** One row per person per currency, from the `baaki_people_i_owe` RPC. */
+/** One row per person per currency, from the `waves_people_i_owe` RPC. */
 export interface PersonBalanceRow {
   person_key: string;
   profile_id: string | null;

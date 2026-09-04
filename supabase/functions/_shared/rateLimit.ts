@@ -6,13 +6,13 @@
  * them. Changing a limit should be a one-line diff somebody can review on its
  * own.
  *
- * The counting happens in Postgres (`baaki_rate_limit`), not here. An in-memory
+ * The counting happens in Postgres (`waves_rate_limit`), not here. An in-memory
  * counter would be per-isolate, and Supabase runs as many isolates as it likes
  * and tears them down between requests — which makes an in-memory limiter a
  * limiter of roughly nothing, and worse, one that looks like it works in a
  * single-instance test.
  *
- * This is abuse control and not billing. `baaki_receipt_scan_quota` is the one
+ * This is abuse control and not billing. `waves_receipt_scan_quota` is the one
  * that decides what somebody has paid for; it stays where it is and keeps its
  * own message, because "you have used this month's scans" and "you are going
  * too fast" send a person to do two completely different things.
@@ -62,7 +62,7 @@ export const LIMITS = {
    * Sign-in codes over WhatsApp, four to a number a day. Unlike every other
    * bucket here this one is a product rule rather than an abuse ceiling — four
    * is roughly "you mistyped, you waited, you tried the other phone", and a
-   * fifth is somebody else's problem. `otp-send` calls `baaki_rate_limit`
+   * fifth is somebody else's problem. `otp-send` calls `waves_rate_limit`
    * directly rather than through `enforceRateLimit`, because the subject is a
    * phone number (nobody has signed in yet) and the refusal has to come back in
    * GoTrue's error envelope, not ours — the limit lives here so there is still
@@ -102,7 +102,7 @@ interface Decision {
 /**
  * Counts this call and throws a 429 if it is one too many.
  *
- * `service` and not the caller's client: `baaki_rate_limit` is granted to
+ * `service` and not the caller's client: `waves_rate_limit` is granted to
  * `service_role` alone. It takes the subject as an argument, so a client able
  * to call it could spend somebody else's allowance for them.
  *
@@ -121,7 +121,7 @@ export async function enforceRateLimit(
   const { limit, windowSeconds } = LIMITS[bucket];
   const subject = subjectFor(request, profileId);
 
-  const { data, error } = await service.rpc('baaki_rate_limit', {
+  const { data, error } = await service.rpc('waves_rate_limit', {
     p_subject: subject,
     p_bucket: bucket,
     p_limit: limit,

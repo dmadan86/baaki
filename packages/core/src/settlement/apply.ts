@@ -128,7 +128,7 @@ function mergeAllocations(allocations: readonly SettlementAllocation[]): Settlem
     .sort((a, b) => a.expenseId.localeCompare(b.expenseId));
 }
 
-/** UPI intent URI (ADR-007 / TDR §5). Baaki never touches the money itself. */
+/** UPI intent URI (ADR-007 / TDR §5). Waves never touches the money itself. */
 export interface UpiIntentInput {
   readonly vpa: string;
   readonly payeeName: string;

@@ -44,7 +44,7 @@ describe('voice attempts', () => {
     const transcript = `add five hundred for tea ${randomUUID().slice(0, 8)}`;
 
     const { rows: returned } = await asProfile(profileIds[0]!, () =>
-      client.query('SELECT public.baaki_log_voice_attempt($1, $2, $3, $4, $5, $6) AS id', [
+      client.query('SELECT public.waves_log_voice_attempt($1, $2, $3, $4, $5, $6) AS id', [
         transcript,
         'en',
         true,
@@ -69,10 +69,10 @@ describe('voice attempts', () => {
   });
 
   it('returns null quietly, and stores nothing, without a session or a transcript', async () => {
-    // No JWT claims set: baaki_current_profile_id() is null, so the reporter must
+    // No JWT claims set: waves_current_profile_id() is null, so the reporter must
     // return null rather than raise — the client fires it and forgets.
     await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
-    const noSession = await client.query('SELECT public.baaki_log_voice_attempt($1) AS id', [
+    const noSession = await client.query('SELECT public.waves_log_voice_attempt($1) AS id', [
       'nobody is signed in',
     ]);
     expect(noSession.rows[0].id).toBeNull();
@@ -80,7 +80,7 @@ describe('voice attempts', () => {
     // A signed-in caller with an empty transcript is likewise a no-op.
     const { profileIds } = await seedGroup(client, { memberCount: 1 });
     const empty = await asProfile(profileIds[0]!, () =>
-      client.query('SELECT public.baaki_log_voice_attempt($1) AS id', ['   ']),
+      client.query('SELECT public.waves_log_voice_attempt($1) AS id', ['   ']),
     );
     expect(empty.rows[0].id).toBeNull();
 
@@ -98,7 +98,7 @@ describe('voice attempts', () => {
     const secret = `private groceries ${randomUUID().slice(0, 8)}`;
 
     await asProfile(theirs, () =>
-      client.query('SELECT public.baaki_log_voice_attempt($1)', [secret]),
+      client.query('SELECT public.waves_log_voice_attempt($1)', [secret]),
     );
 
     await client.query('BEGIN');
@@ -163,7 +163,7 @@ describe('voice attempts', () => {
       try {
         await client.query(`SET LOCAL ROLE ${role}`);
         const message = await expectDenied(
-          client.query('SELECT * FROM public.baaki_admin_voice_attempts(10)'),
+          client.query('SELECT * FROM public.waves_admin_voice_attempts(10)'),
         );
         expect(message, role).toMatch(/permission denied/i);
       } finally {
@@ -176,13 +176,13 @@ describe('voice attempts', () => {
     const { profileIds } = await seedGroup(client, { memberCount: 1 });
     const transcript = `unparseable mumble ${randomUUID().slice(0, 8)}`;
     await asProfile(profileIds[0]!, () =>
-      client.query('SELECT public.baaki_log_voice_attempt($1, $2)', [transcript, 'ta']),
+      client.query('SELECT public.waves_log_voice_attempt($1, $2)', [transcript, 'ta']),
     );
 
     await client.query('BEGIN');
     try {
       await client.query('SET LOCAL ROLE service_role');
-      const { rows } = await client.query('SELECT * FROM public.baaki_admin_voice_attempts(200)');
+      const { rows } = await client.query('SELECT * FROM public.waves_admin_voice_attempts(200)');
       const found = rows.find((row) => row.transcript === transcript);
       expect(found, 'the logged attempt should be visible to the console').toBeTruthy();
       expect(found.profile_id).toBe(profileIds[0]);

@@ -25,13 +25,13 @@ to mint a fresh link every visit. The durable model needs a **re-showable** toke
 - `join_token` rides the normal `select('*')` group pull, so the QR **paints from
   the mirror** with no server round-trip once it exists.
 - **RPCs** (migration `20260824170000_group_join_link`):
-  - `baaki_ensure_group_join_token(group_id)` — any member; get-or-create; returns
+  - `waves_ensure_group_join_token(group_id)` — any member; get-or-create; returns
     the same token while it is live (stable QR).
-  - `baaki_reset_group_join_token(group_id)` — **admin only**; revokes the current
+  - `waves_reset_group_join_token(group_id)` — **admin only**; revokes the current
     durable invite (old QR dies) and mints a fresh one.
-  - `baaki_new_group_join_token` — internal helper (REVOKEd from clients).
+  - `waves_new_group_join_token` — internal helper (REVOKEd from clients).
 - The token is a bearer credential but reaches only **members** (the group row is
-  RLS-scoped). `join_token` is pinned in `baaki_guard_group_columns` so a client
+  RLS-scoped). `join_token` is pinned in `waves_guard_group_columns` so a client
   can never write it directly — only the SECURITY DEFINER RPCs (which run as the
   owner and skip the guard) may.
 - **pgcrypto**: SHA-256 must match the edge's plain `sha256`. The migration

@@ -75,7 +75,7 @@ beforeEach(async () => {
     ownerProfileId: P(0),
   });
   await as(P(0), () =>
-    client.query(`SELECT baaki_attach_expense_attachment($1, $2, 'group', $3)`, [
+    client.query(`SELECT waves_attach_expense_attachment($1, $2, 'group', $3)`, [
       expenseId,
       initialPath,
       attachmentId,
@@ -83,7 +83,7 @@ beforeEach(async () => {
   );
   // Give it markup so we can prove the replace clears it.
   await as(P(0), () =>
-    client.query(`SELECT baaki_annotate_expense_attachment($1, $2::jsonb)`, [
+    client.query(`SELECT waves_annotate_expense_attachment($1, $2::jsonb)`, [
       attachmentId,
       JSON.stringify({
         strokes: [{ color: '#EF4444', width: 0.01, points: [0.1, 0.2] }],
@@ -95,7 +95,7 @@ beforeEach(async () => {
 
 const replace = (profileId: string, id: string, path: string) =>
   as(profileId, () =>
-    client.query(`SELECT baaki_replace_expense_attachment_image($1, $2)`, [id, path]),
+    client.query(`SELECT waves_replace_expense_attachment_image($1, $2)`, [id, path]),
   );
 
 const row = (id: string) =>

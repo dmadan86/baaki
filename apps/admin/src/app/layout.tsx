@@ -5,7 +5,7 @@ import { Shell } from '@/components/Shell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Baaki admin',
+  title: 'Waves admin',
   robots: { index: false, follow: false },
 };
 

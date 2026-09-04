@@ -80,7 +80,7 @@ beforeEach(async () => {
 
 const attachExpense = (path: string) =>
   as(P(0), () =>
-    client.query(`SELECT baaki_attach_expense_attachment($1, $2, 'group', NULL) AS id`, [
+    client.query(`SELECT waves_attach_expense_attachment($1, $2, 'group', NULL) AS id`, [
       expenseId,
       path,
     ]),
@@ -88,7 +88,7 @@ const attachExpense = (path: string) =>
 
 const attachProof = (path: string) =>
   as(P(0), () =>
-    client.query(`SELECT baaki_attach_settlement_proof($1, $2, NULL) AS id`, [settlementId, path]),
+    client.query(`SELECT waves_attach_settlement_proof($1, $2, NULL) AS id`, [settlementId, path]),
   );
 
 const countAttachments = () =>
@@ -103,7 +103,7 @@ const countProofs = () =>
     ])
     .then((r) => r.rows[0].n as number);
 
-describe('baaki_attach_expense_attachment requires a committed object', () => {
+describe('waves_attach_expense_attachment requires a committed object', () => {
   it('rejects a scoped path with no storage_objects row at all', async () => {
     const path = `${expenseId}/${randomUUID()}.webp`; // never uploaded
     const message = await expectDenied(attachExpense(path));
@@ -150,7 +150,7 @@ describe('baaki_attach_expense_attachment requires a committed object', () => {
   });
 });
 
-describe('baaki_attach_settlement_proof requires a committed object', () => {
+describe('waves_attach_settlement_proof requires a committed object', () => {
   it('rejects a scoped path with no committed object', async () => {
     const path = `${settlementId}/${randomUUID()}.webp`;
     const message = await expectDenied(attachProof(path));
@@ -184,13 +184,13 @@ describe('baaki_attach_settlement_proof requires a committed object', () => {
 });
 
 describe('the committed-object guard is not a client-callable oracle', () => {
-  it('a client cannot execute baaki_require_committed_object directly', async () => {
+  it('a client cannot execute waves_require_committed_object directly', async () => {
     // Supabase grants EXECUTE on new public functions to anon/authenticated by
     // default; the migration must revoke it, or a client could probe whether any
     // (bucket, path) is committed in the service-role-only ledger.
     const message = await as(P(0), () =>
       expectDenied(
-        client.query(`SELECT baaki_require_committed_object('avatars', $1)`, [
+        client.query(`SELECT waves_require_committed_object('avatars', $1)`, [
           `${randomUUID()}/a.webp`,
         ]),
       ),

@@ -279,7 +279,7 @@ const syncBatch = (): fc.Arbitrary<SyncChange[]> =>
         // the order-independence assertion spuriously order-dependent.
         id: fc.integer({ min: 0, max: 200 }).map((n) => `row-${n}`),
         // A random positive step, accumulated per group below, so each group's
-        // seqs are strictly increasing and unique — the protocol baaki_next_group_seq
+        // seqs are strictly increasing and unique — the protocol waves_next_group_seq
         // guarantees. The reverse-order assertion depends on this: two changes
         // sharing a seq would make the winner order-dependent.
         step: fc.integer({ min: 1, max: 50 }),

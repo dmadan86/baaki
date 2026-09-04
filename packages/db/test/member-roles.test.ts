@@ -47,7 +47,7 @@ describe('an admin promotes another member', () => {
   it('makes a member an admin', async () => {
     const g = await seedGroup(client, { memberCount: 2 });
     await as(g.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_member_role($1, 'admin')`, [g.memberIds[1]]);
+      await client.query(`SELECT waves_set_member_role($1, 'admin')`, [g.memberIds[1]]);
     });
     expect(await roleOf(g.memberIds[1] as string)).toBe('admin');
   });
@@ -56,7 +56,7 @@ describe('an admin promotes another member', () => {
     const g = await seedGroup(client, { memberCount: 2 });
     await as(g.profileIds[1] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_set_member_role($1, 'admin')`, [g.memberIds[1]]),
+        client.query(`SELECT waves_set_member_role($1, 'admin')`, [g.memberIds[1]]),
       );
       expect(message).toMatch(/NOT_AN_ADMIN/);
     });
@@ -67,7 +67,7 @@ describe('an admin promotes another member', () => {
     const ghostId = g.memberIds[1]; // the ghost seeded after the one real member
     await as(g.profileIds[0] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_set_member_role($1, 'admin')`, [ghostId]),
+        client.query(`SELECT waves_set_member_role($1, 'admin')`, [ghostId]),
       );
       expect(message).toMatch(/GHOST_CANNOT_ADMIN/);
     });
@@ -77,7 +77,7 @@ describe('an admin promotes another member', () => {
     const g = await seedGroup(client, { memberCount: 2 }); // one admin (member 0)
     await as(g.profileIds[0] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_set_member_role($1, 'member')`, [g.memberIds[0]]),
+        client.query(`SELECT waves_set_member_role($1, 'member')`, [g.memberIds[0]]),
       );
       expect(message).toMatch(/LAST_ADMIN/);
     });
@@ -87,9 +87,9 @@ describe('an admin promotes another member', () => {
   it('demotes once a second admin exists', async () => {
     const g = await seedGroup(client, { memberCount: 2 });
     await as(g.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_set_member_role($1, 'admin')`, [g.memberIds[1]]);
+      await client.query(`SELECT waves_set_member_role($1, 'admin')`, [g.memberIds[1]]);
       // Now two admins — the first may step down.
-      await client.query(`SELECT baaki_set_member_role($1, 'member')`, [g.memberIds[0]]);
+      await client.query(`SELECT waves_set_member_role($1, 'member')`, [g.memberIds[0]]);
     });
     expect(await roleOf(g.memberIds[0] as string)).toBe('member');
     expect(await roleOf(g.memberIds[1] as string)).toBe('admin');

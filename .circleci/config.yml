@@ -15,7 +15,7 @@ executors:
   node:
     docker:
       - image: cimg/node:24.18
-    working_directory: ~/baaki
+    working_directory: ~/waves
 
 commands:
   setup:
@@ -88,12 +88,12 @@ jobs:
       - image: postgres:17-alpine
         environment:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: baaki
-    working_directory: ~/baaki
+          POSTGRES_DB: waves
+    working_directory: ~/waves
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/baaki?schema=public
-      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki_shadow?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/waves?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves_shadow?schema=public
     steps:
       - setup
       - run:
@@ -116,7 +116,7 @@ jobs:
           name: Policy and invariant tests
           command: pnpm test:db
           environment:
-            TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/baaki
+            TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/waves
 
   web-e2e:
     executor: node

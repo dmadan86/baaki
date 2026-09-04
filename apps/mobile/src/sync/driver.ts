@@ -16,6 +16,7 @@ import type { MirrorRow, QueuedMutation, SyncTable } from '@waves/core';
 import { reportHandled } from '@/lib/observability';
 
 import { mapYielding } from './hydrateChunk';
+import { DATABASE_NAME, migrateLegacyDatabaseFile } from './legacyDatabase';
 import { decryptWith, destroyKey, encryptWith, isSealed, loadKey } from './rowCipher';
 import { Serial } from './serial';
 import type { LocalStore, StoredRow } from './store';
@@ -142,7 +143,10 @@ class SqliteStore implements LocalStore {
   private async db(): Promise<SQLite.SQLiteDatabase> {
     if (this.database) return this.database;
     this.opening ??= (async () => {
-      const database = await SQLite.openDatabaseAsync('baaki.db');
+      // Before the open, never after: opening first would create an empty
+      // `waves.db` and leave the real one stranded under its old name.
+      await migrateLegacyDatabaseFile();
+      const database = await SQLite.openDatabaseAsync(DATABASE_NAME);
       await database.execAsync(SCHEMA);
       await this.migrate(database);
       this.database = database;

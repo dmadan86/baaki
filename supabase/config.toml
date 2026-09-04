@@ -3,7 +3,7 @@
 # (packages/db) and applied against the direct connection, never by `supabase
 # db push`.
 
-project_id = "baaki"
+project_id = "waves"
 
 [api]
 enabled = true
@@ -42,17 +42,17 @@ file_size_limit = "10MiB"
 
 [auth]
 enabled = true
-site_url = "baaki://"
-# `baaki://auth` is what `makeRedirectUri({ scheme: 'baaki', path: 'auth' })`
-# produces, and Supabase matches these exactly — `baaki://` on its own does not
+site_url = "waves://"
+# `waves://auth` is what `makeRedirectUri({ scheme: 'waves', path: 'auth' })`
+# produces, and Supabase matches these exactly — `waves://` on its own does not
 # cover it, so leaving it out sends every OAuth round trip to site_url instead
 # and the app never sees the tokens.
 #
-# The auth redirect deliberately stays on the `baaki` scheme through the rebrand:
-# the app now registers both `waves://` and `baaki://`, and the `waves://` entries
-# below are pre-allowed so the OAuth redirect can move to `waves://auth` in one
-# step once the prod Supabase + Google/Apple consoles also list it.
-additional_redirect_urls = ["baaki://", "baaki://auth", "waves://", "waves://auth", "http://localhost:3000"]
+# `waves` is the app's only registered scheme. The hosted project's Auth
+# settings and the Google/Apple consoles have to list `waves://auth` too — a
+# console still holding only the pre-rename scheme sends the round trip
+# somewhere the app no longer answers.
+additional_redirect_urls = ["waves://", "waves://auth", "http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 # ADR-006. A guest opens a link and starts splitting; there is no account until

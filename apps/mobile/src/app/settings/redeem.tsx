@@ -2,7 +2,7 @@
  * Typing in a promotion code.
  *
  * The grant is not written from here. `subscriptions` is not writable by a
- * client and `baaki_redeem_promo` is SECURITY DEFINER for exactly that reason —
+ * client and `waves_redeem_promo` is SECURITY DEFINER for exactly that reason —
  * a paywall a client can insert its own row into is a paywall with a door in
  * the back. This screen collects four to twenty-four characters and says what
  * came back.
@@ -77,7 +77,7 @@ export default function RedeemScreen() {
       else setError(refusal(outcome.reason, t));
     } catch (caught) {
       // Never the raw message: a build that reaches a project the migration has
-      // not, reports "Could not find the function public.baaki_redeem_promo".
+      // not, reports "Could not find the function public.waves_redeem_promo".
       setError(friendlyError(caught, t.promo.couldNotRedeem, 'promo.redeem'));
     } finally {
       setBusy(false);

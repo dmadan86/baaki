@@ -1,7 +1,7 @@
 /**
  * Adding your details, whenever you feel like it (ADR-006).
  *
- * Baaki asks for nothing to get started, so this screen exists for the moment
+ * Waves asks for nothing to get started, so this screen exists for the moment
  * someone decides they want the account to outlive the phone. It attaches an
  * email or a phone number to the account they already have — it does not make
  * a new one, so everything entered as a guest comes with them.

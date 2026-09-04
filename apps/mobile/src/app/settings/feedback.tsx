@@ -36,7 +36,7 @@ export default function FeedbackScreen() {
 
   const [kind, setKind] = useState<Kind>(Kind.General);
   // 1–5, or null when they write without rating. The table and RPC have always
-  // had the column (baaki_submit_feedback's p_rating); this is the screen that
+  // had the column (waves_submit_feedback's p_rating); this is the screen that
   // finally offers it. Tapping a chosen star again clears it — a rating is a
   // gift, not a required field.
   const [rating, setRating] = useState<FeedbackRating | null>(null);
@@ -62,7 +62,7 @@ export default function FeedbackScreen() {
       setSent(true);
     } catch (caught) {
       // Never the raw message. On an emulator this screen once showed somebody
-      // "Could not find the function public.baaki_submit_feedback(...) in the
+      // "Could not find the function public.waves_submit_feedback(...) in the
       // schema cache" while they were mid-complaint.
       setError(friendlyError(caught, t.privacy.couldNotSave, 'feedback.submit'));
     } finally {

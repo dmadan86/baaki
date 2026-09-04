@@ -1,3 +1,3 @@
 export * from './splitwise';
-export * from './baaki';
+export * from './waves';
 export * from './email';

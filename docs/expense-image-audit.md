@@ -25,22 +25,22 @@ is no `deleted_at` tombstone here):
   `group | parties` (mirrors the image's own visibility).
 - `actor_member_id` — who did it, `SET NULL` if they later leave (shown as
   "someone").
-- `updated_seq` + the shared `baaki_stamp_seq` trigger, so the `/sync` pull
+- `updated_seq` + the shared `waves_stamp_seq` trigger, so the `/sync` pull
   carries it like every other group table.
 - RLS SELECT: `is_group_member(group_id) AND (visibility = 'group' OR
-baaki_is_expense_party(expense_id))`. `REVOKE ALL … GRANT SELECT`; writes are
+waves_is_expense_party(expense_id))`. `REVOKE ALL … GRANT SELECT`; writes are
   RPC-only.
 
 ## Who writes a line
 
-- **Attachments** — the existing `baaki_attach_expense_attachment` /
-  `baaki_remove_expense_attachment` RPCs emit their own line inline, on the path
+- **Attachments** — the existing `waves_attach_expense_attachment` /
+  `waves_remove_expense_attachment` RPCs emit their own line inline, on the path
   that actually changed a row (an idempotent re-attach or a repeated remove does
   not stutter the trail). The event carries the attachment's own visibility, so
   a `parties` attachment's line is party-only too. Server-authoritative: a client
   cannot skip it.
 - **The kept bill (E2)** has no DB row — its bytes go straight to R2 at
-  `<groupId>/<expenseId>.jpg`. So the client calls `baaki_log_receipt_event`
+  `<groupId>/<expenseId>.jpg`. So the client calls `waves_log_receipt_event`
   after a successful upload/remove. The door is receipt-only (kind hard-coded,
   visibility forced `group`), so it can never be used to fabricate a party-only
   attachment line. The actor is the session's; the event id is client-chosen so

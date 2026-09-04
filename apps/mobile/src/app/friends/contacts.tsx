@@ -3,11 +3,11 @@
  *
  * The address book never leaves the device — `ContactPicker` reads it, searches
  * it and shows it locally, and only the people ticked are sent anywhere.
- * There is deliberately no "which of my contacts already use Baaki" here: that
+ * There is deliberately no "which of my contacts already use Waves" here: that
  * feature requires uploading the whole book, and it turns an address book into
  * a membership oracle for anybody who later reaches the server (ADR-006).
  *
- * A person in Baaki always belongs to a group, because a debt is between people
+ * A person in Waves always belongs to a group, because a debt is between people
  * *about something*. So picking contacts asks the one question that has to be
  * answered — which group — rather than inventing floating "friends" that owe
  * nobody anything. The whole lot goes into one group: picking six people for a

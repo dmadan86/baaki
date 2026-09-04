@@ -13,7 +13,7 @@ import { isValidToken, SESSION_COOKIE } from './session';
  * that would put a key that bypasses RLS on every table into a browser bundle
  * (ADR-013). It is cheaper to have the build refuse than to review for it.
  *
- * Every function here goes through `baaki_admin_*`, which return aggregates and
+ * Every function here goes through `waves_admin_*`, which return aggregates and
  * are granted to `service_role` alone. Nothing in this app selects from a table
  * directly — not because it could not, but so that what the console is able to
  * see is one reviewable list in one migration rather than a habit spread over a
@@ -133,7 +133,7 @@ export interface LoginRow {
 }
 
 export async function overview(): Promise<Overview | null> {
-  const rows = await call<Overview>('baaki_admin_overview');
+  const rows = await call<Overview>('waves_admin_overview');
   return rows[0] ?? null;
 }
 
@@ -158,7 +158,7 @@ export interface FlagResultRow {
  *
  * `feature_flags` is configuration the console owns end to end — it is the
  * thing being edited, not an aggregate over somebody's data, and there is no
- * privacy question to keep at arm's length. The `baaki_admin_*` functions
+ * privacy question to keep at arm's length. The `waves_admin_*` functions
  * exist to bound what can be seen about *people*; this is a switchboard.
  */
 export async function flags(): Promise<FlagRow[]> {
@@ -317,7 +317,7 @@ export interface PromoCodeRow {
   created_at: string;
 }
 
-export const promoCodes = () => call<PromoCodeRow>('baaki_admin_promo_codes');
+export const promoCodes = () => call<PromoCodeRow>('waves_admin_promo_codes');
 
 export async function createPromoCode(input: {
   code: string;
@@ -360,7 +360,7 @@ export async function grantPromo(profileId: string, days: number): Promise<strin
     throw new Error('That is not a profile id. Copy the uuid from the account you mean.');
   }
 
-  const { data, error } = await client().rpc('baaki_admin_grant_promo', {
+  const { data, error } = await client().rpc('waves_admin_grant_promo', {
     p_profile_id: profileId.trim(),
     p_days: days,
   });
@@ -463,10 +463,10 @@ export async function createCampaign(input: {
 }
 
 export const campaignFunnel = (id: string) =>
-  call<FunnelRow>('baaki_admin_campaign_funnel', { p_campaign_id: id });
+  call<FunnelRow>('waves_admin_campaign_funnel', { p_campaign_id: id });
 
 export const campaignRevenue = (id: string) =>
-  call<CampaignRevenueRow>('baaki_admin_campaign_revenue', { p_campaign_id: id });
+  call<CampaignRevenueRow>('waves_admin_campaign_revenue', { p_campaign_id: id });
 
 export interface CampaignEmailStatRow {
   status: string;
@@ -475,7 +475,7 @@ export interface CampaignEmailStatRow {
 
 /** How the broadcast is going: a count of queued/sent/failed rows for a campaign. */
 export const campaignEmailStats = (id: string) =>
-  call<CampaignEmailStatRow>('baaki_admin_campaign_email_stats', { p_campaign_id: id });
+  call<CampaignEmailStatRow>('waves_admin_campaign_email_stats', { p_campaign_id: id });
 
 export interface BroadcastResult {
   sent: number;
@@ -536,7 +536,7 @@ export interface FeedbackRow {
  * aggregates-only decision applies here too.
  */
 export const feedback = (limit = 100) =>
-  call<FeedbackRow>('baaki_admin_feedback', {
+  call<FeedbackRow>('waves_admin_feedback', {
     p_limit: limit,
   });
 
@@ -562,15 +562,15 @@ export interface VoiceAttemptRow {
  * understand — the whole point of the view. Console-only, like `feedback`.
  */
 export const voiceAttempts = (limit = 200) =>
-  call<VoiceAttemptRow>('baaki_admin_voice_attempts', {
+  call<VoiceAttemptRow>('waves_admin_voice_attempts', {
     p_limit: limit,
   });
 
 export const flagResults = (key: string) =>
-  call<FlagResultRow>('baaki_admin_flag_results', { p_key: key });
+  call<FlagResultRow>('waves_admin_flag_results', { p_key: key });
 
 // ─────────────────────────────────────────────────── rate limiting ──
-// The abuse limiter's numbers, made editable. `baaki_rate_limit` reads these
+// The abuse limiter's numbers, made editable. `waves_rate_limit` reads these
 // tables on every call; a bucket with no row falls back to the code default in
 // `_shared/rateLimit.ts`, and the master switch exempts everything at once.
 
@@ -742,7 +742,7 @@ export interface AdminUserList {
  * A page of the signup directory, filtered and sorted in SQL.
  *
  * Unlike `searchUsers`, which walks the GoTrue directory in Node because that
- * is all the admin API offers, this goes through `baaki_admin_users` — a
+ * is all the admin API offers, this goes through `waves_admin_users` — a
  * SECURITY DEFINER function that can read `auth.users` and join it to profiles,
  * subscriptions and device_sessions in one query. That is what lets it filter
  * by name or country and return a real total for pagination. A missing function
@@ -755,7 +755,7 @@ export async function listUsers(params: {
   country?: string;
 }): Promise<AdminUserList> {
   await requireSession();
-  const { data, error } = await client().rpc('baaki_admin_users', {
+  const { data, error } = await client().rpc('waves_admin_users', {
     p_limit: params.limit,
     p_offset: params.offset,
     p_name_prefix: params.namePrefix?.trim() || null,
@@ -763,7 +763,7 @@ export async function listUsers(params: {
   });
   if (error) {
     if (error.code === FUNCTION_MISSING) return { total: 0, rows: [] };
-    throw new Error(`baaki_admin_users failed: ${error.message}`);
+    throw new Error(`waves_admin_users failed: ${error.message}`);
   }
   const payload = (data ?? {}) as { total?: number | string; rows?: AdminUserListRow[] };
   return { total: Number(payload.total ?? 0), rows: payload.rows ?? [] };
@@ -788,10 +788,10 @@ export async function upgradeUser(userId: string, days: number): Promise<string>
   return grantPromo(userId, days);
 }
 
-export const daily = (days = 30) => call<DailyRow>('baaki_admin_daily', { p_days: days });
-export const geo = () => call<GeoRow>('baaki_admin_geo');
-export const money = () => call<MoneyRow>('baaki_admin_money');
-export const aiCost = (days = 30) => call<AiCostRow>('baaki_admin_ai_cost', { p_days: days });
+export const daily = (days = 30) => call<DailyRow>('waves_admin_daily', { p_days: days });
+export const geo = () => call<GeoRow>('waves_admin_geo');
+export const money = () => call<MoneyRow>('waves_admin_money');
+export const aiCost = (days = 30) => call<AiCostRow>('waves_admin_ai_cost', { p_days: days });
 /**
  * Sign-ins, and the one panel allowed to fail on its own.
  *
@@ -809,7 +809,7 @@ export const aiCost = (days = 30) => call<AiCostRow>('baaki_admin_ai_cost', { p_
  */
 export async function logins(days = 30): Promise<{ rows: LoginRow[]; unavailable?: string }> {
   try {
-    return { rows: await call<LoginRow>('baaki_admin_logins', { p_days: days }) };
+    return { rows: await call<LoginRow>('waves_admin_logins', { p_days: days }) };
   } catch (caught) {
     return { rows: [], unavailable: caught instanceof Error ? caught.message : String(caught) };
   }

@@ -15,12 +15,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { allowSessionReplay, clarityConfigured } from './clarity';
+import { legacyKeysMigrated } from './legacyKeys';
 
-const KEY = 'baaki.session_replay_consent';
+const KEY = 'waves.session_replay_consent';
 
 /** What the person last chose. False unless they explicitly turned it on. */
 export async function sessionReplayConsent(): Promise<boolean> {
   if (!clarityConfigured) return false;
+  await legacyKeysMigrated;
   const saved = await AsyncStorage.getItem(KEY).catch(() => null);
   return saved === 'true';
 }

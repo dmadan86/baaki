@@ -84,7 +84,7 @@ serveWithCors(async (request) => {
     const to = payload.data?.to;
     const address = Array.isArray(to) ? to[0] : to;
 
-    const { data, error } = await asService().rpc('baaki_record_email_event', {
+    const { data, error } = await asService().rpc('waves_record_email_event', {
       p_resend_email_id: emailId,
       p_event: eventNameOf(type),
       p_address: address ?? null,

@@ -41,7 +41,7 @@ async function as<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 
 /** path, then optional photo_id / expense_id / day / caption. */
 const add = (path: string, photoId: string | null = null) =>
-  client.query(`SELECT baaki_add_trip_photo($1, $2, $3, NULL, NULL, NULL) AS id`, [
+  client.query(`SELECT waves_add_trip_photo($1, $2, $3, NULL, NULL, NULL) AS id`, [
     group.groupId,
     path,
     photoId,
@@ -100,7 +100,7 @@ describe('adding to the album', () => {
     await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
     const other = await seedGroup(client, { memberCount: 1, name: 'Elsewhere' });
     const { rows: made } = await client.query(
-      `SELECT baaki_apply_expense($1, NULL, $2, 'Theirs', NULL, current_date, 'INR', 1000,
+      `SELECT waves_apply_expense($1, NULL, $2, 'Theirs', NULL, current_date, 'INR', 1000,
         'equal', '{"kind":"equal"}'::jsonb, $3::jsonb, $4::jsonb, $5) AS out`,
       [
         other.groupId,
@@ -114,7 +114,7 @@ describe('adding to the album', () => {
 
     await as(group.profileIds[0] as string, async () => {
       const message = await expectDenied(
-        client.query(`SELECT baaki_add_trip_photo($1, $2, NULL, $3, NULL, NULL)`, [
+        client.query(`SELECT waves_add_trip_photo($1, $2, NULL, $3, NULL, NULL)`, [
           group.groupId,
           `${group.groupId}/c.webp`,
           foreignExpense,
@@ -134,7 +134,7 @@ describe('removing from the album', () => {
   it('lets anybody in the group remove, not only whoever added it', async () => {
     const id = await as(group.profileIds[0] as string, seedPhoto);
     await as(group.profileIds[1] as string, async () => {
-      await client.query(`SELECT baaki_remove_trip_photo($1)`, [id]);
+      await client.query(`SELECT waves_remove_trip_photo($1)`, [id]);
     });
     const { rows } = await client.query(`SELECT deleted_at FROM trip_photos WHERE id = $1`, [id]);
     expect(rows[0].deleted_at).not.toBeNull();
@@ -143,12 +143,12 @@ describe('removing from the album', () => {
   it('removes as a soft delete so the tombstone can sync, and twice is fine', async () => {
     const id = await as(group.profileIds[0] as string, seedPhoto);
     const seqAfterFirst = await as(group.profileIds[0] as string, async () => {
-      await client.query(`SELECT baaki_remove_trip_photo($1)`, [id]);
+      await client.query(`SELECT waves_remove_trip_photo($1)`, [id]);
       const { rows } = await client.query(`SELECT updated_seq FROM trip_photos WHERE id = $1`, [
         id,
       ]);
       const seq = Number(rows[0].updated_seq);
-      await client.query(`SELECT baaki_remove_trip_photo($1)`, [id]); // no-op
+      await client.query(`SELECT waves_remove_trip_photo($1)`, [id]); // no-op
       return seq;
     });
     const { rows } = await client.query(
@@ -168,7 +168,7 @@ describe('removing from the album', () => {
       [outsider],
     );
     await as(outsider, async () => {
-      expect(await expectDenied(client.query(`SELECT baaki_remove_trip_photo($1)`, [id]))).toMatch(
+      expect(await expectDenied(client.query(`SELECT waves_remove_trip_photo($1)`, [id]))).toMatch(
         /NOT_A_MEMBER/,
       );
     });

@@ -139,7 +139,7 @@ parent if they do not.`;
 const MODEL = 'claude-opus-5';
 /**
  * ADR-011: a scan costs real money, so the quota is enforced server-side — and
- * the number now comes from `baaki_receipt_scan_quota()`, which reads what the
+ * the number now comes from `waves_receipt_scan_quota()`, which reads what the
  * person is entitled to. It used to be a 20 here and a second 20 inside that
  * function, which is two places to forget when somebody pays.
  *
@@ -158,7 +158,7 @@ serveWithCors(async (request) => {
       throw new HttpError(
         503,
         'SCANNING_UNAVAILABLE',
-        'Receipt scanning is not configured on this Baaki server',
+        'Receipt scanning is not configured on this Waves server',
       );
     }
 
@@ -178,7 +178,7 @@ serveWithCors(async (request) => {
 
     // Quota before the model call, never after — the point is not to spend the
     // money, not to notice afterwards that we did.
-    const { data: quota } = await caller.rpc('baaki_receipt_scan_quota');
+    const { data: quota } = await caller.rpc('waves_receipt_scan_quota');
     const row = quota as { used?: number; limit?: number } | null;
     const used = Number(row?.used ?? 0);
     const limit = Number.isFinite(Number(row?.limit)) ? Number(row?.limit) : FALLBACK_SCAN_LIMIT;
@@ -200,7 +200,7 @@ serveWithCors(async (request) => {
     // Pass the receipt id so a re-parse of an *existing* receipt (an update) is
     // not refused at cap: the recorder lets an update through, and the gate must
     // agree or a legitimate re-scan is blocked with a spend that never happens.
-    const { data: canAdd } = await caller.rpc('baaki_can_add_receipt', {
+    const { data: canAdd } = await caller.rpc('waves_can_add_receipt', {
       p_group_id: body.groupId,
       p_receipt_id: body.receiptId ?? null,
     });
@@ -315,7 +315,7 @@ serveWithCors(async (request) => {
     const check = checkReceipt(parsed);
     const status = check.reconciles && check.problems.length === 0 ? 'parsed' : 'needs_review';
 
-    const { data: receiptId, error: recordError } = await service.rpc('baaki_record_receipt', {
+    const { data: receiptId, error: recordError } = await service.rpc('waves_record_receipt', {
       p_group_id: body.groupId,
       p_receipt_id: body.receiptId ?? null,
       p_profile_id: profileId,

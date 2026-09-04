@@ -16,9 +16,9 @@ export const SETTLED_STATUSES = ['confirmed', 'auto_confirmed'] as const;
 
 /** Ground-truth SQL helpers, callable from edge functions. */
 export const SQL_FUNCTIONS = {
-  groupBalancesTruth: 'baaki_group_balances_truth',
-  groupPairwiseTruth: 'baaki_group_pairwise_truth',
-  refreshGroupBalances: 'baaki_refresh_group_balances',
+  groupBalancesTruth: 'waves_group_balances_truth',
+  groupPairwiseTruth: 'waves_group_pairwise_truth',
+  refreshGroupBalances: 'waves_refresh_group_balances',
   isGroupMember: 'is_group_member',
-  nextGroupSeq: 'baaki_next_group_seq',
+  nextGroupSeq: 'waves_next_group_seq',
 } as const;

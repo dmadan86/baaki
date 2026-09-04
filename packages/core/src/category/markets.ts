@@ -2,7 +2,7 @@
  * The shops people actually name, per country.
  *
  * `categories.ts` knows Swiggy, Zepto, IRCTC and kirana, which is right for the
- * market Baaki was built for and useless in Dubai — where the same expense is
+ * market Waves was built for and useless in Dubai — where the same expense is
  * Talabat, Careem, Lulu and Salik. Every one of those lands in "Other", and
  * "Other" is not a chart. The Spending screen does not look empty when this is
  * missing; it looks *broken*, which is worse, because a person cannot tell the

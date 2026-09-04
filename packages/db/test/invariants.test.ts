@@ -1,7 +1,7 @@
 /**
  * ADR-004 / ADR-014: the database's derived balances must equal the
  * ground-truth aggregate, must sum to zero, and must agree with @waves/core.
- * If any of these fail, the product promise ("your baaki is always right")
+ * If any of these fail, the product promise ("your waves is always right")
  * is broken, so CI blocks the merge.
  */
 

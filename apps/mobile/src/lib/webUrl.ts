@@ -3,8 +3,8 @@
  *
  * `INVITE_HOST` (the QR scanner's allowlist, {@link ../lib/qrScan}) and
  * `INVITE_BASE` (the link generator, `groupJoinLink`) used to carry the same
- * domain as two separate hardcoded strings — an unowned placeholder
- * (`baaki.app`), left over from before the app was renamed. Two copies of a
+ * domain as two separate hardcoded strings — an unowned placeholder left over
+ * from before the app was renamed. Two copies of a
  * security-relevant host is a drift risk: change one and the QR scanner
  * silently stops trusting the app's own invite links, or worse, still trusts
  * whatever the old one was. This is the single source both read from.

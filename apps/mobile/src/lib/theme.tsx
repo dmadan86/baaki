@@ -24,7 +24,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
 
-const KEY = 'baaki.theme_scheme';
+import { legacyKeysMigrated } from './legacyKeys';
+
+const KEY = 'waves.theme_scheme';
 
 /** What the user picked. Null means "follow the phone". */
 export enum SchemePreference {
@@ -59,6 +61,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     void (async () => {
+      await legacyKeysMigrated;
       const saved = await AsyncStorage.getItem(KEY).catch(() => null);
       if (!active) return;
       setStored(

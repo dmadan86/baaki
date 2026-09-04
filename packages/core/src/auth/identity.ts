@@ -136,7 +136,7 @@ export function planAuth(
 /**
  * A number, in E.164 and nothing else.
  *
- * No default country. Baaki is India-first, so +91 is the tempting default and
+ * No default country. Waves is India-first, so +91 is the tempting default and
  * exactly the wrong one: the person most likely to be typing a number into a
  * splitting app is on a trip, entering a friend's foreign number, and a silent
  * +91 would send their invite to a stranger in Delhi. The same rule as
@@ -222,7 +222,7 @@ const OBVIOUS = new Set([
   '1234567890',
   'qwertyui',
   'iloveyou',
-  'baaki123',
+  'waves123',
   'letmein1',
   'welcome1',
   'abcd1234',
@@ -311,7 +311,7 @@ export type OAuthCallback =
 export function readOAuthCallback(url: string): OAuthCallback {
   let params: URLSearchParams;
   try {
-    // The custom scheme parses on its own (`baaki://auth?code=…`), but the
+    // The custom scheme parses on its own (`waves://auth?code=…`), but the
     // triple-slash form puts `auth` in the pathname and needs a base.
     params = new URL(url, 'waves://app').searchParams;
   } catch {

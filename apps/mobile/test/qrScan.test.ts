@@ -42,7 +42,7 @@ describe('tokenFromScan', () => {
     expect(tokenFromScan(' https://wavs.co.in/join?token=abc123 ')).toBe('abc123');
     expect(tokenFromScan('https://WAVS.CO.IN/join/?token=a%20b')).toBe('a b');
     expect(tokenFromScan('waves://join?token=wave-token')).toBe('wave-token');
-    expect(tokenFromScan('baaki:///join?token=triple-slash')).toBe('triple-slash');
+    expect(tokenFromScan('waves:///join?token=triple-slash')).toBe('triple-slash');
   });
 
   it('rejects unrelated hosts, paths, schemes and blank token values', () => {

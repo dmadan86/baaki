@@ -1,5 +1,5 @@
 /**
- * @waves/core — the deterministic heart of Baaki.
+ * @waves/core — the deterministic heart of Waves.
  *
  * Zero runtime dependencies on React, Supabase or Node APIs (TDR §1): this
  * package is shared verbatim by the mobile app, the guest web-lite view and the

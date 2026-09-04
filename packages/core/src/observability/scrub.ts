@@ -3,7 +3,7 @@
  *
  * Crash reporting is a bargain: you learn why the app failed, and in exchange
  * a third party keeps a copy of whatever happened to be in memory at the time.
- * For most apps that is a URL and a stack trace. For Baaki it is a ledger —
+ * For most apps that is a URL and a stack trace. For Waves it is a ledger —
  * who ate with whom, how much they still owe, the phone number they were
  * invited on, and the UPI handle they pay from. None of that helps anybody fix
  * a crash, and all of it is somebody else's business.
@@ -159,7 +159,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Also kept: a plain hex run, which is what Sentry's own `event_id` and
- * `trace_id` are. Nothing Baaki treats as a secret is hex — an invite token is
+ * `trace_id` are. Nothing Waves treats as a secret is hex — an invite token is
  * 64 base36 characters and a session token is a JWT — so this exemption costs
  * nothing and stops a report being detached from its own trace.
  */

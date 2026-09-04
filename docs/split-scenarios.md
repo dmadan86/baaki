@@ -1,6 +1,6 @@
 # Splitting an expense — scenarios and guarantees
 
-How Baaki turns one bill into per-person shares, what is checked, and where the
+How Waves turns one bill into per-person shares, what is checked, and where the
 decision is actually made.
 
 The rules here are set by three ADRs: money is integer minor units and never a
@@ -37,7 +37,7 @@ Every split, of every type, satisfies all five:
 
 1. **The shares sum to the total, exactly.** Not to within a paisa — exactly.
    `computeShares` asserts this before returning and throws `SHARE_MISMATCH` if
-   it ever fails, which would be a bug in Baaki rather than in the input.
+   it ever fails, which would be a bug in Waves rather than in the input.
 2. **Every participant gets a row**, even when their share is zero, so the
    screen and the `expense_shares` table always agree on who is involved.
 3. **Nobody pays more than the bill, and nobody pays a negative share** — unless
@@ -52,7 +52,7 @@ Every split, of every type, satisfies all five:
 
 ### The remainder
 
-₹10 between three people is 333.33 paise each, which does not exist. Baaki gives
+₹10 between three people is 333.33 paise each, which does not exist. Waves gives
 everyone 333 and hands out the leftover paisa one unit at a time, in sorted
 member order, **starting at an offset derived from the expense id**
 (FNV-1a hash, ADR-009).
@@ -98,7 +98,7 @@ preview and to keep working offline — its numbers are never what gets stored.
  ─────                          ─────────────                       ────────
  computeShares(...)  ──┐
  (preview / offline)   │
-                       ├─▶  computeShares(split_params)   ──▶  baaki_apply_expense
+                       ├─▶  computeShares(split_params)   ──▶  waves_apply_expense
  expectedShares ───────┘     verifyClientShares(...)            (one transaction)
                              409 SHARE_MISMATCH on disagreement       │
                                                                      ▼

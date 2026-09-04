@@ -3,7 +3,7 @@
  *
  * A guest (ghost) appears once per group, because a name is no proof that the
  * "person1" in one group is the "person1" in another (see the
- * `baaki_people_i_owe` migration). This screen is where the one thing that *is*
+ * `waves_people_i_owe` migration). This screen is where the one thing that *is*
  * proof — a person saying "these are the same" — gets recorded. The merge is
  * per-viewer and never rewrites the ledger; each group keeps its own guest and
  * its own balance, and only the Friends aggregation folds them into one name.

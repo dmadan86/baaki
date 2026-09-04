@@ -70,7 +70,7 @@ function BlockingScreen(): React.JSX.Element {
       </Text>
 
       <View style={{ alignSelf: 'stretch', gap: theme.spacing.sm }}>
-        <Button label={t.misc.updateBaaki} size="lg" fullWidth onPress={openStore} />
+        <Button label={t.misc.updateWaves} size="lg" fullWidth onPress={openStore} />
         <Button
           label={t.misc.alreadyUpdated}
           variant="ghost"
@@ -116,7 +116,7 @@ export function UpdateBanner(): React.JSX.Element | null {
           <Ionicons name="arrow-up-circle-outline" size={iconSize.xl} color={theme.color.brand} />
           <View style={{ flex: 1 }}>
             <Text variant="caption">
-              {latest ? t.misc.baakiVersionOut.replace('{latest}', latest) : t.misc.newBaakiOut}
+              {latest ? t.misc.wavesVersionOut.replace('{latest}', latest) : t.misc.newWavesOut}
             </Text>
             <Text variant="micro" tone="muted">
               {t.extras.worthAMinute}

@@ -178,7 +178,7 @@ export default function SettleScreen() {
    * The second half is not a degraded case — it is the ordinary one. UPI is the
    * only rail with a scheme we can stand behind, so everywhere except India
    * this shows a Pix key or a mobile number and the person finishes in their
-   * own bank app. Either way Baaki never moves the money (ADR-007); it records
+   * own bank app. Either way Waves never moves the money (ADR-007); it records
    * that somebody says they did, and the person paid confirms it.
    */
   const payThen = async (): Promise<void> => {
@@ -202,7 +202,7 @@ export default function SettleScreen() {
         payeeName: displayName(counterparty),
         amount,
         currency,
-        note: `Baaki ${group.data?.name ?? ''}`.trim(),
+        note: `Waves ${group.data?.name ?? ''}`.trim(),
       },
       (value, code) => toMajorString({ minor: value, currency: code }),
     );

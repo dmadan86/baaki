@@ -18,7 +18,7 @@
  *
  * A build that cannot restart itself — anything older than the one that added
  * `expo-updates`, and any reload the platform refuses — still gets the sentence
- * that was always true: close and open Baaki again.
+ * that was always true: close and open Waves again.
  *
  * Said in an alert, at the moment of the choice, and not only in a banner. A
  * banner lives on one screen; somebody who taps a language and walks away never
@@ -56,6 +56,7 @@ import { Alert, I18nManager, Platform } from 'react-native';
 import { setLayoutDirection } from '@waves/ui';
 
 import { canRestart, restartApp } from '@/lib/restart';
+import { legacyKeysMigrated } from '@/lib/legacyKeys';
 
 import {
   deviceLanguage,
@@ -68,7 +69,7 @@ import {
   type Language,
 } from '@/i18n';
 
-const KEY = 'baaki.language';
+const KEY = 'waves.language';
 
 /**
  * The direction the app actually launched in.
@@ -125,6 +126,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     void (async () => {
+      await legacyKeysMigrated;
       const saved = await AsyncStorage.getItem(KEY).catch(() => null);
       if (!active) return;
       setStored(isLanguage(saved) ? saved : null);

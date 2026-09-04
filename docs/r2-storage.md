@@ -57,7 +57,7 @@ supabase functions deploy storage-recount  # only if the WebP worker runs
 ### Schedule the sweep (reclaims stranded R2 bytes)
 
 The database frees the **cap** on its own — a `pg_cron` job runs
-`baaki_storage_expire_pending()` every 15 minutes to drop reservations nobody
+`waves_storage_expire_pending()` every 15 minutes to drop reservations nobody
 committed, so an abandoned upload stops holding a person's ceiling without any R2
 credential. Reclaiming the actual R2 **bytes** (expired reservations, deleted
 objects, and objects orphaned when a profile or group is deleted) needs an R2
@@ -92,7 +92,7 @@ select cron.schedule(
 );
 ```
 
-The two jobs do different things: the **`baaki-storage-expire-pending`** DB cron
+The two jobs do different things: the **`waves-storage-expire-pending`** DB cron
 (installed by the migration) frees the **cap** held by abandoned reservations,
 needing no R2 credential; **`storage-sweep`** deletes the actual **R2 objects**
 (expired reservations, deleted images, cascade orphans). If `storage-sweep` never
@@ -118,12 +118,12 @@ The migration `20260824120000_r2_storage_cap` adds:
   expired, or cascaded away) and which the sweep still has to remove from R2.
 - `app_config.free_storage_cap_bytes` — the 10 MB knob (admin-editable, like the
   receipt cap). Raise or lower it without a deploy.
-- `baaki_storage_reserve` (presign gate) / `baaki_storage_record` (commit) /
-  `baaki_storage_release` / `baaki_storage_release_reservation` (failure cleanup)
-  / `baaki_storage_recount` (worker size reconcile) / `baaki_storage_expire_pending`
-  / `baaki_storage_orphans` / `baaki_storage_orphan_clear` / `baaki_my_storage_usage`
-  / `baaki_storage_counts` / `baaki_profiles_share_group`.
-- a `pg_cron` job `baaki-storage-expire-pending` (every 15 min) that frees the cap
+- `waves_storage_reserve` (presign gate) / `waves_storage_record` (commit) /
+  `waves_storage_release` / `waves_storage_release_reservation` (failure cleanup)
+  / `waves_storage_recount` (worker size reconcile) / `waves_storage_expire_pending`
+  / `waves_storage_orphans` / `waves_storage_orphan_clear` / `waves_my_storage_usage`
+  / `waves_storage_counts` / `waves_profiles_share_group`.
+- a `pg_cron` job `waves-storage-expire-pending` (every 15 min) that frees the cap
   held by abandoned reservations.
 
 Apply it with the normal migrate deploy.

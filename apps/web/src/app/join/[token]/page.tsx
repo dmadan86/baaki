@@ -20,7 +20,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import type { InvitePreview } from '@waves/api-client';
 
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { fill, plural } from '@/i18n';
 import { useStrings } from '@/i18n-context';
 
@@ -40,7 +40,7 @@ export default function JoinPage() {
 
   useEffect(() => {
     let active = true;
-    void baaki
+    void waves
       .previewInvite(token)
       .then((result) => {
         if (active) setPreview(result);
@@ -66,8 +66,8 @@ export default function JoinPage() {
         // The guest account is made first, then the invite is accepted against
         // it. Same account when they later add an email, so the group and its
         // history stay theirs rather than being re-joined as a stranger.
-        await baaki.signInAsGuest();
-        const accepted = await baaki.acceptInvite({
+        await waves.signInAsGuest();
+        const accepted = await waves.acceptInvite({
           token,
           claimMemberId: claim,
           displayName: name.trim() || null,

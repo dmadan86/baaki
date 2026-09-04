@@ -2,9 +2,9 @@
  * A pending ghost-claim must not burn an invite use it can never give back.
  *
  * Claiming a ghost is a two-step handshake (memberClaims / A6): `invite-accept`
- * files a pending `member_claims` row via `baaki_request_member_claim`, and
+ * files a pending `member_claims` row via `waves_request_member_claim`, and
  * nothing about the group changes until an admin decides via
- * `baaki_decide_member_claim`.
+ * `waves_decide_member_claim`.
  *
  * The abuse this file guards against: the invite's `max_uses` slot used to be
  * consumed in `invite-accept` BEFORE the claim branch ran, so the slot was
@@ -14,10 +14,10 @@
  * meaning one person could empty a valid link by re-POSTing the same claim.
  *
  * The fix (migration 20260825240000): consumption moved INTO
- * `baaki_request_member_claim`, which now takes the invite id and spends exactly
+ * `waves_request_member_claim`, which now takes the invite id and spends exactly
  * one use for a genuinely-NEW claim and nothing for a repeat or a doomed one. A
  * direct (non-claim) join is unchanged — invite-accept still calls
- * `baaki_consume_invite` once before inserting the membership.
+ * `waves_consume_invite` once before inserting the membership.
  *
  * These tests exercise the RPC layer directly (the edge function is Deno and out
  * of scope here). They mirror invite-accept's new order: the claim RPC is given
@@ -41,7 +41,7 @@ afterAll(async () => {
   await client.end();
 });
 
-/** Session-scoped (not a rolled-back tx): baaki_decide_member_claim's writes
+/** Session-scoped (not a rolled-back tx): waves_decide_member_claim's writes
  *  have to survive the call to be asserted on, same as memberClaims.test.ts. */
 async function asProfile<T>(profileId: string, run: () => Promise<T>): Promise<T> {
   await client.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
@@ -95,7 +95,7 @@ const claim = (
   name: string | null = null,
 ): Promise<Verdict> =>
   db
-    .query(`SELECT public.baaki_request_member_claim($1, $2, $3, $4, $5) AS verdict`, [
+    .query(`SELECT public.waves_request_member_claim($1, $2, $3, $4, $5) AS verdict`, [
       groupId,
       memberId,
       profileId,
@@ -108,7 +108,7 @@ const claim = (
  *  the regression guard for "a normal accept still consumes exactly one use". */
 const consume = (inviteId: string): Promise<boolean | null> =>
   client
-    .query(`SELECT public.baaki_consume_invite($1) AS ok`, [inviteId])
+    .query(`SELECT public.waves_consume_invite($1) AS ok`, [inviteId])
     .then((r) => (r.rows[0].ok as boolean | null) ?? null);
 
 const useCountOf = (inviteId: string): Promise<{ use_count: number; max_uses: number }> =>
@@ -159,7 +159,7 @@ describe('a pending claim reserves exactly one use, idempotently', () => {
   });
 
   it('spends no use when the caller passes no invite (internal / 4-arg callers)', async () => {
-    // baaki_request_member_claim(..., p_invite_id => NULL) files the claim but
+    // waves_request_member_claim(..., p_invite_id => NULL) files the claim but
     // touches no link — the path that keeps memberClaims.test.ts's 4-arg calls
     // working. A link that happens to exist for the group must be left alone.
     const { groupId, memberIds } = await seedGroup(client, { memberCount: 1, ghostCount: 1 });
@@ -240,7 +240,7 @@ describe('a pending claim reserves exactly one use, idempotently', () => {
 
     const decision = await asProfile(admin, () =>
       client
-        .query(`SELECT public.baaki_decide_member_claim($1, $2) AS v`, [claim_id, false])
+        .query(`SELECT public.waves_decide_member_claim($1, $2) AS v`, [claim_id, false])
         .then((r) => r.rows[0].v as { ok: boolean; status: string }),
     );
     expect(decision).toMatchObject({ ok: true, status: 'declined' });
@@ -307,7 +307,7 @@ describe('concurrent redemption of the last slot', () => {
 describe('a normal (non-claim) accept', () => {
   it('still consumes exactly one use', async () => {
     // The direct-join path in invite-accept reserves its slot through
-    // baaki_consume_invite, unchanged by this migration. Guard it: one success,
+    // waves_consume_invite, unchanged by this migration. Guard it: one success,
     // then the link is spent.
     const { groupId } = await seedGroup(client, { memberCount: 1 });
     const inviteId = await mintInvite(groupId, 1);

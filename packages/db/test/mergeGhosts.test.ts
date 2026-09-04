@@ -4,7 +4,7 @@
  * A viewer folds guests they know to be one human. When a later merge shares a
  * member with an earlier one, the two must converge onto a single identity —
  * otherwise a member silently drops out of the person it was merged into, and
- * baaki_people_i_owe shows the same human as two Friends rows again. These pin
+ * waves_people_i_owe shows the same human as two Friends rows again. These pin
  * the union and its idempotency at the database, where it is enforced.
  */
 
@@ -13,8 +13,8 @@ import type { Client } from 'pg';
 
 import { connect, seedGroup } from './helpers.js';
 
-/** The owner-scoped advisory key baaki_merge_ghosts takes, mirrored for the test. */
-const LOCK_PROBE = `SELECT pg_try_advisory_xact_lock(hashtext('baaki_merge_ghosts:' || $1)::bigint) AS got`;
+/** The owner-scoped advisory key waves_merge_ghosts takes, mirrored for the test. */
+const LOCK_PROBE = `SELECT pg_try_advisory_xact_lock(hashtext('waves_merge_ghosts:' || $1)::bigint) AS got`;
 
 let client: Client;
 
@@ -41,7 +41,7 @@ async function asUser<T>(profileId: string, run: () => Promise<T>): Promise<T> {
 
 async function merge(profileId: string, memberIds: string[], name: string): Promise<string> {
   return asUser(profileId, async () => {
-    const { rows } = await client.query(`SELECT baaki_merge_ghosts($1::uuid[], $2) AS person_id`, [
+    const { rows } = await client.query(`SELECT waves_merge_ghosts($1::uuid[], $2) AS person_id`, [
       memberIds,
       name,
     ]);
@@ -154,7 +154,7 @@ describe('merging guests unions overlapping groups', () => {
         JSON.stringify({ sub: caller, role: 'authenticated' }),
       ]);
       await client.query('SET ROLE authenticated');
-      await client.query(`SELECT baaki_merge_ghosts($1::uuid[], $2)`, [[ghostA, ghostB], 'Rahul']);
+      await client.query(`SELECT waves_merge_ghosts($1::uuid[], $2)`, [[ghostA, ghostB], 'Rahul']);
 
       // A second session cannot take the same owner's merge lock while it is held.
       const held = await other.query(LOCK_PROBE, [caller]);
@@ -180,7 +180,7 @@ describe('merging guests unions overlapping groups', () => {
       JSON.stringify({ sub: caller, role: 'authenticated' }),
     ]);
     await client.query('SET ROLE authenticated');
-    await client.query(`SELECT baaki_merge_ghosts($1::uuid[], $2)`, [[ghostB, ghostC], 'Rahul']);
+    await client.query(`SELECT waves_merge_ghosts($1::uuid[], $2)`, [[ghostB, ghostC], 'Rahul']);
     await client.query('RESET ROLE');
     await client.query(`SELECT set_config('request.jwt.claims', '', false)`);
 

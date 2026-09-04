@@ -4,7 +4,7 @@
  * The variant is computed here, not fetched. The server hands over the flag's
  * configuration — is it on, how wide is the rollout, what are the arms — and
  * `variantFor` from @waves/core turns that plus the profile id into an answer,
- * using the same hash the database uses in `baaki_variant`. So a screen never
+ * using the same hash the database uses in `waves_variant`. So a screen never
  * waits on a round trip to know what to draw, and a phone with no signal shows
  * the same thing it showed yesterday (ADR-005).
  *

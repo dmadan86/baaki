@@ -214,7 +214,7 @@ export async function fetchPendingSettlements(): Promise<{ group_id: string; id:
  * claim something is a number that flatters rather than reports.
  *
  * Kept per currency because there is no rate that makes rupees and euros one
- * total, and inventing one here would be the only place in Baaki that guesses
+ * total, and inventing one here would be the only place in Waves that guesses
  * at money.
  */
 export async function fetchSettledTotals(profileId: string): Promise<Map<CurrencyCode, bigint>> {
@@ -293,7 +293,7 @@ export async function createGroup(input: {
    */
   creatorMemberId?: string;
 }): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_create_group', {
+  const { data, error } = await backend.rpc('waves_create_group', {
     p_name: input.name?.trim() || null,
     p_type: input.type,
     p_currency: input.currency,
@@ -367,7 +367,7 @@ export async function removeGroupPhoto(groupId: string, path: string | null): Pr
  * whose subscription it was. Pass `null` for the new-group case.
  */
 export async function canUploadGroupPhoto(groupId: string | null): Promise<boolean> {
-  const { data, error } = await backend.rpc('baaki_can_upload_group_photo', {
+  const { data, error } = await backend.rpc('waves_can_upload_group_photo', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -385,7 +385,7 @@ export async function canUploadGroupPhoto(groupId: string | null): Promise<boole
  * this is the affordance, not the boundary.
  */
 export async function canAddReceipt(groupId: string): Promise<boolean> {
-  const { data, error } = await backend.rpc('baaki_can_add_receipt', {
+  const { data, error } = await backend.rpc('waves_can_add_receipt', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -396,10 +396,10 @@ export async function canAddReceipt(groupId: string): Promise<boolean> {
  * May the caller add one more gallery receipt to THIS expense? The per-expense
  * twin of `canAddReceipt` (A46): a free group holds a small number of gallery
  * images per expense, paid lifts it. The affordance, not the boundary —
- * `baaki_attach_expense_attachment` enforces the same ceiling server-side.
+ * `waves_attach_expense_attachment` enforces the same ceiling server-side.
  */
 export async function canAddExpenseAttachment(expenseId: string): Promise<boolean> {
-  const { data, error } = await backend.rpc('baaki_can_add_expense_attachment', {
+  const { data, error } = await backend.rpc('waves_can_add_expense_attachment', {
     p_expense_id: expenseId,
   });
   if (error) throw new Error(error.message);
@@ -415,7 +415,7 @@ export async function canAddExpenseAttachment(expenseId: string): Promise<boolea
  * the caller's own profile, so it reveals nobody else's tally.
  */
 export async function myStorageUsage(): Promise<{ usedBytes: number; capBytes: number }> {
-  const { data, error } = await backend.rpc('baaki_my_storage_usage');
+  const { data, error } = await backend.rpc('waves_my_storage_usage');
   if (error) throw new Error(error.message);
   const row = (data as { used_bytes: number; cap_bytes: number }[] | null)?.[0];
   return { usedBytes: Number(row?.used_bytes ?? 0), capBytes: Number(row?.cap_bytes ?? 0) };
@@ -523,7 +523,7 @@ async function logReceiptEvent(
   expenseId: string,
   action: 'added' | 'removed',
 ): Promise<void> {
-  const { error } = await backend.rpc('baaki_log_receipt_event', {
+  const { error } = await backend.rpc('waves_log_receipt_event', {
     p_event_id: randomUUID(),
     p_group_id: groupId,
     p_expense_id: expenseId,
@@ -640,7 +640,7 @@ export async function addGhostMember(
   } catch {
     throw new Error(activeStrings().people.phoneNeedsCountryCode);
   }
-  const { data, error } = await backend.rpc('baaki_add_ghost_member', {
+  const { data, error } = await backend.rpc('waves_add_ghost_member', {
     p_group_id: groupId,
     p_name: name.trim() || null,
     p_member_id: null,
@@ -784,12 +784,12 @@ async function readFunctionError(error: unknown): Promise<string> {
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_delete_expense', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('waves_delete_expense', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
 export async function restoreExpense(expenseId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_restore_expense', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('waves_restore_expense', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
@@ -848,7 +848,7 @@ export async function recordSettlement(input: {
   allocations?: { expenseId: string; amount: bigint }[];
   clientMutationId?: string;
 }): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_record_settlement', {
+  const { data, error } = await backend.rpc('waves_record_settlement', {
     p_group_id: input.groupId,
     p_from_member_id: input.fromMemberId,
     p_to_member_id: input.toMemberId,
@@ -872,7 +872,7 @@ export async function recordSettlement(input: {
 }
 
 export async function confirmSettlement(settlementId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_confirm_settlement', {
+  const { error } = await backend.rpc('waves_confirm_settlement', {
     p_settlement_id: settlementId,
   });
   if (error) throw new Error(error.message);
@@ -924,7 +924,7 @@ export async function disputeExpense(input: {
   expenseId: string;
   reason?: string | null;
 }): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_dispute_expense', {
+  const { data, error } = await backend.rpc('waves_dispute_expense', {
     p_expense_id: input.expenseId,
     p_reason: input.reason?.trim() || null,
   });
@@ -933,7 +933,7 @@ export async function disputeExpense(input: {
 }
 
 export async function withdrawDispute(expenseId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_withdraw_dispute', { p_expense_id: expenseId });
+  const { error } = await backend.rpc('waves_withdraw_dispute', { p_expense_id: expenseId });
   if (error) throw new Error(error.message);
 }
 
@@ -942,7 +942,7 @@ export async function resolveDispute(input: {
   accept: boolean;
   note?: string | null;
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_resolve_dispute', {
+  const { error } = await backend.rpc('waves_resolve_dispute', {
     p_dispute_id: input.disputeId,
     p_accept: input.accept,
     p_note: input.note?.trim() || null,
@@ -965,7 +965,7 @@ export async function updateMember(
  * cannot go through `updateMember` (a trigger would reject it).
  */
 export async function setMemberRole(memberId: string, role: 'admin' | 'member'): Promise<void> {
-  const { error } = await backend.rpc('baaki_set_member_role', {
+  const { error } = await backend.rpc('waves_set_member_role', {
     p_member_id: memberId,
     p_role: role,
   });
@@ -986,13 +986,13 @@ export async function leaveGroup(memberId: string): Promise<void> {
  * not a row delete: the ledger stays append-only (ADR-004), the group simply
  * leaves every member's lists on their next sync.
  *
- * Admin-only and settled-only are enforced in `baaki_delete_group`, not here —
+ * Admin-only and settled-only are enforced in `waves_delete_group`, not here —
  * the button only offers it to an admin of a squared-up group, so the two coded
  * refusals are defence-in-depth. They are turned into a sentence the same way
  * `importLedger` maps its codes.
  */
 export async function deleteGroup(groupId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_delete_group', { p_group_id: groupId });
+  const { error } = await backend.rpc('waves_delete_group', { p_group_id: groupId });
   if (error) {
     const code = /^([A-Z_]+):/.exec(error.message)?.[1];
     const strings = activeStrings();
@@ -1095,7 +1095,7 @@ export interface PendingClaim {
 
 /** What an admin of this group has been asked. Empty for everybody else. */
 export async function fetchMemberClaims(groupId: string): Promise<PendingClaim[]> {
-  const { data, error } = await backend.rpc('baaki_group_member_claims', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('waves_group_member_claims', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as PendingClaim[];
 }
@@ -1109,7 +1109,7 @@ export async function decideMemberClaim(
   claimId: string,
   approve: boolean,
 ): Promise<{ ok: boolean; reason?: string; status?: string }> {
-  const { data, error } = await backend.rpc('baaki_decide_member_claim', {
+  const { data, error } = await backend.rpc('waves_decide_member_claim', {
     p_claim_id: claimId,
     p_approve: approve,
   });
@@ -1129,14 +1129,14 @@ export interface MyClaim {
 
 /** Carries the group's name: somebody still waiting cannot read the group. */
 export async function fetchMyClaims(): Promise<MyClaim[]> {
-  const { data, error } = await backend.rpc('baaki_my_member_claims');
+  const { data, error } = await backend.rpc('waves_my_member_claims');
   if (error) throw new Error(error.message);
   return (data ?? []) as MyClaim[];
 }
 
 /** The way out of waiting on an admin who never opens the app. */
 export async function withdrawMemberClaim(claimId: string): Promise<boolean> {
-  const { data, error } = await backend.rpc('baaki_withdraw_member_claim', {
+  const { data, error } = await backend.rpc('waves_withdraw_member_claim', {
     p_claim_id: claimId,
   });
   if (error) throw new Error(error.message);
@@ -1158,7 +1158,7 @@ export async function revokeInvite(inviteId: string): Promise<void> {
  * while it is live, so the QR is stable across opens and devices.
  */
 export async function ensureGroupJoinToken(groupId: string): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_ensure_group_join_token', {
+  const { data, error } = await backend.rpc('waves_ensure_group_join_token', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -1167,7 +1167,7 @@ export async function ensureGroupJoinToken(groupId: string): Promise<string> {
 
 /** Rotate the durable link (admin only) — the old QR and every shared copy die. */
 export async function resetGroupJoinToken(groupId: string): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_reset_group_join_token', {
+  const { data, error } = await backend.rpc('waves_reset_group_join_token', {
     p_group_id: groupId,
   });
   if (error) throw new Error(error.message);
@@ -1254,11 +1254,11 @@ export async function importLedger(input: {
   groupId: string;
   people: ImportPerson[];
   expenses: ImportExpense[];
-  /** Only a Baaki export has these; a Splitwise file has no notion of them. */
+  /** Only a Waves export has these; a Splitwise file has no notion of them. */
   settlements?: ImportSettlement[];
-  origin?: 'splitwise' | 'baaki';
+  origin?: 'splitwise' | 'waves';
 }): Promise<ImportResult> {
-  const { data, error } = await backend.rpc('baaki_import_ledger', {
+  const { data, error } = await backend.rpc('waves_import_ledger', {
     p_group_id: input.groupId,
     p_people: input.people,
     p_origin: input.origin ?? 'splitwise',
@@ -1345,7 +1345,7 @@ export async function saveNotificationPrefs(
 }
 
 // ───────────────────────── turning a guest into a real account (ADR-006) ──
-// You can use Baaki without giving it anything. Adding an email or a phone
+// You can use Waves without giving it anything. Adding an email or a phone
 // number later is what makes the account reachable from a second device — it
 // does not create a new account, so nothing entered as a guest is lost.
 
@@ -1392,10 +1392,10 @@ export async function confirmContact(
  */
 function describeAuthError(message: string, channel: ContactChannel): string {
   if (/manual linking/i.test(message)) {
-    return 'Linking a contact is switched off for this Baaki server. Nothing is lost — carry on as a guest.';
+    return 'Linking a contact is switched off for this Waves server. Nothing is lost — carry on as a guest.';
   }
   if (channel === 'phone' && /provider|sms|not enabled|unsupported/i.test(message)) {
-    return 'This Baaki server cannot send SMS yet. Try an email address instead.';
+    return 'This Waves server cannot send SMS yet. Try an email address instead.';
   }
   return message;
 }
@@ -1477,7 +1477,7 @@ export async function fetchScanQuota(): Promise<{
   limit: number;
   remaining: number;
 }> {
-  const { data, error } = await backend.rpc('baaki_receipt_scan_quota');
+  const { data, error } = await backend.rpc('waves_receipt_scan_quota');
   if (error) throw new Error(error.message);
   return data as { used: number; limit: number; remaining: number };
 }
@@ -1528,7 +1528,7 @@ export interface PersonBalanceRow {
  * is not proof that two records are one human.
  */
 export async function fetchPeopleBalances(): Promise<PersonBalanceRow[]> {
-  const { data, error } = await backend.rpc('baaki_people_i_owe');
+  const { data, error } = await backend.rpc('waves_people_i_owe');
   if (error) throw new Error(error.message);
   return (data ?? []) as PersonBalanceRow[];
 }
@@ -1554,7 +1554,7 @@ export interface PersonGroupBalanceRow {
 export async function fetchPersonGroupBalances(
   personKey: string,
 ): Promise<PersonGroupBalanceRow[]> {
-  const { data, error } = await backend.rpc('baaki_person_group_balances', {
+  const { data, error } = await backend.rpc('waves_person_group_balances', {
     p_person_key: personKey,
   });
   if (error) throw new Error(error.message);
@@ -1566,14 +1566,14 @@ export async function fetchPersonGroupBalances(
  *
  * A direct server RPC — the Friends balances are a server query, not the local
  * mirror, so there is nothing to queue offline. The merge is per-viewer and
- * never rewrites the ledger; see the `baaki_merge_ghosts` migration for the
+ * never rewrites the ledger; see the `waves_merge_ghosts` migration for the
  * safety argument. `memberIds` must be at least two distinct ghosts you share a
  * group with; `name` is the merged person's name. Throws with the RPC's own
  * message so the caller can map it to something a person can read (see
  * `mergeErrorMessage`).
  */
 export async function mergeGhosts(memberIds: string[], name: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_merge_ghosts', {
+  const { error } = await backend.rpc('waves_merge_ghosts', {
     p_member_ids: memberIds,
     p_name: name,
   });
@@ -1595,7 +1595,7 @@ export async function nudgeToSettle(input: {
   toMemberId: string;
   currency: string;
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_nudge_to_settle', {
+  const { error } = await backend.rpc('waves_nudge_to_settle', {
     p_group_id: input.groupId,
     p_to_member_id: input.toMemberId,
     p_currency: input.currency,
@@ -1629,7 +1629,7 @@ export interface SpendingRow {
  * and "what did I spend", and the second cannot be recovered from the first.
  */
 export async function fetchGroupSpending(groupId: string): Promise<SpendingRow[]> {
-  const { data, error } = await backend.rpc('baaki_group_spending', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('waves_group_spending', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as SpendingRow[];
 }
@@ -1704,7 +1704,7 @@ export async function addPlanItem(input: {
   /** Chosen here so a retry after a dropped connection replays (ADR-005). */
   itemId?: string;
 }): Promise<string> {
-  const { data, error } = await backend.rpc('baaki_add_plan_item', {
+  const { data, error } = await backend.rpc('waves_add_plan_item', {
     p_group_id: input.groupId,
     p_day: input.day,
     p_title: input.title,
@@ -1720,7 +1720,7 @@ export async function addPlanItem(input: {
 }
 
 export async function setPlanItemDone(itemId: string, done: boolean): Promise<void> {
-  const { error } = await backend.rpc('baaki_update_plan_item', {
+  const { error } = await backend.rpc('waves_update_plan_item', {
     p_item_id: itemId,
     p_done: done,
   });
@@ -1728,7 +1728,7 @@ export async function setPlanItemDone(itemId: string, done: boolean): Promise<vo
 }
 
 export async function removePlanItem(itemId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_remove_plan_item', { p_item_id: itemId });
+  const { error } = await backend.rpc('waves_remove_plan_item', { p_item_id: itemId });
   if (error) throw new Error(error.message);
 }
 
@@ -1786,7 +1786,7 @@ export async function setMyTripBudget(input: {
   currency?: string | null;
   visibility: 'private' | 'group';
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_set_my_trip_budget', {
+  const { error } = await backend.rpc('waves_set_my_trip_budget', {
     p_group_id: input.groupId,
     p_amount_minor: input.amountMinor.toString(),
     p_currency: input.currency ?? null,
@@ -1796,7 +1796,7 @@ export async function setMyTripBudget(input: {
 }
 
 export async function clearMyTripBudget(groupId: string): Promise<void> {
-  const { error } = await backend.rpc('baaki_clear_my_trip_budget', { p_group_id: groupId });
+  const { error } = await backend.rpc('waves_clear_my_trip_budget', { p_group_id: groupId });
   if (error) throw new Error(error.message);
 }
 
@@ -1806,7 +1806,7 @@ export async function setGroupBudget(input: {
   amountMinor: bigint | null;
   currency?: string | null;
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_set_group_budget', {
+  const { error } = await backend.rpc('waves_set_group_budget', {
     p_group_id: input.groupId,
     p_amount_minor: input.amountMinor == null ? null : input.amountMinor.toString(),
     p_currency: input.currency ?? null,
@@ -1830,7 +1830,7 @@ export interface ItemClaimRow {
  * the difference even though the screen does not.
  */
 export async function fetchItemClaims(receiptId: string): Promise<ItemClaimRow[]> {
-  const { data, error } = await backend.rpc('baaki_item_claims', { p_receipt_id: receiptId });
+  const { data, error } = await backend.rpc('waves_item_claims', { p_receipt_id: receiptId });
   if (error) throw new Error(error.message);
   return (data ?? []) as ItemClaimRow[];
 }
@@ -1848,7 +1848,7 @@ export async function setItemClaim(input: {
   claimed: boolean;
   forMemberId?: string | null;
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_set_item_claim', {
+  const { error } = await backend.rpc('waves_set_item_claim', {
     p_receipt_id: input.receiptId,
     p_item_index: input.itemIndex,
     p_claimed: input.claimed,
@@ -1867,7 +1867,7 @@ export interface OpenReceiptRow {
 
 /** The bills scanned in this group that nobody has turned into an expense yet. */
 export async function fetchOpenReceipts(groupId: string): Promise<OpenReceiptRow[]> {
-  const { data, error } = await backend.rpc('baaki_open_receipts', { p_group_id: groupId });
+  const { data, error } = await backend.rpc('waves_open_receipts', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return (data ?? []) as OpenReceiptRow[];
 }
@@ -1895,7 +1895,7 @@ export async function publishReceiptItems(
   receiptId: string,
   items: { label: string; total: number }[],
 ): Promise<void> {
-  const { error } = await backend.rpc('baaki_publish_receipt_items', {
+  const { error } = await backend.rpc('waves_publish_receipt_items', {
     p_receipt_id: receiptId,
     p_items: items,
   });
@@ -1905,7 +1905,7 @@ export async function publishReceiptItems(
 // ────────────────────────────────────────────────── promotions ──
 
 /**
- * What `baaki_redeem_promo` answers with.
+ * What `waves_redeem_promo` answers with.
  *
  * Every wrong code comes back as a verdict rather than an exception, because
  * each one is a different sentence to say to somebody — expired is not the same
@@ -1924,7 +1924,7 @@ export type PromoOutcome =
  * into is a paywall with a door in the back.
  */
 export async function redeemPromoCode(code: string): Promise<PromoOutcome> {
-  const { data, error } = await backend.rpc('baaki_redeem_promo', { p_code: code });
+  const { data, error } = await backend.rpc('waves_redeem_promo', { p_code: code });
   if (error) throw new Error(error.message);
   return data as PromoOutcome;
 }
@@ -1942,7 +1942,7 @@ export async function submitFeedback(input: {
   appVersion: string | null;
   platform: string;
 }): Promise<void> {
-  const { error } = await backend.rpc('baaki_submit_feedback', {
+  const { error } = await backend.rpc('waves_submit_feedback', {
     p_message: input.message,
     p_kind: input.kind,
     p_rating: input.rating,
@@ -1961,7 +1961,7 @@ export interface ErasurePreview {
 
 /** What erasure would leave behind, so the screen can say so before the button. */
 export async function erasurePreview(): Promise<ErasurePreview | null> {
-  const { data, error } = await backend.rpc('baaki_my_erasure_preview');
+  const { data, error } = await backend.rpc('waves_my_erasure_preview');
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as ErasurePreview[];
   return rows[0] ?? null;
@@ -1972,7 +1972,7 @@ export async function erasurePreview(): Promise<ErasurePreview | null> {
  *
  * Goes through the `account-delete` edge function rather than the RPC directly,
  * because the two halves of erasure need two different keys. The function runs
- * `baaki_delete_my_account` as the caller — every membership becomes an unnamed
+ * `waves_delete_my_account` as the caller — every membership becomes an unnamed
  * ghost, the profile and everything personal hanging off it is deleted — and
  * then removes the auth identity with the service key, which no client holds.
  * The RPC alone left an account that could still sign in to nothing; this does
@@ -1996,7 +1996,7 @@ export async function deleteMyAccount(
  * only reports the answer back up (`overLimit` drives the gate).
  */
 export async function registerDevice(identity: DeviceIdentity): Promise<DeviceLimitStatus> {
-  const { data, error } = await backend.rpc('baaki_register_device', {
+  const { data, error } = await backend.rpc('waves_register_device', {
     p_device_id: identity.deviceId,
     p_label: identity.label,
     p_platform: identity.platform,
@@ -2008,7 +2008,7 @@ export async function registerDevice(identity: DeviceIdentity): Promise<DeviceLi
 
 /** The caller's devices seen in the last three months, newest first. */
 export async function fetchDevices(): Promise<DeviceSession[]> {
-  const { data, error } = await backend.rpc('baaki_list_devices');
+  const { data, error } = await backend.rpc('waves_list_devices');
   if (error) throw new Error(error.message);
   return (data ?? []) as DeviceSession[];
 }
@@ -2019,7 +2019,7 @@ export async function fetchDevices(): Promise<DeviceSession[]> {
  * sessions; doing both keeps the devices list honest about what just happened.
  */
 export async function signOutOtherDevices(currentDeviceId: string): Promise<number> {
-  const { data, error } = await backend.rpc('baaki_sign_out_other_devices', {
+  const { data, error } = await backend.rpc('waves_sign_out_other_devices', {
     p_device_id: currentDeviceId,
   });
   if (error) throw new Error(error.message);

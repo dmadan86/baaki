@@ -16,7 +16,7 @@
  * **Claiming is not tested here; `m5-claims.mjs` tests it.** This file used to
  * carry a check called "four people claim items concurrently", and it was not
  * true. It inserted into `receipt_item_claims` with the **service role**, which
- * bypasses RLS, bypasses the grants, and never calls `baaki_set_item_claim` —
+ * bypasses RLS, bypasses the grants, and never calls `waves_set_item_claim` —
  * the function that decides whose claim a claim is. That table has INSERT,
  * UPDATE and DELETE revoked from `anon` and `authenticated`, so the check drove
  * a door no phone can open, and what it demonstrated was that Postgres accepts
@@ -78,7 +78,7 @@ await asha
   .update({ display_name: 'Asha' })
   .eq('id', (await asha.auth.getUser()).data.user.id);
 
-const { data: groupId, error: groupError } = await asha.rpc('baaki_create_group', {
+const { data: groupId, error: groupError } = await asha.rpc('waves_create_group', {
   p_name: 'Anjappar',
   p_type: 'other',
   p_currency: 'INR',
@@ -275,7 +275,7 @@ if (english?.check.reconciles) {
 }
 
 // ── the quota is real ──────────────────────────────────────────────────────
-const { data: quota, error: quotaError } = await asha.rpc('baaki_receipt_scan_quota');
+const { data: quota, error: quotaError } = await asha.rpc('waves_receipt_scan_quota');
 check('the scan quota is readable', !quotaError, await describe(quotaError));
 check('scans were metered (ADR-011)', (quota?.used ?? 0) >= 3, JSON.stringify(quota));
 check(

@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 
 import { groupLabel, type GroupRow, type MemberRow } from '@waves/api-client';
 
-import { baaki } from '@/lib/baaki';
+import { waves } from '@/lib/waves';
 import { AppFrame } from '@/components/AppFrame';
 import { Section } from '@/components/Shell';
 import { SkeletonRows } from '@/components/Skeleton';
@@ -48,7 +48,7 @@ function Picker({ profileId }: { profileId: string }) {
       // the skeleton and flash the picker for the single-group case.
       let forwarding = false;
       try {
-        const [g, m] = await Promise.all([baaki.myGroups(), baaki.membersByGroup()]);
+        const [g, m] = await Promise.all([waves.myGroups(), waves.membersByGroup()]);
         if (!active) return;
         const only = g.length === 1 ? g[0] : null;
         if (only) {

@@ -52,7 +52,7 @@ async function makeCampaign(
   } = over;
 
   // A unique title per campaign. Every test in this file leaves running
-  // campaigns behind, and `baaki_my_campaign` legitimately answers with any one
+  // campaigns behind, and `waves_my_campaign` legitimately answers with any one
   // of them — so asserting on a shared title matches the wrong row and the
   // test passes or fails for reasons that have nothing to do with its subject.
   const { rows } = await client.query(
@@ -69,7 +69,7 @@ async function makeCampaign(
 
 /** Total revenue the function reports right now, across every cohort. */
 async function totalRevenue(campaignId: string): Promise<number> {
-  const { rows } = await client.query('SELECT * FROM public.baaki_admin_campaign_revenue($1)', [
+  const { rows } = await client.query('SELECT * FROM public.waves_admin_campaign_revenue($1)', [
     campaignId,
   ]);
   return rows.reduce((sum, row) => sum + Number(row.revenue_minor), 0);
@@ -78,7 +78,7 @@ async function totalRevenue(campaignId: string): Promise<number> {
 /** What the app sees, as the app sees it. Read-only, so a rollback is fine. */
 async function myCampaign(profileId: string) {
   return asRole(client, 'authenticated', { sub: profileId, role: 'authenticated' }, async () => {
-    const { rows } = await client.query('SELECT * FROM public.baaki_my_campaign()');
+    const { rows } = await client.query('SELECT * FROM public.waves_my_campaign()');
     return rows;
   });
 }
@@ -108,7 +108,7 @@ describe('the holdout', () => {
     const people = Array.from({ length: 400 }, () => randomUUID());
 
     const { rows } = await client.query(
-      `SELECT public.baaki_campaign_cohort($1, p::uuid) AS cohort FROM unnest($2::uuid[]) AS p`,
+      `SELECT public.waves_campaign_cohort($1, p::uuid) AS cohort FROM unnest($2::uuid[]) AS p`,
       [campaignId, people],
     );
     const held = rows.filter((row) => row.cohort === 'holdout').length;
@@ -122,11 +122,11 @@ describe('the holdout', () => {
   it('gives the same person the same cohort every time', async () => {
     const campaignId = await makeCampaign({ holdout: 50 });
     const profileId = randomUUID();
-    const once = await client.query('SELECT public.baaki_campaign_cohort($1, $2) AS c', [
+    const once = await client.query('SELECT public.waves_campaign_cohort($1, $2) AS c', [
       campaignId,
       profileId,
     ]);
-    const twice = await client.query('SELECT public.baaki_campaign_cohort($1, $2) AS c', [
+    const twice = await client.query('SELECT public.waves_campaign_cohort($1, $2) AS c', [
       campaignId,
       profileId,
     ]);
@@ -143,8 +143,8 @@ describe('the holdout', () => {
 
     const { rows } = await client.query(
       `SELECT p::uuid AS id,
-              public.baaki_campaign_cohort($1, p::uuid) AS a,
-              public.baaki_campaign_cohort($2, p::uuid) AS b
+              public.waves_campaign_cohort($1, p::uuid) AS a,
+              public.waves_campaign_cohort($2, p::uuid) AS b
          FROM unnest($3::uuid[]) AS p`,
       [first, second, people],
     );
@@ -174,7 +174,7 @@ describe('what the app is shown', () => {
     const held: string[] = [];
     for (let index = 0; index < 25; index += 1) {
       const profileId = await makeProfile('IN');
-      const cohort = await client.query('SELECT public.baaki_campaign_cohort($1, $2) AS cohort', [
+      const cohort = await client.query('SELECT public.waves_campaign_cohort($1, $2) AS cohort', [
         campaignId,
         profileId,
       ]);
@@ -227,7 +227,7 @@ describe('what the app is shown', () => {
     expect((await myCampaign(profileId)).some((row) => row.id === campaignId)).toBe(true);
 
     await asProfile(profileId, () =>
-      client.query('SELECT public.baaki_campaign_seen($1, $2)', [campaignId, false]),
+      client.query('SELECT public.waves_campaign_seen($1, $2)', [campaignId, false]),
     );
 
     expect((await myCampaign(profileId)).some((row) => row.id === campaignId)).toBe(false);
@@ -239,7 +239,7 @@ describe('what the app is shown', () => {
 
     for (const acted of [false, true, false]) {
       await asProfile(profileId, () =>
-        client.query('SELECT public.baaki_campaign_seen($1, $2)', [campaignId, acted]),
+        client.query('SELECT public.waves_campaign_seen($1, $2)', [campaignId, acted]),
       );
     }
 
@@ -269,7 +269,7 @@ describe('what a client may not do', () => {
     for (const role of ['anon', 'authenticated'] as const) {
       const message = await asRole(client, role, { role }, () =>
         expectDenied(
-          client.query('SELECT public.baaki_campaign_cohort($1, $2)', [randomUUID(), randomUUID()]),
+          client.query('SELECT public.waves_campaign_cohort($1, $2)', [randomUUID(), randomUUID()]),
         ),
       );
       expect(message, role).toMatch(/permission denied/i);
@@ -280,7 +280,7 @@ describe('what a client may not do', () => {
     for (const role of ['anon', 'authenticated'] as const) {
       const message = await asRole(client, role, { role }, () =>
         expectDenied(
-          client.query('SELECT * FROM public.baaki_admin_campaign_funnel($1)', [randomUUID()]),
+          client.query('SELECT * FROM public.waves_admin_campaign_funnel($1)', [randomUUID()]),
         ),
       );
       expect(message, role).toMatch(/permission denied/i);
@@ -349,7 +349,7 @@ describe('did it work', () => {
       [profileId, `play:${profileId}`],
     );
 
-    const { rows } = await client.query('SELECT * FROM public.baaki_admin_campaign_revenue($1)', [
+    const { rows } = await client.query('SELECT * FROM public.waves_admin_campaign_revenue($1)', [
       campaignId,
     ]);
     const inr = rows.find((row) => row.currency === 'INR');
@@ -362,7 +362,7 @@ describe('did it work', () => {
     const campaignId = await makeCampaign({ holdout: 40 });
     for (let index = 0; index < 30; index += 1) await makeProfile('IN');
 
-    const { rows } = await client.query('SELECT * FROM public.baaki_admin_campaign_funnel($1)', [
+    const { rows } = await client.query('SELECT * FROM public.waves_admin_campaign_funnel($1)', [
       campaignId,
     ]);
     expect(rows.length).toBeGreaterThan(0);

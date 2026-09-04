@@ -79,7 +79,7 @@ interface DraftItem {
  * the second of six afterwards would move four people's dinners onto somebody
  * else's bill.
  *
- * Claims go through `baaki_set_item_claim`, which resolves who you are from
+ * Claims go through `waves_set_item_claim`, which resolves who you are from
  * your session and refuses to take a member as an argument — the same rule as
  * `actor_member_id`. The single exception is a ghost member, who has no phone
  * to tap with, and whom therefore anybody may claim for.

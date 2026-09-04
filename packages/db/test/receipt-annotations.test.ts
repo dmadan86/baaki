@@ -75,7 +75,7 @@ beforeEach(async () => {
     ownerProfileId: P(0),
   });
   await as(P(0), () =>
-    client.query(`SELECT baaki_attach_expense_attachment($1, $2, 'group', $3)`, [
+    client.query(`SELECT waves_attach_expense_attachment($1, $2, 'group', $3)`, [
       expenseId,
       path,
       attachmentId,
@@ -85,7 +85,7 @@ beforeEach(async () => {
 
 const annotate = (profileId: string, id: string, annotations: unknown) =>
   as(profileId, () =>
-    client.query(`SELECT baaki_annotate_expense_attachment($1, $2::jsonb)`, [
+    client.query(`SELECT waves_annotate_expense_attachment($1, $2::jsonb)`, [
       id,
       annotations === null ? null : JSON.stringify(annotations),
     ]),

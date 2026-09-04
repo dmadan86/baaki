@@ -4,7 +4,7 @@
  * React Native's `Switch` takes a track colour but paints the thumb from the
  * platform's own theme, and on Android that theme is Material's green. Every
  * call site here set `trackColor` and none set `thumbColor`, so every toggle in
- * the app rode a Baaki-purple track under a knob from a different design
+ * the app rode a Waves-purple track under a knob from a different design
  * system — a mismatch no screen could see, because each one looked correct in
  * the code that produced it.
  *
