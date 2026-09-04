@@ -1,15 +1,16 @@
 name: Vercel deploy (manual)
 
 # Vercel's git integration is turned off (git.deploymentEnabled: false in each
-# app's vercel.json), so no push or PR ever creates a deployment. This workflow
+# project's vercel.json), so no push or PR ever creates a deployment. This workflow
 # is the only way a deploy happens: run it by hand from the Actions tab, pick
-# the project (web / admin / both) and the target (preview / production).
+# the project (web / admin / website / all) and the target (preview / production).
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
-#   VERCEL_TOKEN            — a Vercel access token
-#   VERCEL_ORG_ID           — the Vercel team/org id (same for both projects)
-#   VERCEL_PROJECT_ID_WEB   — project id of baaki-web   (.vercel/project.json)
-#   VERCEL_PROJECT_ID_ADMIN — project id of baaki-admin (.vercel/project.json)
+#   VERCEL_TOKEN              — a Vercel access token
+#   VERCEL_ORG_ID             — the Vercel team/org id (same for every project)
+#   VERCEL_PROJECT_ID_WEB     — project id of baaki-web     (.vercel/project.json)
+#   VERCEL_PROJECT_ID_ADMIN   — project id of baaki-admin   (.vercel/project.json)
+#   VERCEL_PROJECT_ID_WEBSITE — project id of waves-website (.vercel/project.json)
 
 on:
   workflow_dispatch:
@@ -17,11 +18,12 @@ on:
       project:
         description: Which app to deploy
         type: choice
-        default: both
+        default: all
         options:
           - web
           - admin
-          - both
+          - website
+          - all
       target:
         description: Deployment environment
         type: choice
@@ -42,18 +44,21 @@ jobs:
     name: deploy ${{ matrix.app }} (${{ github.event.inputs.target }})
     runs-on: ubuntu-latest
     strategy:
-      # One deploy per selected app. `both` fans out to web then admin; a single
-      # app filters the matrix down to just that entry. fail-fast off so admin
-      # still runs if web fails (and vice versa).
+      # One deploy per selected app. `all` fans out to every project; naming a
+      # single app filters the matrix down to just that entry. fail-fast off so
+      # one failing project does not cancel the others.
       fail-fast: false
       matrix:
-        app: [web, admin]
+        app: [web, admin, website]
         exclude:
-          - app: ${{ github.event.inputs.project == 'admin' && 'web' || 'nothing' }}
-          - app: ${{ github.event.inputs.project == 'web' && 'admin' || 'nothing' }}
+          - app: ${{ (github.event.inputs.project == 'admin' || github.event.inputs.project == 'website') && 'web' || 'nothing' }}
+          - app: ${{ (github.event.inputs.project == 'web' || github.event.inputs.project == 'website') && 'admin' || 'nothing' }}
+          - app: ${{ (github.event.inputs.project == 'web' || github.event.inputs.project == 'admin') && 'website' || 'nothing' }}
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ matrix.app == 'admin' && secrets.VERCEL_PROJECT_ID_ADMIN || secrets.VERCEL_PROJECT_ID_WEB }}
+      VERCEL_PROJECT_ID: ${{ matrix.app == 'admin' && secrets.VERCEL_PROJECT_ID_ADMIN || matrix.app == 'website' && secrets.VERCEL_PROJECT_ID_WEBSITE || secrets.VERCEL_PROJECT_ID_WEB }}
+      # The marketing site sits at the repo root, the two apps under apps/.
+      APP_DIR: ${{ matrix.app == 'website' && 'website' || format('apps/{0}', matrix.app) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -66,13 +71,13 @@ jobs:
       # fetch that project's settings. --prod when deploying to production so the
       # right environment variables are pulled and built.
       - name: Pull Vercel project settings
-        working-directory: apps/${{ matrix.app }}
+        working-directory: ${{ env.APP_DIR }}
         run: vercel pull --yes --environment=${{ github.event.inputs.target == 'production' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build
-        working-directory: apps/${{ matrix.app }}
+        working-directory: ${{ env.APP_DIR }}
         run: vercel build ${{ github.event.inputs.target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy (prebuilt)
-        working-directory: apps/${{ matrix.app }}
+        working-directory: ${{ env.APP_DIR }}
         run: vercel deploy --prebuilt ${{ github.event.inputs.target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}

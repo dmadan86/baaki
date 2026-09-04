@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'e2e'
+  - 'website'
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
