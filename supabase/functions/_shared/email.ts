@@ -296,7 +296,7 @@ export function emailFrom(): string {
 /**
  * The button an email links to. Two different settings turn it off, on
  * purpose: leaving `EMAIL_WEB_URL` **unset** defaults to the canonical
- * deployment's own domain (`https://wavs.co.in`) — right for the cloud
+ * deployment's own domain (`https://app.wavs.co.in`) — right for the cloud
  * project, wrong for a fork or self-host that has not set its own yet.
  * Setting it to an **explicit empty string** (`EMAIL_WEB_URL=`) opts out of
  * that default deliberately and falls back to the `waves://` deep
