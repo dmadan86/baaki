@@ -1,19 +1,29 @@
-# What Vercel does not need to build the admin console.
+# What Vercel does not need to build the two apps deployed from this root.
 #
 # The CLI uploads the whole repository so that pnpm can resolve the workspace
-# packages `@waves/admin` depends on — without this it also uploaded the Android
+# packages those apps depend on — without this it also uploaded the Android
 # build tree and a 165MB APK, and the transfer aborted at 2.9GB.
 #
-# Only `apps/admin` is built. `packages/*` is kept because the app imports
-# `@waves/core`, and the lockfile and workspace manifest are kept because
-# `pnpm install --frozen-lockfile` needs them.
+# **This file is shared.** It is read from the deployment source root, which is
+# the repository root for both `apps/admin` and `apps/web`, since each imports
+# workspace packages and so cannot be uploaded on its own. It once excluded
+# `apps/web` — written when only the console deployed this way — and a web
+# deploy then failed with "The specified Root Directory apps/web does not
+# exist", which was true: the archive did not contain it. Anything excluded here
+# is excluded from *every* deploy made from this root.
+#
+# `packages/*` is kept because both apps import `@waves/core`, and the lockfile
+# and workspace manifest are kept because `pnpm install --frozen-lockfile`
+# needs them.
 
 node_modules
 **/node_modules
 
-# Other apps. web and mobile are deployed elsewhere and are not imported.
+# The mobile app is not deployed here, and neither the e2e suite nor the edge
+# functions are imported by either web app. `website/` is absent from this list
+# on purpose: it has no workspace dependencies, so it deploys from its own
+# directory and never reads this file.
 apps/mobile
-apps/web
 e2e
 supabase
 
