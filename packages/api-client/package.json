@@ -20,8 +20,8 @@
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/supabase-js": "^2.112.4",
     "typescript": "~5.9.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
