@@ -33,6 +33,7 @@ import { errorResponse, HttpError, json, type SupabaseClient } from '../_shared/
 import {
   buildFor,
   pause,
+  emailSendable,
   sendEmail,
   SEND_SPACING_MS,
   type EmailableRow,
@@ -219,8 +220,12 @@ export async function dispatchEmail(service: SupabaseClient): Promise<EmailSumma
   try {
     // No key configured is a deployment that has not turned email on, not a
     // fault. Claiming rows first would mark them queued and then strand them.
-    if (!Deno.env.get('RESEND_API_KEY') || !Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET')) {
-      return empty;
+    // An empty reason is "email is simply not turned on here" — silent and not a
+    // fault. Anything else is a misconfiguration, and it is reported rather than
+    // read as "off", which is how mail stops for a week before anybody asks.
+    const sendable = emailSendable();
+    if (!sendable.ok) {
+      return sendable.reason ? { ...empty, error: sendable.reason } : empty;
     }
 
     const { data, error } = await service.rpc('baaki_claim_email_notifications', {
