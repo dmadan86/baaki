@@ -182,16 +182,23 @@ client_id = "755904924475-vkp5ga0cpt58fr6patnst4e4r02cmhcv.apps.googleuserconten
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 # Sign in with Apple. Two audiences share one block:
-#   - the native bundle id (`app.waves.mobile`) authorizes the iOS id-token flow
+#   - the native bundle id (`app.wavs.mobile`) authorizes the iOS id-token flow
 #     (AppleAuthentication.signInAsync -> supabase.auth.signInWithIdToken),
-#   - the Services ID authorizes the browser-redirect fallback used on Android
-#     and web (signInWithOAuth via `oauthThroughBrowser`).
+#   - the Services ID (`app.wavs.web`) authorizes the browser-redirect fallback
+#     used on Android and web (signInWithOAuth via `oauthThroughBrowser`).
+#
+# Note the spelling: iOS is `app.wavs.mobile` while Android is
+# `app.waves.mobile`. `app.waves.mobile` was already registered under another
+# Apple developer account and bundle ids are globally unique, so the iOS half
+# took the domain's own spelling instead. The two platforms are separate
+# namespaces and nothing reads across them — but a `waves` typed here where
+# `wavs` belongs fails a sign-in with an audience mismatch and nothing else.
+#
 # `secret` is the ES256 client-secret JWT signed with the Sign in with Apple key
-# (.p8); regenerate it before it expires (max 6 months). Replace <services-id>
-# with the real Services ID once created in the Apple Developer portal.
+# (.p8); regenerate it before it expires (max 6 months).
 [auth.external.apple]
 enabled = true
-client_id = "app.waves.mobile,<services-id>"
+client_id = "app.wavs.mobile,app.wavs.web"
 secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
 
 [edge_runtime]

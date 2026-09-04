@@ -520,6 +520,15 @@ lives in somebody's console rather than in this repository:
 3. **The edge functions.** They call `waves_*` now. A deployed function still
    calling the old names answers "function does not exist" on every write, so
    they redeploy with this.
+4. **The two app identifiers, which are not the same string.** iOS is
+   `app.wavs.mobile` and Android is `app.waves.mobile` — note the spelling.
+   `app.waves.mobile` was already registered under somebody else's Apple
+   developer account, and Apple bundle ids are globally unique, so the iOS half
+   took the product domain's own spelling. Android was left alone: its package
+   is what `google-services.json`, the Play listing and every `appId:` in
+   `e2e/` key off, and none of them can see the iOS id. Nothing reads across
+   the two, so the divergence is harmless — but it is the sort of thing a
+   later reader "corrects". Both are right.
 
 The database was **rebuilt, not migrated**. The whole migration history is one
 file — `20260904000000_waves_baseline` — that builds the schema already named

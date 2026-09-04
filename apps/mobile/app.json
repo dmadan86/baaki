@@ -17,7 +17,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.waves.mobile",
+      "bundleIdentifier": "app.wavs.mobile",
       "usesAppleSignIn": true
     },
     "android": {
