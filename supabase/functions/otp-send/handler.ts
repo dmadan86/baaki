@@ -72,6 +72,62 @@ export interface OtpSendDeps {
   verify?: typeof verifyWebhookSignature;
 }
 
+/**
+ * The most body this endpoint will ever buffer.
+ *
+ * A Send SMS Hook payload is a few hundred bytes — a phone number, a code and
+ * some user metadata. 16 KiB is far above anything GoTrue sends and far below
+ * anything worth holding in memory.
+ */
+const MAX_BODY_BYTES = 16 * 1024;
+
+/** How long Twilio gets to answer before the attempt is abandoned. */
+const TWILIO_TIMEOUT_MS = 15_000;
+
+/**
+ * Read the body, refusing anything oversized before it is all in memory.
+ *
+ * `verify_jwt = false` here, so anyone on the internet can POST to this
+ * endpoint, and the signature cannot be checked until the bytes are in hand —
+ * the signature covers exactly those bytes. That ordering is forced, which
+ * makes an unbounded `request.text()` a way for an unauthenticated caller to
+ * make the isolate buffer whatever it feels like sending. Counting as the
+ * stream arrives caps it at the first chunk over the line.
+ *
+ * `Content-Length` is checked first as a cheap early out; it is absent under
+ * chunked encoding and can lie, so the running total is what actually enforces
+ * the limit. Returns null when the body is too large.
+ */
+async function readBoundedText(request: Request, limit: number): Promise<string | null> {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > limit) return null;
+
+  const reader = request.body?.getReader();
+  if (!reader) return '';
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+
+  const joined = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    joined.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return new TextDecoder().decode(joined);
+}
+
 /** E.164, the only shape GoTrue ever hands us and the only one Twilio takes. */
 function isE164(phone: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(phone);
@@ -109,7 +165,8 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
   if (!id || !timestamp || !signature) return hookError(401, 'Not a signed webhook');
 
   // The raw text, not a reparse — signing covers the exact bytes.
-  const body = await request.text();
+  const body = await readBoundedText(request, MAX_BODY_BYTES);
+  if (body === null) return hookError(413, 'That request body is too large');
   const verify = deps.verify ?? verifyWebhookSignature;
   const ok = await verify({ secret: hookSecret(secret), id, timestamp, body, header: signature });
   if (!ok) return hookError(401, 'That signature does not match');
@@ -195,6 +252,11 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: form.toString(),
+        // Well inside the runtime's own idle timeout, so a Twilio call that
+        // hangs is abandoned here — where it becomes the sanitised 502 below —
+        // rather than holding the isolate until the platform kills it and
+        // GoTrue is left with nothing at all.
+        signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
       },
     );
   } catch (caught) {

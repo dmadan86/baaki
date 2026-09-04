@@ -219,6 +219,27 @@ describe('otp-send', () => {
     expect(d.rpc).not.toHaveBeenCalled();
   });
 
+  it('refuses an oversized body before buffering it, and before any spend', async () => {
+    // The endpoint is reachable without a JWT, and the signature cannot be
+    // checked until the bytes are in hand — so the size limit is the only thing
+    // standing between a stranger and an isolate buffering whatever they send.
+    const huge = JSON.stringify({ user: { phone: '+919876543210' }, pad: 'x'.repeat(20 * 1024) });
+    const d = deps();
+    const response = await handleOtpSend(request(huge), d);
+
+    expect(response.status).toBe(413);
+    expect(d.rpc).not.toHaveBeenCalled();
+    expect(d.fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('gives Twilio a deadline', async () => {
+    const d = deps();
+    await handleOtpSend(request(), d);
+
+    const [, init] = d.fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('answers a refused connection the same way as a Twilio 5xx', async () => {
     const d = deps();
     d.fetchImpl = vi
