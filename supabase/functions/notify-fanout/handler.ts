@@ -33,6 +33,7 @@ import { errorResponse, HttpError, json, type SupabaseClient } from '../_shared/
 import {
   buildFor,
   pause,
+  emailConfigured,
   sendEmail,
   SEND_SPACING_MS,
   type EmailableRow,
@@ -219,7 +220,7 @@ export async function dispatchEmail(service: SupabaseClient): Promise<EmailSumma
   try {
     // No key configured is a deployment that has not turned email on, not a
     // fault. Claiming rows first would mark them queued and then strand them.
-    if (!Deno.env.get('RESEND_API_KEY') || !Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET')) {
+    if (!emailConfigured()) {
       return empty;
     }
 

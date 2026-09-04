@@ -13,6 +13,12 @@ Rules for every function in this directory:
    `@waves/core` and a mismatch is rejected with `SHARE_MISMATCH` (TDR §4).
 3. **Secrets only from the function environment** — `ANTHROPIC_API_KEY`,
    `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
+   Email delivery is provider-agnostic: `EMAIL_PROVIDER` selects `resend`
+   (default) or `sendgrid`, and the key it needs is `RESEND_API_KEY` or
+   `SENDGRID_API_KEY` accordingly. **Delivery-event ingest is Resend-only so
+   far** — `email-events` verifies a Svix signature, and SendGrid signs its
+   Event Webhook with ECDSA instead, so switching providers without that second
+   path freezes the suppression list.
    Nothing here may ever be referenced from `apps/*`.
 4. **Idempotency.** Mutations carry `client_mutation_id`; retries must be safe.
 5. **Attach ids, never rows.** Anything falling through to a 500 is sent to

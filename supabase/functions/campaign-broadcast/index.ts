@@ -36,6 +36,8 @@ import {
 import {
   buildCampaignFor,
   pause,
+  emailConfigured,
+  emailKeyName,
   sendCampaignEmail,
   SEND_SPACING_MS,
   type CampaignEmailRow,
@@ -67,11 +69,11 @@ serveWithCors(async (request) => {
 
     // Email off is a deployment that has not turned it on, and the console should
     // be told rather than left pressing a button that silently does nothing.
-    if (!Deno.env.get('RESEND_API_KEY') || !Deno.env.get('EMAIL_UNSUBSCRIBE_SECRET')) {
+    if (!emailConfigured()) {
       throw new HttpError(
         503,
         'EMAIL_NOT_CONFIGURED',
-        'Email is not configured on this deployment — set RESEND_API_KEY and EMAIL_UNSUBSCRIBE_SECRET.',
+        `Email is not configured on this deployment — set ${emailKeyName()} and EMAIL_UNSUBSCRIBE_SECRET.`,
       );
     }
 
