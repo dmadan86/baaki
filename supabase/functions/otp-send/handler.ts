@@ -125,6 +125,19 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
   const otp = payload.sms?.otp?.trim() ?? '';
   if (!isE164(phone) || !otp) return hookError(400, 'Missing a phone number or a code');
 
+  // Configuration is checked before the quota is spent. A provider outage still
+  // burns an attempt below — the gate deliberately runs ahead of the spend — but
+  // a deploy that is simply missing its Twilio secrets should not consume all
+  // four of somebody's daily codes for a send this function was never capable of
+  // making.
+  const accountSid = deps.env('TWILIO_ACCOUNT_SID');
+  const authToken = deps.env('TWILIO_AUTH_TOKEN');
+  const from = deps.env('TWILIO_WHATSAPP_FROM');
+  const contentSid = deps.env('TWILIO_OTP_CONTENT_SID');
+  if (!accountSid || !authToken || !from || !contentSid) {
+    return hookError(500, 'WhatsApp sending is not configured');
+  }
+
   // Counted before the message is sent, matching `receipt-parse`, where the
   // gate always runs ahead of the spend. The cost is that a Twilio outage still
   // burns an attempt; the alternative — send first, count after — lets a script
@@ -153,14 +166,6 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
         `That is ${OTP_DAILY_LIMIT} codes today. Try again tomorrow, or sign in another way.`,
       );
     }
-  }
-
-  const accountSid = deps.env('TWILIO_ACCOUNT_SID');
-  const authToken = deps.env('TWILIO_AUTH_TOKEN');
-  const from = deps.env('TWILIO_WHATSAPP_FROM');
-  const contentSid = deps.env('TWILIO_OTP_CONTENT_SID');
-  if (!accountSid || !authToken || !from || !contentSid) {
-    return hookError(500, 'WhatsApp sending is not configured');
   }
 
   // A business-initiated WhatsApp message must be a template Meta has approved,

@@ -143,6 +143,24 @@ describe('otp-send', () => {
     });
   });
 
+  it.each([
+    ['Indian rider', '+919876543210'],
+    ['traveller on a UK SIM', '+447700900123'],
+    ['long international number', '+123456789012345'],
+  ])('accepts a valid E.164 number for an %s', async (_persona, phone) => {
+    const body = JSON.stringify({ user: { id: 'user-1', phone }, sms: { otp: '123456' } });
+    const d = deps();
+    const response = await handleOtpSend(request(body), d);
+
+    expect(response.status).toBe(200);
+    const [, init] = d.fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(new URLSearchParams(init.body as string).get('To')).toBe(`whatsapp:${phone}`);
+    expect(d.rpc).toHaveBeenCalledWith(
+      'baaki_rate_limit',
+      expect.objectContaining({ p_subject: `phone:${phone}` }),
+    );
+  });
+
   it('refuses past the daily cap and sends nothing', async () => {
     const d = deps({ allowed: false });
     const response = await handleOtpSend(request(), d);
@@ -190,12 +208,15 @@ describe('otp-send', () => {
     expect(payload.error.message).not.toContain('twilio said no');
   });
 
-  it('refuses when WhatsApp sending is unconfigured rather than half-sending', async () => {
+  it('refuses an unconfigured deployment without burning a daily code', async () => {
     const d = deps({ env: { TWILIO_OTP_CONTENT_SID: '' } });
     const response = await handleOtpSend(request(), d);
 
     expect(response.status).toBe(500);
     expect(d.fetchImpl).not.toHaveBeenCalled();
+    // The point of the check's position: a deploy missing its Twilio secrets
+    // must not spend somebody's four codes on sends it could never make.
+    expect(d.rpc).not.toHaveBeenCalled();
   });
 
   it('answers a refused connection the same way as a Twilio 5xx', async () => {
