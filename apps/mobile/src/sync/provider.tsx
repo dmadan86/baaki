@@ -24,6 +24,7 @@ import type { MutationEnvelope, MutationKind } from '@waves/core';
 
 import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';
+import { clearBackupState } from '@/lib/backup/engine';
 import { clearReceiptQueue, flushReceiptQueue } from '@/lib/receiptQueue';
 import { clearImageCache } from '@/lib/storage/imageCache';
 
@@ -48,10 +49,26 @@ interface SyncContextValue extends SyncState {
 
 const SyncContext = createContext<SyncContextValue | null>(null);
 
-async function clearLocalPrivateData(): Promise<void> {
+/**
+ * Everything of the departing account's that lives on this device.
+ *
+ * `ownerId` is who is leaving, captured before the session went null — the
+ * backup state is keyed by account (its tokens are a live, write-capable grant
+ * into that person's Google Drive, and its recovery key opens their backup), so
+ * the wipe has to be told whose. The keystore cannot be enumerated, which is
+ * why this is targeted rather than a prefix sweep, and a prefix sweep would be
+ * wrong anyway: a third account's settings on a shared phone are not this
+ * sign-out's to delete.
+ *
+ * Every step is attempted even after one fails, and the first failure is
+ * rethrown. A wipe that stopped halfway is a privacy problem, not a cosmetic
+ * one.
+ */
+async function clearLocalPrivateData(ownerId: string): Promise<void> {
   const failures: unknown[] = [];
   await syncEngine.clear().catch((error: unknown) => failures.push(error));
   await clearReceiptQueue().catch((error: unknown) => failures.push(error));
+  await clearBackupState(ownerId).catch((error: unknown) => failures.push(error));
   try {
     clearImageCache();
   } catch (error) {
@@ -92,7 +109,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const [state, setState] = useState<SyncState>(() => syncEngine.getState());
   const signedIn = Boolean(session);
-  const wasSignedIn = useRef(signedIn);
+  const ownerId = session?.user?.id ?? null;
+  // Who is signed in, held across the render in which they stop being — the
+  // sign-out wipe needs the id, and by the time it runs the session is gone.
+  // Null when signed out, which is also the "was anybody here?" test the old
+  // boolean served.
+  const lastOwnerId = useRef<string | null>(ownerId);
   // The in-flight sign-out cleanup, if any. Sign-out does not block on it, but
   // the next sign-in must: the receipt queue and image cache are device-global,
   // so a cleanup still deleting when a new account signs in would wipe the new
@@ -109,17 +131,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // cosmetic one — but not worth throwing at a screen mid-sign-out. The
       // promise is kept (never rejects — the catch resolves it) so the next
       // sign-in can await its completion before hydrating.
-      if (wasSignedIn.current) {
-        pendingCleanup.current = clearLocalPrivateData().catch((error: unknown) =>
+      const departing = lastOwnerId.current;
+      if (departing !== null) {
+        pendingCleanup.current = clearLocalPrivateData(departing).catch((error: unknown) =>
           reportHandled(error, 'sync.clearPrivateData'),
         );
       }
-      wasSignedIn.current = false;
+      lastOwnerId.current = null;
       syncEngine.stop();
       return;
     }
 
-    wasSignedIn.current = true;
+    lastOwnerId.current = ownerId;
     let cancelled = false;
     void (async () => {
       // A prior sign-out's cleanup may still be deleting the device-global
@@ -151,7 +174,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       syncEngine.stop();
     };
-  }, [signedIn]);
+    // `ownerId` is only recorded for the wipe, but it is a render value read in
+    // here, so it belongs in the list. It changes exactly when `signedIn` does
+    // — or when one account is swapped for another without a signed-out frame
+    // between, which is the case the ref exists to survive.
+  }, [signedIn, ownerId]);
 
   // Coming back to the app is the most likely moment for the world to have
   // moved on without us.

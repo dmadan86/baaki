@@ -20,7 +20,7 @@
  * accumulates and a restore never has to choose between candidates.
  */
 
-import { authorize, isExpired, refresh, type OAuthConfig } from './oauth';
+import { asAuthFailure, authorize, isExpired, refresh, type OAuthConfig } from './oauth';
 import { requestJson, requestRaw, requestText } from './http';
 import { clientId, isConfigured as clientConfigured } from './config';
 import type { CloudFile, CloudProvider, CloudTokens } from './types';
@@ -69,8 +69,26 @@ export const googleDrive: CloudProvider = {
   label: 'Google Drive',
   isConfigured: () => clientConfigured('gdrive'),
   connect: () => authorize(config()),
-  ensureValid: (tokens) =>
-    isExpired(tokens) ? refresh(config(), tokens) : Promise.resolve(tokens),
+
+  /**
+   * Fresh tokens, refreshing first when the access token is stale.
+   *
+   * A refresh Google rejects because the grant is gone — revoked in the user's
+   * account settings, consent withdrawn, the app removed — is turned into the
+   * same 401 a Drive API call would produce, so the one caller-side predicate
+   * (`isAuthFailure`) recognises it. Everything else is left as it is: a token
+   * endpoint that timed out is a transport failure, and treating it as a dead
+   * link would sign the person out of their own backup over a bad minute of
+   * signal.
+   */
+  async ensureValid(tokens: CloudTokens): Promise<CloudTokens> {
+    if (!isExpired(tokens)) return tokens;
+    try {
+      return await refresh(config(), tokens);
+    } catch (error) {
+      throw asAuthFailure(error) ?? error;
+    }
+  },
 
   /**
    * The signed-in Google account's address, for the screen's "Google account"

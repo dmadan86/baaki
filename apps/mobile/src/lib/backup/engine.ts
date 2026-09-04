@@ -21,7 +21,7 @@ import { networkAllows, type SyncNetworkPreference } from '../syncNetwork';
 import { isAuthFailure } from '../cloud/http';
 import { providerFor } from '../cloud/providers';
 import { clearTokens, loadTokens, saveTokens } from '../cloud/tokens';
-import type { CloudProviderId } from '../cloud/types';
+import type { CloudProviderId, CloudTokens } from '../cloud/types';
 import {
   backupAad,
   buildBody,
@@ -33,11 +33,27 @@ import {
   type RestorePlan,
   type SourceRecord,
 } from './payload';
-import { backupNonce, openBackup, sealBackup } from './recoveryKey';
-import type { LastBackup } from './settings';
+import { backupNonce, clearRecoveryKey, openBackup, sealBackup } from './recoveryKey';
+import { clearBackupSettings, type LastBackup } from './settings';
 
-/** The one file in the provider's app-private storage. Overwritten in place. */
-export const BACKUP_FILE_NAME = 'waves-personal-backup.json';
+/**
+ * The one file in the provider's app-private storage, per account. Overwritten
+ * in place, so the appDataFolder never accumulates.
+ *
+ * The owner id is in the name because scoping the *local* keys is not enough:
+ * two different Waves accounts that link the same Google account share one
+ * appDataFolder, and a fixed filename would have the second silently overwrite
+ * the first's backup — sealed under a key whose AAD no longer matches, so the
+ * first person could never open what was left of theirs. Nothing has ever run
+ * against Google (this build has no OAuth client ids), so there is no old
+ * fixed-name file anywhere to migrate; a shipped build would have needed one.
+ */
+export function backupFileName(ownerId: string): string {
+  // The id is a UUID from Supabase, but the name goes into a Drive query, so it
+  // is narrowed here rather than trusted to stay one.
+  const safe = ownerId.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return `waves-personal-backup-${safe}.json`;
+}
 
 /** Only Drive today; named so the rest of the module never hardcodes it. */
 export const PRIMARY_PROVIDER: CloudProviderId = 'gdrive';
@@ -111,17 +127,66 @@ async function connection(): Promise<{ online: boolean; type: Network.NetworkSta
 }
 
 /**
- * Tokens good to use now, refreshed if stale and written back so the next run
- * starts from the fresh pair. Null when there is nothing linked; throws only if
- * the refresh itself fails in a way worth reporting.
+ * The three answers to "can we talk to the provider right now", kept apart.
+ *
+ * `none` and `auth` used to be the same answer, because the refresh was wrapped
+ * in a `.catch(() => null)`: a refresh token the user had revoked came back as
+ * "nothing is linked", the dead tokens stayed on disk, and the screen offered
+ * connect-from-scratch as the remedy for a link that needed re-authorising.
+ * Two different states with two different ways out, so: two values.
  */
-async function freshTokens(id: CloudProviderId) {
-  const stored = await loadTokens(id);
-  if (!stored) return null;
-  const provider = providerFor(id);
-  const tokens = await provider.ensureValid(stored);
-  if (tokens !== stored) await saveTokens(id, tokens);
-  return tokens;
+type TokenLookup =
+  | { readonly kind: 'ok'; readonly tokens: CloudTokens }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'auth' };
+
+/**
+ * Tokens good to use now, refreshed if stale and written back so the next run
+ * starts from the fresh pair.
+ *
+ * Throws for a transport failure — a token endpoint that timed out is not a
+ * dead link, and the caller launders the message before anybody sees it.
+ */
+async function freshTokens(id: CloudProviderId, ownerId: string): Promise<TokenLookup> {
+  const stored = await loadTokens(id, ownerId);
+  if (!stored) return { kind: 'none' };
+  try {
+    const tokens = await providerFor(id).ensureValid(stored);
+    if (tokens !== stored) await saveTokens(id, ownerId, tokens);
+    return { kind: 'ok', tokens };
+  } catch (error) {
+    if (!isAuthFailure(error)) throw error;
+    // The grant is gone for good. Drop the tokens so the screen stops offering
+    // a retry that cannot work, and say which of the two states this is.
+    await clearTokens(id, ownerId).catch(() => undefined);
+    return { kind: 'auth' };
+  }
+}
+
+/**
+ * Everything this device remembers about one account's backups: the provider
+ * tokens, the recovery key, and the schedule / last-backup / key-seen
+ * preferences.
+ *
+ * Called on unlink and — the case that matters — from the sign-out wipe in
+ * `sync/provider.tsx`. Until this existed, B signing in after A on a shared
+ * phone found A's Google account linked, held A's recovery key, and inherited
+ * A's schedule; worse, B's first backup would have found A's file and
+ * overwritten it. Every piece is attempted even after one fails and the first
+ * failure is rethrown, matching `clearLocalPrivateData`: a credential left
+ * behind by a half-finished wipe is a privacy problem, not a cosmetic one.
+ *
+ * The file on Drive is deliberately untouched. It is the user's, it is
+ * unreadable without the key they wrote down, and the point of it is to outlive
+ * this app's state.
+ */
+export async function clearBackupState(ownerId: string): Promise<void> {
+  if (!ownerId) return;
+  const failures: unknown[] = [];
+  await clearTokens(PRIMARY_PROVIDER, ownerId).catch((error: unknown) => failures.push(error));
+  await clearRecoveryKey(ownerId).catch((error: unknown) => failures.push(error));
+  await clearBackupSettings(ownerId).catch((error: unknown) => failures.push(error));
+  if (failures.length > 0) throw failures[0];
 }
 
 /**
@@ -144,8 +209,11 @@ export async function runBackup(input: BackupRunInput): Promise<BackupResult> {
       return { ok: false, refusal: 'network-policy' };
     }
 
-    const tokens = await freshTokens(PRIMARY_PROVIDER).catch(() => null);
-    if (!tokens) return { ok: false, refusal: 'not-connected' };
+    const lookup = await freshTokens(PRIMARY_PROVIDER, input.ownerId);
+    if (lookup.kind !== 'ok') {
+      return { ok: false, refusal: lookup.kind === 'auth' ? 'auth' : 'not-connected' };
+    }
+    const tokens = lookup.tokens;
 
     input.onPhase?.('collecting');
     const body = buildBody(input.ownerId, input.records, new Date());
@@ -160,14 +228,10 @@ export async function runBackup(input: BackupRunInput): Promise<BackupResult> {
     const content = JSON.stringify(buildFile(sealed, body.createdAt));
 
     input.onPhase?.('uploading');
+    const fileName = backupFileName(input.ownerId);
     try {
-      const existing = await provider.find(tokens, BACKUP_FILE_NAME);
-      const stored = await provider.put(
-        tokens,
-        BACKUP_FILE_NAME,
-        content,
-        existing?.remoteId ?? null,
-      );
+      const existing = await provider.find(tokens, fileName);
+      const stored = await provider.put(tokens, fileName, content, existing?.remoteId ?? null);
       return {
         ok: true,
         last: {
@@ -183,7 +247,7 @@ export async function runBackup(input: BackupRunInput): Promise<BackupResult> {
       // as a 401/403 forever. Drop the dead tokens so the screen offers
       // "Connect" rather than retrying a link that no longer exists.
       if (isAuthFailure(error)) {
-        await clearTokens(PRIMARY_PROVIDER);
+        await clearTokens(PRIMARY_PROVIDER, input.ownerId).catch(() => undefined);
         return { ok: false, refusal: 'auth' };
       }
       throw error;
@@ -228,11 +292,14 @@ export async function scanBackup(input: RestoreScanInput): Promise<RestoreScan> 
   const net = await connection();
   if (!net.online) return { ok: false, refusal: 'offline' };
 
-  const tokens = await freshTokens(PRIMARY_PROVIDER).catch(() => null);
-  if (!tokens) return { ok: false, refusal: 'not-connected' };
+  const lookup = await freshTokens(PRIMARY_PROVIDER, input.ownerId);
+  if (lookup.kind !== 'ok') {
+    return { ok: false, refusal: lookup.kind === 'auth' ? 'auth' : 'not-connected' };
+  }
+  const tokens = lookup.tokens;
 
   try {
-    const file = await provider.find(tokens, BACKUP_FILE_NAME);
+    const file = await provider.find(tokens, backupFileName(input.ownerId));
     if (!file) return { ok: false, refusal: 'no-backup' };
 
     const envelope = parseFile(await provider.read(tokens, file.remoteId));
@@ -248,7 +315,7 @@ export async function scanBackup(input: RestoreScanInput): Promise<RestoreScan> 
     };
   } catch (error) {
     if (isAuthFailure(error)) {
-      await clearTokens(PRIMARY_PROVIDER);
+      await clearTokens(PRIMARY_PROVIDER, input.ownerId).catch(() => undefined);
       return { ok: false, refusal: 'auth' };
     }
     throw error;

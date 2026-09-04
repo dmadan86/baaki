@@ -26,9 +26,10 @@ import { useAuth } from '@/lib/auth';
 import { useSync } from '@/sync';
 
 import { providerFor } from '../cloud/providers';
-import { clearTokens, loadTokens, saveTokens } from '../cloud/tokens';
+import { loadTokens, saveTokens } from '../cloud/tokens';
 import type { SyncNetworkPreference } from '../syncNetwork';
 import {
+  clearBackupState,
   PRIMARY_PROVIDER,
   runBackup,
   scanBackup,
@@ -38,7 +39,6 @@ import {
 } from './engine';
 import {
   bytesToHex,
-  clearRecoveryKey,
   loadRecoveryKey,
   mintRecoveryKey,
   parseRecoveryKey,
@@ -46,10 +46,9 @@ import {
 } from './recoveryKey';
 import { BackupFrequency } from './schedule';
 import {
-  clearBackupSettings,
-  DEFAULT_BACKUP_NETWORK,
   loadBackupSettings,
   markKeySeen,
+  NO_BACKUP_SETTINGS,
   saveFrequency,
   saveLastBackup,
   saveNetwork,
@@ -60,13 +59,6 @@ import {
 export type BackupOutcome =
   | { readonly kind: 'ok'; readonly records: number }
   | { readonly kind: 'refused'; readonly refusal: BackupRefusal };
-
-const NO_SETTINGS: BackupSettings = {
-  frequency: BackupFrequency.Off,
-  network: DEFAULT_BACKUP_NETWORK,
-  last: null,
-  keySeen: false,
-};
 
 export interface BackupState {
   /** False while the stored settings and tokens are still being read. */
@@ -116,7 +108,7 @@ export function useBackup(): BackupState & BackupActions {
   const localIds = usePersonalRecordIds();
 
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<BackupSettings>(NO_SETTINGS);
+  const [settings, setSettings] = useState<BackupSettings>(NO_BACKUP_SETTINGS);
   const [connected, setConnected] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState(false);
@@ -127,7 +119,7 @@ export function useBackup(): BackupState & BackupActions {
   const configured = provider.isConfigured();
 
   const refreshAccount = useCallback(async (): Promise<void> => {
-    const tokens = await loadTokens(PRIMARY_PROVIDER);
+    const tokens = ownerId ? await loadTokens(PRIMARY_PROVIDER, ownerId) : null;
     setConnected(tokens !== null);
     if (!tokens) {
       setAccount(null);
@@ -140,12 +132,18 @@ export function useBackup(): BackupState & BackupActions {
         .account(tokens)
         .catch(() => null),
     );
-  }, []);
+  }, [ownerId]);
 
+  // Everything below is keyed by the signed-in account, so a sign-out or a
+  // switch has to re-read rather than keep showing what the previous person
+  // had linked. `ownerId` in the dependency list is what makes that happen.
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [stored, key] = await Promise.all([loadBackupSettings(), loadRecoveryKey()]);
+      const [stored, key] = await Promise.all([
+        loadBackupSettings(ownerId),
+        ownerId ? loadRecoveryKey(ownerId) : Promise.resolve(null),
+      ]);
       if (!alive) return;
       setSettings(stored);
       setHasKey(key !== null);
@@ -155,38 +153,39 @@ export function useBackup(): BackupState & BackupActions {
     return () => {
       alive = false;
     };
-  }, [refreshAccount]);
+  }, [ownerId, refreshAccount]);
 
   const connect = useCallback(async (): Promise<boolean> => {
+    if (!ownerId) return false;
     const tokens = await provider.connect();
     // Null is a cancel — the person closed the consent page. Not an error, and
     // the caller must not dress it as one.
     if (!tokens) return false;
-    await saveTokens(PRIMARY_PROVIDER, tokens);
+    await saveTokens(PRIMARY_PROVIDER, ownerId, tokens);
     await refreshAccount();
     return true;
-  }, [provider, refreshAccount]);
+  }, [ownerId, provider, refreshAccount]);
 
   const disconnect = useCallback(async (): Promise<void> => {
-    const tokens = await loadTokens(PRIMARY_PROVIDER);
+    if (!ownerId) return;
+    const tokens = await loadTokens(PRIMARY_PROVIDER, ownerId);
     // Hand the grant back to Google as well as forgetting it here, so "not
     // connected" is true in their account settings too. Best effort: a failed
     // revoke must not leave the app still claiming a link it has dropped.
     if (tokens) await provider.revoke?.(tokens).catch(() => undefined);
-    await clearTokens(PRIMARY_PROVIDER);
-    // The recovery key goes with the link. Keeping it would leave a key on the
+    // Tokens, key and preferences together — the same wipe sign-out runs. The
+    // recovery key goes with the link: keeping it would leave a key on the
     // phone for a file the app can no longer reach, and the person still has
     // their written copy, which is the only one that was ever load-bearing.
-    await clearRecoveryKey();
-    await clearBackupSettings();
-    setSettings(NO_SETTINGS);
+    await clearBackupState(ownerId);
+    setSettings(NO_BACKUP_SETTINGS);
     setHasKey(false);
     setOutcome(null);
     await refreshAccount();
-  }, [provider, refreshAccount]);
+  }, [ownerId, provider, refreshAccount]);
 
   const backupNow = useCallback(async (): Promise<BackupOutcome> => {
-    const key = await loadRecoveryKey();
+    const key = ownerId ? await loadRecoveryKey(ownerId) : null;
     if (!key) {
       const refused: BackupOutcome = { kind: 'refused', refusal: 'no-key' };
       setOutcome(refused);
@@ -211,7 +210,7 @@ export function useBackup(): BackupState & BackupActions {
         if (result.refusal === 'auth') await refreshAccount();
         return refused;
       }
-      await saveLastBackup(result.last);
+      await saveLastBackup(ownerId, result.last);
       setSettings((current) => ({ ...current, last: result.last }));
       const done: BackupOutcome = { kind: 'ok', records: result.last.records };
       setOutcome(done);
@@ -221,47 +220,56 @@ export function useBackup(): BackupState & BackupActions {
     }
   }, [ownerId, records, settings.network, refreshAccount]);
 
-  const setFrequencyAction = useCallback(async (frequency: BackupFrequency): Promise<void> => {
-    setSettings((current) => ({ ...current, frequency }));
-    await saveFrequency(frequency);
-  }, []);
+  const setFrequencyAction = useCallback(
+    async (frequency: BackupFrequency): Promise<void> => {
+      setSettings((current) => ({ ...current, frequency }));
+      await saveFrequency(ownerId, frequency);
+    },
+    [ownerId],
+  );
 
-  const setNetworkAction = useCallback(async (network: SyncNetworkPreference): Promise<void> => {
-    setSettings((current) => ({ ...current, network }));
-    await saveNetwork(network);
-  }, []);
+  const setNetworkAction = useCallback(
+    async (network: SyncNetworkPreference): Promise<void> => {
+      setSettings((current) => ({ ...current, network }));
+      await saveNetwork(ownerId, network);
+    },
+    [ownerId],
+  );
 
   const createKey = useCallback(async (): Promise<string> => {
     const key = mintRecoveryKey();
-    await saveRecoveryKey(key);
+    await saveRecoveryKey(ownerId, key);
     setHasKey(true);
     return bytesToHex(key);
-  }, []);
+  }, [ownerId]);
 
   const revealKey = useCallback(async (): Promise<string | null> => {
-    const key = await loadRecoveryKey();
+    const key = ownerId ? await loadRecoveryKey(ownerId) : null;
     return key ? bytesToHex(key) : null;
-  }, []);
+  }, [ownerId]);
 
-  const acceptKey = useCallback(async (input: string): Promise<boolean> => {
-    const key = parseRecoveryKey(input);
-    if (!key) return false;
-    await saveRecoveryKey(key);
-    setHasKey(true);
-    // A key typed in from elsewhere has self-evidently been kept somewhere, so
-    // there is nothing left to warn this person about.
-    await markKeySeen();
-    setSettings((current) => ({ ...current, keySeen: true }));
-    return true;
-  }, []);
+  const acceptKey = useCallback(
+    async (input: string): Promise<boolean> => {
+      const key = parseRecoveryKey(input);
+      if (!key) return false;
+      await saveRecoveryKey(ownerId, key);
+      setHasKey(true);
+      // A key typed in from elsewhere has self-evidently been kept somewhere,
+      // so there is nothing left to warn this person about.
+      await markKeySeen(ownerId);
+      setSettings((current) => ({ ...current, keySeen: true }));
+      return true;
+    },
+    [ownerId],
+  );
 
   const confirmKeySeen = useCallback(async (): Promise<void> => {
     setSettings((current) => ({ ...current, keySeen: true }));
-    await markKeySeen();
-  }, []);
+    await markKeySeen(ownerId);
+  }, [ownerId]);
 
   const scan = useCallback(async (): Promise<RestoreScan> => {
-    const key = await loadRecoveryKey();
+    const key = ownerId ? await loadRecoveryKey(ownerId) : null;
     if (!key) return { ok: false, refusal: 'no-key' };
     return scanBackup({ ownerId, key, localIds });
   }, [ownerId, localIds]);

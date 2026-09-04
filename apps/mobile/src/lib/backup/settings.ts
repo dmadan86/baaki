@@ -9,6 +9,11 @@
  * Waves' servers how often they back up, and when they last did, would put a
  * shadow of the thing on the server anyway.
  *
+ * Every key carries the owner id. These are device-wide preferences on a device
+ * that is not always one person's, and "when did you last back up, and how
+ * often do you" is a shape of somebody's life that the next person to sign in
+ * on the same phone has no business inheriting.
+ *
  * The network choice reuses `SyncNetworkPreference` rather than inventing a
  * second vocabulary for the same idea — same enum, same `networkAllows`
  * predicate, so the two can never disagree about what "Wi‑Fi only" means. It is
@@ -28,6 +33,11 @@ const NETWORK_KEY = 'waves.backup.network';
 const LAST_KEY = 'waves.backup.last';
 /** Set once the person has been shown their recovery key and confirmed it. */
 const KEY_SEEN_KEY = 'waves.backup.key_seen';
+
+/** Every stored key, for the sign-out wipe. */
+const ALL_KEYS = [FREQUENCY_KEY, NETWORK_KEY, LAST_KEY, KEY_SEEN_KEY] as const;
+
+const scoped = (base: string, ownerId: string): string => `${base}.${ownerId}`;
 
 /**
  * A backup is bigger and less urgent than a sync flush, so it holds for Wi‑Fi
@@ -75,12 +85,21 @@ function parseLast(raw: string | null): LastBackup | null {
   }
 }
 
-export async function loadBackupSettings(): Promise<BackupSettings> {
+/** The defaults, for a signed-out caller or an account that has set nothing. */
+export const NO_BACKUP_SETTINGS: BackupSettings = {
+  frequency: DEFAULT_FREQUENCY,
+  network: DEFAULT_BACKUP_NETWORK,
+  last: null,
+  keySeen: false,
+};
+
+export async function loadBackupSettings(ownerId: string): Promise<BackupSettings> {
+  if (!ownerId) return NO_BACKUP_SETTINGS;
   const [frequency, network, last, keySeen] = await Promise.all([
-    AsyncStorage.getItem(FREQUENCY_KEY).catch(() => null),
-    AsyncStorage.getItem(NETWORK_KEY).catch(() => null),
-    AsyncStorage.getItem(LAST_KEY).catch(() => null),
-    AsyncStorage.getItem(KEY_SEEN_KEY).catch(() => null),
+    AsyncStorage.getItem(scoped(FREQUENCY_KEY, ownerId)).catch(() => null),
+    AsyncStorage.getItem(scoped(NETWORK_KEY, ownerId)).catch(() => null),
+    AsyncStorage.getItem(scoped(LAST_KEY, ownerId)).catch(() => null),
+    AsyncStorage.getItem(scoped(KEY_SEEN_KEY, ownerId)).catch(() => null),
   ]);
   return {
     frequency: parseFrequency(frequency),
@@ -90,35 +109,51 @@ export async function loadBackupSettings(): Promise<BackupSettings> {
   };
 }
 
-export async function saveFrequency(frequency: BackupFrequency): Promise<void> {
+export async function saveFrequency(ownerId: string, frequency: BackupFrequency): Promise<void> {
+  if (!ownerId) return;
+  const key = scoped(FREQUENCY_KEY, ownerId);
   // Storing the default is the same as storing nothing, so a reset-to-default
   // and a fresh install look identical — the same rule `syncNetwork` follows.
-  if (frequency === DEFAULT_FREQUENCY) await AsyncStorage.removeItem(FREQUENCY_KEY);
-  else await AsyncStorage.setItem(FREQUENCY_KEY, frequency);
+  if (frequency === DEFAULT_FREQUENCY) await AsyncStorage.removeItem(key);
+  else await AsyncStorage.setItem(key, frequency);
 }
 
-export async function saveNetwork(network: SyncNetworkPreference): Promise<void> {
-  if (network === DEFAULT_BACKUP_NETWORK) await AsyncStorage.removeItem(NETWORK_KEY);
-  else await AsyncStorage.setItem(NETWORK_KEY, network);
+export async function saveNetwork(ownerId: string, network: SyncNetworkPreference): Promise<void> {
+  if (!ownerId) return;
+  const key = scoped(NETWORK_KEY, ownerId);
+  if (network === DEFAULT_BACKUP_NETWORK) await AsyncStorage.removeItem(key);
+  else await AsyncStorage.setItem(key, network);
 }
 
-export async function saveLastBackup(last: LastBackup): Promise<void> {
-  await AsyncStorage.setItem(LAST_KEY, JSON.stringify(last));
+export async function saveLastBackup(ownerId: string, last: LastBackup): Promise<void> {
+  if (!ownerId) return;
+  await AsyncStorage.setItem(scoped(LAST_KEY, ownerId), JSON.stringify(last));
 }
 
-export async function markKeySeen(): Promise<void> {
-  await AsyncStorage.setItem(KEY_SEEN_KEY, '1');
+export async function markKeySeen(ownerId: string): Promise<void> {
+  if (!ownerId) return;
+  await AsyncStorage.setItem(scoped(KEY_SEEN_KEY, ownerId), '1');
 }
 
 /**
- * Forget everything this device remembered about backing up. Called on unlink
- * alongside the token and key wipes — the Drive file is untouched, since it is
- * the user's and the point of it is to outlive the app's state.
+ * Forget everything this device remembered about `ownerId` backing up. Called
+ * on unlink and on sign-out, alongside the token and key wipes — the Drive file
+ * is untouched, since it is the user's and the point of it is to outlive the
+ * app's state.
+ *
+ * Every key is attempted even after one fails, and the first failure is then
+ * rethrown: a wipe that stopped halfway is worse than one that reports.
  */
-export async function clearBackupSettings(): Promise<void> {
-  await Promise.all(
-    [FREQUENCY_KEY, NETWORK_KEY, LAST_KEY, KEY_SEEN_KEY].map((key) =>
-      AsyncStorage.removeItem(key).catch(() => undefined),
+export async function clearBackupSettings(ownerId: string): Promise<void> {
+  if (!ownerId) return;
+  const failures = await Promise.all(
+    ALL_KEYS.map((base) =>
+      AsyncStorage.removeItem(scoped(base, ownerId)).then(
+        () => null,
+        (error: unknown) => error,
+      ),
     ),
   );
+  const first = failures.find((error) => error !== null);
+  if (first !== undefined) throw first;
 }

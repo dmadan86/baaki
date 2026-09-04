@@ -58,8 +58,14 @@ export const RECOVERY_KEY_LENGTH = KEY_BYTES * 2;
 /** Shown in blocks of this many characters, so it can be read off a screen. */
 const GROUP = 4;
 
-/** The keystore slot this device's copy of the key lives in. */
-const KEY_STORE_SLOT = 'waves.backup.recovery_key.v1';
+/**
+ * The keystore slot this device's copy of the key lives in, per account.
+ *
+ * The owner id is load-bearing on a shared phone: a key is what opens one
+ * account's backup, and an unscoped slot would hand B the key to A's file
+ * (and, with the tokens beside it, the ability to overwrite it).
+ */
+const keySlot = (ownerId: string): string => `waves.backup.recovery_key.v1.${ownerId}`;
 
 // ─────────────────────────────────────────────────────────────── pure ──
 
@@ -131,16 +137,19 @@ export function backupNonce(): Uint8Array {
 }
 
 /**
- * This device's copy of the key, or null when there is none — a fresh install
- * has none, which is precisely the case where the person has to type theirs in.
+ * This device's copy of `ownerId`'s key, or null when there is none — a fresh
+ * install has none, which is precisely the case where the person has to type
+ * theirs in.
  */
-export async function loadRecoveryKey(): Promise<Uint8Array | null> {
-  const hex = await SecureStore.getItemAsync(KEY_STORE_SLOT).catch(() => null);
+export async function loadRecoveryKey(ownerId: string): Promise<Uint8Array | null> {
+  if (!ownerId) return null;
+  const hex = await SecureStore.getItemAsync(keySlot(ownerId)).catch(() => null);
   return hex ? parseRecoveryKey(hex) : null;
 }
 
-export async function saveRecoveryKey(key: Uint8Array): Promise<void> {
-  await SecureStore.setItemAsync(KEY_STORE_SLOT, bytesToHex(key), {
+export async function saveRecoveryKey(ownerId: string, key: Uint8Array): Promise<void> {
+  if (!ownerId) return;
+  await SecureStore.setItemAsync(keySlot(ownerId), bytesToHex(key), {
     // Same posture as the mirror's own key: readable after the first unlock
     // since a foreground backup can run without the person having just
     // authenticated, and never migrated to another device by an OS backup —
@@ -149,7 +158,13 @@ export async function saveRecoveryKey(key: Uint8Array): Promise<void> {
   });
 }
 
-/** Forget this device's copy. The backup stays readable to whoever has the key. */
-export async function clearRecoveryKey(): Promise<void> {
-  await SecureStore.deleteItemAsync(KEY_STORE_SLOT).catch(() => undefined);
+/**
+ * Forget this device's copy. The backup stays readable to whoever has the key.
+ *
+ * Does not swallow: an unlink should say when it failed, and on sign-out a key
+ * left in the keystore is a privacy problem rather than a cosmetic one.
+ */
+export async function clearRecoveryKey(ownerId: string): Promise<void> {
+  if (!ownerId) return;
+  await SecureStore.deleteItemAsync(keySlot(ownerId));
 }

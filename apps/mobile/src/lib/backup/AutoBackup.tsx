@@ -58,12 +58,12 @@ export function AutoBackup() {
       if (now - lastCheckRef.current < CHECK_THROTTLE_MS) return;
       lastCheckRef.current = now;
 
-      const settings = await loadBackupSettings();
+      const settings = await loadBackupSettings(ownerId);
       if (!isDue(settings.last?.at ?? null, settings.frequency, now)) return;
       // Nothing goes out until the person has been shown the recovery key and
       // said they have it — a backup they cannot open is worse than none.
       if (!settings.keySeen) return;
-      const key = await loadRecoveryKey();
+      const key = await loadRecoveryKey(ownerId);
       if (!key) return;
 
       const result = await runBackup({
@@ -75,7 +75,7 @@ export function AutoBackup() {
         manual: false,
       });
       if (!alive || !result.ok) return;
-      await saveLastBackup(result.last);
+      await saveLastBackup(ownerId, result.last);
     };
 
     // Everything in here is best effort and silent. An automatic backup that

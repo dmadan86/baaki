@@ -389,6 +389,14 @@ Three decisions worth knowing:
   is missing and touches nothing it already has — including things it has
   deleted on purpose. Running it twice does nothing the second time.
 
+- **Everything is per-account, on a phone that is not always one person's.** The
+  keystore slots for the Drive tokens and the recovery key, the schedule and
+  last-backup preferences, and the remote filename all carry the owner id, and
+  signing out wipes the departing account's set (`clearBackupState`, called from
+  `clearLocalPrivateData`). The Drive file itself is left alone: it is the
+  user's, it is unreadable without their key, and outliving the app's state is
+  the whole point of it.
+
 Drive needs **its own OAuth clients**, which the app does not otherwise have:
 sign-in goes through Supabase's hosted Google flow and holds no Google client id
 of its own. In the Google Cloud console, on a project with the Drive API
