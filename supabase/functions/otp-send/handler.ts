@@ -188,10 +188,25 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
   // four of somebody's daily codes for a send this function was never capable of
   // making.
   const accountSid = deps.env('TWILIO_ACCOUNT_SID');
-  const authToken = deps.env('TWILIO_AUTH_TOKEN');
   const from = deps.env('TWILIO_WHATSAPP_FROM');
   const contentSid = deps.env('TWILIO_OTP_CONTENT_SID');
-  if (!accountSid || !authToken || !from || !contentSid) {
+
+  // Twilio takes either the account's own auth token or an API key pair, and
+  // the pair is the better credential: it is scoped, it can be revoked on its
+  // own, and losing it does not mean rotating the token every other integration
+  // shares. The key is preferred when present, with the auth token still
+  // accepted so an existing deployment keeps working unchanged.
+  //
+  // Only the *username* changes. The account SID stays in the URL either way,
+  // because an API key identifies who is calling, never which account is being
+  // billed — a key without `TWILIO_ACCOUNT_SID` beside it cannot address
+  // anything, which is why it is required below regardless.
+  const keySid = deps.env('TWILIO_API_KEY_SID');
+  const keySecret = deps.env('TWILIO_API_KEY_SECRET');
+  const user = keySid && keySecret ? keySid : accountSid;
+  const authSecret = keySid && keySecret ? keySecret : deps.env('TWILIO_AUTH_TOKEN');
+
+  if (!accountSid || !user || !authSecret || !from || !contentSid) {
     return hookError(500, 'WhatsApp sending is not configured');
   }
 
@@ -248,7 +263,7 @@ export async function handleOtpSend(request: Request, deps: OtpSendDeps): Promis
       {
         method: 'POST',
         headers: {
-          Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+          Authorization: `Basic ${btoa(`${user}:${authSecret}`)}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: form.toString(),

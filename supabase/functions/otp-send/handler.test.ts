@@ -219,6 +219,41 @@ describe('otp-send', () => {
     expect(d.rpc).not.toHaveBeenCalled();
   });
 
+  it('prefers an API key over the account auth token, and still bills the account', async () => {
+    const d = deps({
+      env: { TWILIO_API_KEY_SID: 'SKabc', TWILIO_API_KEY_SECRET: 'keysecret' },
+    });
+    await handleOtpSend(request(), d);
+
+    const [url, init] = d.fetchImpl.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    // The key is who is calling; the account is who is billed. Twilio needs
+    // both, and an API key in the URL would address nothing.
+    expect(headers.Authorization).toBe(`Basic ${btoa('SKabc:keysecret')}`);
+    expect(url).toContain('/Accounts/AC123/Messages.json');
+  });
+
+  it('falls back to the account auth token when no API key is set', async () => {
+    const d = deps();
+    await handleOtpSend(request(), d);
+
+    const [, init] = d.fetchImpl.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(`Basic ${btoa('AC123:tok')}`);
+  });
+
+  it('refuses a half-configured API key rather than sending as the account', async () => {
+    // A key SID with no secret is a deploy mid-rotation. Quietly falling back
+    // to the auth token would send under a credential the operator believed
+    // they had moved off, so the send is refused instead.
+    const d = deps({ env: { TWILIO_API_KEY_SID: 'SKabc', TWILIO_AUTH_TOKEN: '' } });
+    const response = await handleOtpSend(request(), d);
+
+    expect(response.status).toBe(500);
+    expect(d.fetchImpl).not.toHaveBeenCalled();
+    expect(d.rpc).not.toHaveBeenCalled();
+  });
+
   it('refuses an oversized body before buffering it, and before any spend', async () => {
     // The endpoint is reachable without a JWT, and the signature cannot be
     // checked until the bytes are in hand — so the size limit is the only thing
