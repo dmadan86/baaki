@@ -163,7 +163,7 @@ enabled = false
 # Same value in both, or every genuine request is answered 401.
 [auth.hook.send_sms]
 enabled = false
-uri = "https://<project-ref>.supabase.co/functions/v1/otp-send"
+uri = "https://ywojpnfyxxltvihqmcni.supabase.co/functions/v1/otp-send"
 secrets = "env(SEND_SMS_HOOK_SECRETS)"
 
 # The client id is not a secret — it travels in every authorize URL and is
