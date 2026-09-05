@@ -5,8 +5,10 @@ import { Alert, ScrollView, View } from 'react-native';
 
 import {
   Badge,
+  Button,
   Card,
   directionalIcon,
+  EmptyState,
   IconButton,
   iconSize,
   ListRow,
@@ -171,14 +173,34 @@ function SettledPill({ profileId, locale }: { profileId: string | null; locale: 
 }
 
 export default function ProfileScreen() {
-  const { profile } = useAuth();
+  const { profile, profileSettled, reloadProfile } = useAuth();
+  const { t } = useStrings();
+
   // The hero seeds nothing editable now, but the settings summaries below still
   // read the profile — hold on a skeleton until it arrives so the first paint
   // is the real thing, not a flash of defaults.
+  //
+  // Only while it can still arrive, though. A skeleton is a promise that
+  // something is coming, and when the profile load has run itself out that
+  // promise is false: this screen used to keep it anyway and shimmered for ever
+  // on an account whose profile row was never written. `profileSettled` is the
+  // load saying it has finished empty, and the answer to that is an error with
+  // a retry, not a loading state that never ends.
   if (!profile) {
+    if (!profileSettled) {
+      return (
+        <Screen>
+          <SkeletonList rows={6} />
+        </Screen>
+      );
+    }
     return (
       <Screen>
-        <SkeletonList rows={6} />
+        <EmptyState
+          title={t.loadError}
+          body={t.loadErrorBody}
+          action={<Button label={t.retry} variant="secondary" onPress={reloadProfile} />}
+        />
       </Screen>
     );
   }

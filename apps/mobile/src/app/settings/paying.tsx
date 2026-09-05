@@ -22,6 +22,7 @@ import {
   Card,
   ChipRow,
   directionalIcon,
+  EmptyState,
   IconButton,
   iconSize,
   Row,
@@ -37,13 +38,26 @@ import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function PayingScreen() {
-  const { profile } = useAuth();
+  const { profile, profileSettled, reloadProfile } = useAuth();
+  const { t } = useStrings();
   // Seed once, keyed on the id, so Save never writes an empty seed over a real
   // row before the profile has loaded.
+  //
+  // Blank while it is on its way, but not blank for ever: when the load has
+  // settled with no profile it is not coming, and an empty screen with no way
+  // out is the wrong answer to that.
   if (!profile) {
     return (
       <Screen>
-        <View />
+        {profileSettled ? (
+          <EmptyState
+            title={t.loadError}
+            body={t.loadErrorBody}
+            action={<Button label={t.retry} variant="secondary" onPress={reloadProfile} />}
+          />
+        ) : (
+          <View />
+        )}
       </Screen>
     );
   }
