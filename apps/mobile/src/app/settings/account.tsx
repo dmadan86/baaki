@@ -19,6 +19,7 @@ import {
   Card,
   ChipRow,
   directionalIcon,
+  EmptyState,
   IconButton,
   iconSize,
   Row,
@@ -39,15 +40,28 @@ import { deviceCountry, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export default function AccountScreen() {
-  const { profile } = useAuth();
+  const { profile, profileSettled, reloadProfile } = useAuth();
+  const { t } = useStrings();
   // The name field seeds from `profile` exactly once. Mount the form only once
   // there is a profile to seed from, keyed on its id, so a name that arrives
   // after the first paint is not left as an empty seed that Save would write
   // back over the real row.
+  //
+  // Blank while it is on its way, but not blank for ever: when the load has
+  // settled with no profile it is not coming, and an empty screen with no way
+  // out is the wrong answer to that.
   if (!profile) {
     return (
       <Screen>
-        <View />
+        {profileSettled ? (
+          <EmptyState
+            title={t.loadError}
+            body={t.loadErrorBody}
+            action={<Button label={t.retry} variant="secondary" onPress={reloadProfile} />}
+          />
+        ) : (
+          <View />
+        )}
       </Screen>
     );
   }

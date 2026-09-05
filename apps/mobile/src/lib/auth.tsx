@@ -186,6 +186,106 @@ export interface Profile {
 }
 
 /**
+ * Every column a screen reads off the signed-in person. One list, because the
+ * initial load, the self-heal re-read and `updateProfile` must all come back
+ * shaped the same — a `Profile` assembled from three different column sets is
+ * three subtly different objects.
+ */
+const PROFILE_COLUMNS =
+  'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, address, default_currency, locale';
+
+/** The name an OAuth provider sent, under whichever key it chose. */
+function metadataName(user: Session['user']): string | null {
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  for (const key of ['display_name', 'full_name', 'name'] as const) {
+    const value = meta[key];
+    if (typeof value === 'string' && value.trim() !== '') return value.trim();
+  }
+  return null;
+}
+
+/** The photo an OAuth provider sent, under whichever key it chose. */
+function metadataAvatar(user: Session['user']): string | null {
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  for (const key of ['avatar_url', 'picture'] as const) {
+    const value = meta[key];
+    if (typeof value === 'string' && value.trim() !== '') return value.trim();
+  }
+  return null;
+}
+
+/**
+ * Read this account's profile row, and make one if the database never did.
+ *
+ * The row is normally written by a trigger on `auth.users`, which can land a
+ * beat after the session on a brand-new account — hence the short retry.
+ *
+ * The retry used to be the whole story, and that was the bug: when the row was
+ * *absent* rather than late, this gave up after a second or two and left
+ * `profile` null forever. Nothing retried it, nothing reported it, and every
+ * screen that waits on a profile waited for good — the settings tab sat on its
+ * skeleton and the dashboard showed initials for a name it did not have. That
+ * is exactly what happened when the rebuilt project lost the trigger.
+ *
+ * So the absent case is now handled rather than waited out: `profiles_insert_self`
+ * lets somebody create their own row, so the client writes the same row the
+ * trigger would have, from the metadata the provider sent. Both paths converge
+ * on one re-read, so what lands in state came from the database either way.
+ *
+ * Returns true when a profile was handed to `set`, false when it gave up — the
+ * caller shows an error with a retry rather than an endless skeleton.
+ */
+async function loadProfile(
+  user: Session['user'],
+  set: (profile: Profile) => void,
+): Promise<boolean> {
+  const read = async (): Promise<Profile | null> => {
+    const { data, error } = await backend
+      .from('profiles')
+      .select(PROFILE_COLUMNS)
+      .eq('id', user.id)
+      .maybeSingle();
+    // A refused or failed read is not "no profile" — it must not lead to an
+    // insert that would then collide with a row that is already there.
+    if (error) throw new Error(error.message);
+    return (data as Profile | null) ?? null;
+  };
+
+  try {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const found = await read();
+      if (found) {
+        set(found);
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+
+    // Still nothing: the trigger is not going to write it. Write it here.
+    const { error: insertError } = await backend.from('profiles').insert({
+      id: user.id,
+      // ADR-006: anonymous guests get an account too, just an unnamed one.
+      display_name: metadataName(user) ?? 'Guest',
+      avatar_url: metadataAvatar(user),
+    });
+    // A conflict means the trigger won the race after all — the re-read below
+    // picks up its row, so this is a success, not a failure.
+    if (insertError && insertError.code !== '23505') throw new Error(insertError.message);
+
+    const healed = await read();
+    if (healed) {
+      set(healed);
+      return true;
+    }
+    reportHandled(new Error('profile row missing after self-heal'), 'auth.loadProfile');
+    return false;
+  } catch (caught) {
+    reportHandled(caught, 'auth.loadProfile');
+    return false;
+  }
+}
+
+/**
  * What a password attempt led to, for the one case the caller must react to:
  * an email sign-up with confirmations on returns no session until the link is
  * followed, so `verifyEmail` carries the address to send them to a
@@ -200,6 +300,15 @@ interface AuthValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  /**
+   * The profile load has finished without a profile — it is not coming on its
+   * own. Screens that need one show an error with a retry on this rather than
+   * holding a skeleton for ever; `profile === null && !profileSettled` is the
+   * honest "still loading".
+   */
+  profileSettled: boolean;
+  /** Run the profile load again, for the retry that error offers. */
+  reloadProfile: () => void;
   /** ADR-006: a guest can use the app before deciding to be a user. */
   isGuest: boolean;
   sendOtp: (phone: string) => Promise<void>;
@@ -239,6 +348,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Whether the profile load has run itself out. Bumping `profileAttempt` is
+  // what a retry does: it is the load effect's other dependency.
+  const [profileSettled, setProfileSettled] = useState(false);
+  const [profileAttempt, setProfileAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -281,6 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (currentUserId !== profileFor) {
     setProfileFor(currentUserId);
     setProfile(null);
+    setProfileSettled(false);
   }
 
   // A crash report carries the account id and nothing else about who it is —
@@ -300,36 +414,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!session?.user) return;
+    const user = session.user;
     let active = true;
+    // `profileSettled` is already false here — reset during render when the
+    // account changes, and by `reloadProfile` on a retry — so this effect only
+    // ever has to record the giving-up, never the starting.
     void (async () => {
-      // The profile row is created by a trigger on auth.users, so it may land a
-      // beat after the session does on a brand-new account.
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const { data } = await backend
-          .from('profiles')
-          .select(
-            'id, display_name, avatar_url, default_vpa, payment_rail, payment_handle, country_code, address, default_currency, locale',
-          )
-          .eq('id', session.user.id)
-          .maybeSingle();
-        if (!active) return;
-        if (data) {
-          setProfile(data as Profile);
-          return;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-      }
+      const loaded = await loadProfile(user, (next) => {
+        if (active) setProfile(next);
+      });
+      if (active && !loaded) setProfileSettled(true);
     })();
     return () => {
       active = false;
     };
-  }, [session?.user]);
+  }, [session?.user, profileAttempt]);
 
   const value = useMemo<AuthValue>(
     () => ({
       session,
       profile,
       loading,
+      profileSettled,
+      reloadProfile: () => {
+        setProfileSettled(false);
+        setProfileAttempt((n) => n + 1);
+      },
       isGuest: session?.user?.is_anonymous === true,
 
       async sendOtp(phone) {
@@ -476,7 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await backend.auth.signOut();
       },
     }),
-    [session, profile, loading],
+    [session, profile, loading, profileSettled],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
