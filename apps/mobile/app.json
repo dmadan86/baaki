@@ -18,6 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.wavs.mobile",
+      "appleTeamId": "JBAY4E524Q",
       "usesAppleSignIn": true
     },
     "android": {
