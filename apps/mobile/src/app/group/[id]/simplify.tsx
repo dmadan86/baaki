@@ -31,9 +31,16 @@ import {
 import { memberLookup, useGhostMergePersonIds, useGroup, useGroupLedger } from '@/data/hooks';
 import { useBlockedUsers } from '@/data/blocked';
 import { personKeyOf } from '@/data/peopleBalances';
-import { displayName, groupLabel, isBlockedMember, isGhost, type MemberRow } from '@/data/types';
+import {
+  displayName,
+  groupLabel,
+  isBlockedMember,
+  isGhost,
+  isViewer,
+  type MemberRow,
+} from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
 import { SimplifySide, simplifyItems, type SimplifyItem } from '@/lib/simplifyRows';
@@ -160,10 +167,16 @@ export default function SimplifyScreen() {
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members } = useGroup(groupId);
-  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const ledger = useGroupLedger(groupId, viewerId);
   const { blockedIds } = useBlockedUsers();
   const mergePersonIds = useGhostMergePersonIds();
   const lookup = useMemo(() => memberLookup(members.data), [members.data]);
@@ -192,7 +205,7 @@ export default function SimplifyScreen() {
     (member: MemberRow | undefined): string | null => {
       if (!member) return null;
       if (member.id === ledger.myMemberId) return null;
-      if (member.profile_id !== null && member.profile_id === profile?.id) return null;
+      if (isViewer(member, viewerId)) return null;
       if (member.pending) return null;
       return personKeyOf({
         profileId: member.profile_id,
@@ -200,7 +213,7 @@ export default function SimplifyScreen() {
         memberId: member.id,
       });
     },
-    [ledger.myMemberId, mergePersonIds, profile?.id],
+    [ledger.myMemberId, mergePersonIds, viewerId],
   );
 
   const items = useMemo(
@@ -287,7 +300,7 @@ export default function SimplifyScreen() {
             {/* `groupLabel`, not `group.name`: a group nobody named is called
                 after the people in it everywhere else in the app, and an empty
                 line under the title reads as a screen that failed to load. */}
-            {groupLabel(group.data, members.data ?? [], profile?.id)}
+            {groupLabel(group.data, members.data ?? [], viewerId)}
           </Text>
         </View>
         <View style={{ width: 44 }} />

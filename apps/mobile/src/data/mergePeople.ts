@@ -16,6 +16,7 @@
 import { sameAddress } from '@/lib/contactMatch';
 
 import type { PersonBalanceRow } from './api';
+import { isGhost } from './types';
 
 /**
  * Only a ghost — someone with no Waves account — can be merged. A real person is
@@ -138,7 +139,7 @@ export function buildMergeCandidates(
   const byKey = new Map<string, Draft>();
   for (const member of members) {
     if (member.left_at !== null) continue;
-    if (!isMergeable({ is_ghost: member.profile_id === null })) continue;
+    if (!isMergeable({ is_ghost: isGhost(member) })) continue;
 
     const merge = merges.get(member.id) ?? null;
     // A ghost merge the viewer recorded is their own proof that two rows are one

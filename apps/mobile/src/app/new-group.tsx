@@ -40,11 +40,11 @@ import { TripDates, type TripDatesValue } from '@/components/TripDates';
 import { requestContacts } from '@/lib/contactPickerBridge';
 import { useCaptures, useCreateGroup, useGroup } from '@/data/hooks';
 import { assignCaptureHref } from '@/lib/captureAssign';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useViewerId } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { useSync } from '@/sync';
-import { displayName, GroupType } from '@/data/types';
+import { displayName, GroupType, isViewer } from '@/data/types';
 import { deviceCountry, fill, useStrings } from '@/i18n';
 
 /**
@@ -91,6 +91,12 @@ export default function NewGroupScreen() {
   const { t, locale } = useStrings();
   const createGroup = useCreateGroup();
   const { profile } = useAuth();
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
   const currency = useDefaultCurrency();
   const guard = useGuestGuard();
   const { mutate } = useSync();
@@ -210,9 +216,9 @@ export default function NewGroupScreen() {
     // ones already on Waves can be tapped on their shoulder when re-added.
     const seededGhosts: PickedContact[] = members
       .filter((member) => !member.left_at)
-      .filter((member) => !(member.profile_id && member.profile_id === profile?.id))
+      .filter((member) => !isViewer(member, viewerId))
       .map((member) => ({
-        name: displayName(member, profile?.id),
+        name: displayName(member, viewerId),
         email: member.invite_email ?? null,
         phone: member.invite_phone ?? null,
       }));
@@ -243,7 +249,7 @@ export default function NewGroupScreen() {
       }
       setGhosts(seededGhosts);
     });
-  }, [cloning, sourceGroup, sourceMembers, profile?.id, t]);
+  }, [cloning, sourceGroup, sourceMembers, viewerId, t]);
 
   // The kind is a reading of the name, unless somebody has chosen one, and
   // Other when the name says nothing — never Trip by default, so the trip-only

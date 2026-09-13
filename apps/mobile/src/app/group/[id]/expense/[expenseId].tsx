@@ -48,9 +48,9 @@ import {
 } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
 import { useBlockedUsers } from '@/data/blocked';
-import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
+import { displayName, groupLabel, isBlockedMember, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings, type UiStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { expenseReceiptPath, expenseReceiptUrl } from '@/data/api';
 import { coordLabel, mapsUrl } from '@/lib/location';
 import { useBottomClearance } from '@/lib/clearance';
@@ -97,7 +97,12 @@ export default function ExpenseDetailScreen() {
   const { confirm } = useDialog();
   const { id, expenseId } = useLocalSearchParams<{ id: string; expenseId: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
   const versions = useExpenseVersions(expenseId ?? '');
@@ -149,8 +154,7 @@ export default function ExpenseDetailScreen() {
   // still SEE any group-visible attachment; they just cannot add or see a private
   // one. Computed from the mirror; the server is the real gate.
   const myMemberId =
-    (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.id ??
-    null;
+    (members.data ?? []).find((m) => isViewer(m, viewerId) && m.left_at === null)?.id ?? null;
   const isExpenseParty = Boolean(
     myMemberId &&
     version &&
@@ -179,11 +183,10 @@ export default function ExpenseDetailScreen() {
   // Admin of this group — the moderation lever on the comment thread (delete
   // anyone's, resolve a report). The server re-checks; this only shows controls.
   const iAmAdmin =
-    (members.data ?? []).find((m) => m.profile_id === profile?.id && m.left_at === null)?.role ===
-    'admin';
+    (members.data ?? []).find((m) => isViewer(m, viewerId) && m.left_at === null)?.role === 'admin';
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
+    return member ? displayName(member, viewerId, blockedIds, t.misc.someone) : t.misc.someone;
   };
   // The label reads "You"; the avatar keeps the real name so the current user's
   // circle is the same initial and colour here as on every other screen — a
@@ -553,7 +556,7 @@ export default function ExpenseDetailScreen() {
                 <DetailRow
                   icon="people-circle-outline"
                   label={t.expense.detailGroup}
-                  value={groupLabel(group.data, members.data ?? [], profile?.id)}
+                  value={groupLabel(group.data, members.data ?? [], viewerId)}
                 />
                 <DetailRow
                   icon="wallet-outline"
@@ -727,7 +730,7 @@ export default function ExpenseDetailScreen() {
                     locale,
                   });
                   const spokenName = nameOf(row.memberId);
-                  const isMe = Boolean(member?.profile_id && member.profile_id === profile?.id);
+                  const isMe = member ? isViewer(member, viewerId) : false;
                   const spokenBalance = isMe
                     ? moneyAccessibilityLabel(
                         { minor: row.net, currency },

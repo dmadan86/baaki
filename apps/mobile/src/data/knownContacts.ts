@@ -29,6 +29,7 @@ import { useSync } from '@/sync';
 import { useAuth } from '@/lib/auth';
 import { buildKnownIndex, type KnownGroupInput, type KnownIndex } from '@/lib/contactMatch';
 import { displayName, groupLabel, type GroupRow, type MemberRow } from '@/data/types';
+import { isViewer } from './types';
 
 /** Everything the contacts screen needs to know about who it already has. */
 export interface KnownContacts {
@@ -68,7 +69,7 @@ export function useKnownContacts(): KnownContacts {
         members: members
           // You are not somebody you can add to a group, so leaving yourself out
           // keeps your own contact card from claiming to be already added.
-          .filter((member) => !(member.profile_id && member.profile_id === profileId))
+          .filter((member) => !isViewer(member, profileId))
           .map((member) => ({
             name: displayName(member, profileId),
             email: member.invite_email ?? null,

@@ -700,3 +700,36 @@ export function useAuth(): AuthValue {
   if (!value) throw new Error('useAuth must be used inside AuthProvider');
   return value;
 }
+
+/**
+ * Who the person holding the phone is, for the purpose of finding themselves in
+ * a group's member list.
+ *
+ * This is `session.user.id`, deliberately, and not `profile.id`. They are the
+ * same id by construction — `loadProfile` selects the profile row whose id *is*
+ * the session user's — but they do not arrive together:
+ *
+ *   * The **session** is restored from secure storage during launch. No
+ *     network. It is there on the first frame, offline included.
+ *   * The **profile** is a fetch with up to five retries. On mobile data it
+ *     lands a second or more later; with no signal it may not land at all.
+ *
+ * Taking identity from the profile therefore made a network round trip a
+ * prerequisite for answering a question the device could already answer, which
+ * is the opposite of what ADR-005 asks of every other surface. And the gap had
+ * a *wrong* answer in it rather than an empty one: with `profile?.id`
+ * undefined, `member.profile_id === profile?.id` matches the first ghost in the
+ * group — a ghost being exactly a member with no profile id — so screens
+ * computed balances, payers and shares from somebody else's point of view and
+ * rendered them with complete confidence. The dashboard showed a −₹82,001 that
+ * was really a +₹112,807.
+ *
+ * So identity comes from here, and the comparison goes through
+ * `data/types.isViewer`, which matches nothing at all when there is no viewer.
+ * The **profile** remains the right source for what a profile actually holds —
+ * a display name, an avatar, a default currency — and a name that arrives a
+ * beat late is not a wrong name.
+ */
+export function useViewerId(): string | null {
+  return useAuth().session?.user?.id ?? null;
+}

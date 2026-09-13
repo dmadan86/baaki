@@ -57,7 +57,7 @@ import {
 } from '@/data/hooks';
 import { useKnownContacts } from '@/data/knownContacts';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { useBlockedUsers } from '@/data/blocked';
 import { useDialog } from '@/lib/dialog';
@@ -68,6 +68,7 @@ import {
   GroupType,
   isBlockedMember,
   isGhost,
+  isViewer,
   payableAt,
 } from '@/data/types';
 
@@ -146,10 +147,16 @@ export default function GroupSettingsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members } = useGroup(groupId);
-  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const ledger = useGroupLedger(groupId, viewerId);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
   const deleteGroup = useDeleteGroup(groupId);
@@ -285,11 +292,11 @@ export default function GroupSettingsScreen() {
     const raw = membersByGroup.get(sourceGroup.id) ?? [];
     return {
       groupId: sourceGroup.id,
-      groupLabel: groupLabel(sourceGroup, raw, profile?.id ?? null),
+      groupLabel: groupLabel(sourceGroup, raw, viewerId),
       members: raw.map((member) => ({
         memberId: member.id,
         profileId: member.profile_id,
-        name: displayName(member, profile?.id ?? null),
+        name: displayName(member, viewerId),
         email: member.invite_email ?? null,
         phone: member.invite_phone ?? null,
         leftAt: member.left_at,
@@ -298,7 +305,7 @@ export default function GroupSettingsScreen() {
   });
   const fromAnotherGroupOffer = offerFromOtherGroups({
     currentGroupId: groupId,
-    viewerProfileId: profile?.id ?? null,
+    viewerProfileId: viewerId,
     groups: sourceGroups,
   });
 
@@ -442,7 +449,7 @@ export default function GroupSettingsScreen() {
   // Deleting a group is an admin power (like changing roles). A non-admin never
   // sees the button; the RPC refuses it regardless (NOT_ADMIN).
   const isAdmin = (members.data ?? []).some(
-    (member) => member.profile_id === profile?.id && member.role === 'admin',
+    (member) => isViewer(member, viewerId) && member.role === 'admin',
   );
 
   const leave = async (): Promise<void> => {
@@ -664,7 +671,7 @@ export default function GroupSettingsScreen() {
                 onSubmitEditing={commitName}
                 returnKeyType="done"
                 accessibilityLabel={t.group.groupName}
-                placeholder={groupLabel(null, members.data ?? [], profile?.id)}
+                placeholder={groupLabel(null, members.data ?? [], viewerId)}
                 placeholderTextColor={theme.color.textFaint}
                 style={{
                   fontSize: 20,
@@ -816,7 +823,7 @@ export default function GroupSettingsScreen() {
             {(members.data ?? []).map((member, index) => (
               <View key={member.id}>
                 <ListRow
-                  title={displayName(member, profile?.id, blockedIds, t.misc.someone)}
+                  title={displayName(member, viewerId, blockedIds, t.misc.someone)}
                   subtitle={
                     isGhost(member)
                       ? t.notJoinedYet
