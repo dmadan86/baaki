@@ -74,13 +74,19 @@ export function buildMerchantDestinations(expenses: readonly FiledExpense[]): Ma
   for (const [name, byGroup] of tally) {
     let newest: { groupId: string; count: number; last: string } | null = null;
     let busiest = 0;
+    let busiestGroups = 0;
     for (const [groupId, stats] of byGroup) {
       if (!newest || stats.last > newest.last) newest = { groupId, ...stats };
-      busiest = Math.max(busiest, stats.count);
+      if (stats.count > busiest) {
+        busiest = stats.count;
+        busiestGroups = 1;
+      } else if (stats.count === busiest) {
+        busiestGroups += 1;
+      }
     }
-    // The most recent group has to be the most-used one too, or the merchant
-    // has no settled home and the row asks rather than guesses.
-    if (newest && newest.count >= busiest) answer.set(name, newest.groupId);
+    // The most recent group has to be the only most-used one too, or the
+    // merchant has no settled home and the row asks rather than guesses.
+    if (newest && newest.count === busiest && busiestGroups === 1) answer.set(name, newest.groupId);
   }
   return answer;
 }
