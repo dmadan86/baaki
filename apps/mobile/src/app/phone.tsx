@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   ActivityIndicator,
@@ -42,7 +43,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { dialingCodeForCountry } from '@waves/core';
+import { dialingCodeForCountry, splitDialCode } from '@waves/core';
 
 import { CountryCodePicker } from '@/components/CountryCodePicker';
 import { OtpInput, OTP_LEN } from '@/components/OtpInput';
@@ -63,16 +64,27 @@ export default function PhoneScreen() {
   const { t } = useStrings();
   const { sendOtp, verifyOtp, continueAsGuest } = useAuth();
 
+  // A number carried in from the sign-in card, where one field takes an email
+  // or a number and the person typed a number. It arrives as one string and
+  // this screen holds two halves, so it is taken apart: a `+`-prefixed number
+  // in a country we stock sets the picker too, and anything else is kept as
+  // digits under whatever country the guess below chose. Typing it twice is
+  // the thing worth avoiding; a wrong flag is not an improvement on that.
+  const params = useLocalSearchParams<{ number?: string }>();
+  const carried = typeof params.number === 'string' ? params.number : '';
+  const split = splitDialCode(carried);
+
   // Same guess as the auth card: the handset's own country, India only when the
   // region is unknown or unstocked. The picker beside the field makes any wrong
   // guess a one-tap fix.
   const [country, setCountry] = useState<string>(() => {
+    if (split) return split.country;
     const guess = deviceCountry();
     return guess && dialingCodeForCountry(guess) ? guess : 'IN';
   });
   const dialCode = dialingCodeForCountry(country) ?? '+91';
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => (split ? split.national : carried.replace(/\D/g, '')));
   const [code, setCode] = useState('');
   const [stage, setStage] = useState<'phone' | 'code'>('phone');
   const [busy, setBusy] = useState(false);

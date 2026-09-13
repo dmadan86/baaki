@@ -1356,6 +1356,7 @@ export interface UiStrings {
         password field. */
     forgotPassword: string;
     emailMeACode: string;
+    textMeACode: string;
     /** The seam above the icon tiles (Google, Apple, phone). */
     orContinueWith: string;
     /** The one muted line under each door's title. */
@@ -1375,6 +1376,7 @@ export interface UiStrings {
     /** Shown when the email-code or forgot-password link is tapped with no
         address typed, since both mail to whatever is in the field. */
     enterEmailFirst: string;
+    enterEmailOrPhoneFirst: string;
     /** Fallback when a sign-in attempt fails with nothing a person can act on. */
     couldNotSignIn: string;
     restartToMirror: string;
@@ -4359,6 +4361,7 @@ const en: UiStrings = {
       'Everything you have already added stays exactly where it is. This only adds a way to sign back in.',
     forgotPassword: 'Forgot password',
     emailMeACode: 'Email me a code',
+    textMeACode: 'Text me a code',
     orContinueWith: 'or continue with',
     loginSubline: 'Pick up your groups where you left them.',
     signupSubline: 'Split your first bill in under a minute.',
@@ -4371,6 +4374,7 @@ const en: UiStrings = {
     resendIn: 'Resend in {s}s',
     usePasswordInstead: 'Use a password instead',
     enterEmailFirst: 'Enter your email first',
+    enterEmailOrPhoneFirst: 'Enter your email or phone number first',
     couldNotSignIn: 'Could not sign in. Please try again.',
     restartToMirror: 'Close and open Waves once to mirror the layout.',
     restartToUnmirror: 'Close and open Waves once to turn the layout back.',
@@ -7162,6 +7166,7 @@ const ta: UiStrings = {
       'நீங்கள் ஏற்கனவே சேர்த்த அனைத்தும் அப்படியே இருக்கும். இது மீண்டும் உள்நுழைய ஒரு வழியை மட்டுமே சேர்க்கிறது.',
     forgotPassword: 'கடவுச்சொல் மறந்துவிட்டதா',
     emailMeACode: 'எனக்கு ஒரு குறியீட்டை மின்னஞ்சல் அனுப்பு',
+    textMeACode: 'எனக்கு ஒரு குறியீட்டை SMS அனுப்பு',
     orContinueWith: 'அல்லது இதன் மூலம் தொடர்க',
     loginSubline: 'விட்ட இடத்திலிருந்து உங்கள் குழுக்களைத் தொடருங்கள்.',
     signupSubline: 'ஒரு நிமிடத்திற்குள் முதல் பில்லைப் பிரியுங்கள்.',
@@ -7174,6 +7179,7 @@ const ta: UiStrings = {
     resendIn: '{s}வி இல் மீண்டும் அனுப்பு',
     usePasswordInstead: 'பதிலாக கடவுச்சொல்லைப் பயன்படுத்து',
     enterEmailFirst: 'முதலில் உங்கள் மின்னஞ்சலை உள்ளிடவும்',
+    enterEmailOrPhoneFirst: 'முதலில் உங்கள் மின்னஞ்சல் அல்லது தொலைபேசி எண்ணை உள்ளிடவும்',
     couldNotSignIn: 'உள்நுழைய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     restartToMirror: 'தளவமைப்பைப் பிரதிபலிக்க Waves-ஐ ஒருமுறை மூடித் திறக்கவும்.',
     restartToUnmirror: 'தளவமைப்பை மீண்டும் மாற்ற Waves-ஐ ஒருமுறை மூடித் திறக்கவும்.',
@@ -10043,6 +10049,7 @@ const hi: UiStrings = {
       'आपने जो जोड़ा है वह जहाँ है वहीं रहेगा। इससे सिर्फ़ दोबारा साइन इन करने का रास्ता जुड़ता है।',
     forgotPassword: 'पासवर्ड भूल गए',
     emailMeACode: 'मुझे एक कोड ईमेल करें',
+    textMeACode: 'मुझे एक कोड SMS करें',
     orContinueWith: 'या इससे जारी रखें',
     loginSubline: 'अपने ग्रुप वहीं से आगे बढ़ाएँ जहाँ छोड़ा था।',
     signupSubline: 'एक मिनट से कम में पहला बिल बाँटें।',
@@ -10055,6 +10062,7 @@ const hi: UiStrings = {
     resendIn: '{s}से में फिर भेजें',
     usePasswordInstead: 'इसके बजाय पासवर्ड इस्तेमाल करें',
     enterEmailFirst: 'पहले अपना ईमेल दर्ज करें',
+    enterEmailOrPhoneFirst: 'पहले अपना ईमेल या फ़ोन नंबर दर्ज करें',
     couldNotSignIn: 'साइन इन नहीं हो सका। फिर से कोशिश करें।',
     restartToMirror: 'लेआउट की दिशा बदलने के लिए Waves को एक बार बंद करके खोलें।',
     restartToUnmirror: 'लेआउट वापस पलटने के लिए Waves को एक बार बंद करके खोलें।',
@@ -12893,6 +12901,7 @@ const ar: UiStrings = {
     guestFootnote: 'كل ما أضفته يبقى كما هو تمامًا. هذا يضيف فقط طريقة للعودة وتسجيل الدخول.',
     forgotPassword: 'نسيت كلمة المرور',
     emailMeACode: 'أرسل لي رمزًا بالبريد',
+    textMeACode: 'أرسل لي رمزًا برسالة نصية',
     orContinueWith: 'أو تابع عبر',
     loginSubline: 'تابع مجموعاتك من حيث توقفت.',
     signupSubline: 'قسّم أول فاتورة في أقل من دقيقة.',
@@ -12905,6 +12914,7 @@ const ar: UiStrings = {
     resendIn: 'إعادة الإرسال خلال {s} ث',
     usePasswordInstead: 'استخدم كلمة مرور بدلاً من ذلك',
     enterEmailFirst: 'أدخل بريدك الإلكتروني أولاً',
+    enterEmailOrPhoneFirst: 'أدخل بريدك الإلكتروني أو رقم هاتفك أولاً',
     couldNotSignIn: 'تعذّر تسجيل الدخول. حاول مرة أخرى.',
     restartToMirror: 'أغلق Waves وافتحه مرة واحدة لعكس اتجاه الواجهة.',
     restartToUnmirror: 'أغلق Waves وافتحه مرة واحدة لإعادة اتجاه الواجهة.',
