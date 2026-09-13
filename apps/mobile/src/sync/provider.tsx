@@ -27,7 +27,7 @@ import { useAuth } from '@/lib/auth';
 import { reportHandled } from '@/lib/observability';
 import { clearBackupState } from '@/lib/backup/engine';
 import { clearReceiptQueue, flushReceiptQueue } from '@/lib/receiptQueue';
-import { forgetEverything as forgetBankMessages } from '@/lib/smsMessageStore';
+import { forgetMessagesForOwner as forgetBankMessages } from '@/lib/smsMessageStore';
 import { clearImageCache } from '@/lib/storage/imageCache';
 
 import { syncEngine, type SyncState } from './engine';
@@ -84,7 +84,7 @@ async function clearLocalPrivateData(ownerId: string): Promise<void> {
   // ciphertext nobody can read is still this person's inbox sitting on a device
   // somebody else is about to use, and the promise the Bank messages screen
   // makes is that it is not there any more.
-  await forgetBankMessages().catch((error: unknown) => failures.push(error));
+  await forgetBankMessages(ownerId).catch((error: unknown) => failures.push(error));
   await clearBackupState(ownerId).catch((error: unknown) => failures.push(error));
   try {
     clearImageCache();

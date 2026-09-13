@@ -349,6 +349,16 @@ export async function forgetMessage(ownerId: string, dedupeKey: string): Promise
   });
 }
 
+/** Take one owner's bank messages off this phone without touching another account. */
+export async function forgetMessagesForOwner(ownerId: string): Promise<void> {
+  if (!ownerId) return;
+  await serial.run(async () => {
+    const connection = await db();
+    await connection.runAsync(`DELETE FROM sms_messages WHERE owner_id = ?`, ownerId);
+    await connection.execAsync(`PRAGMA wal_checkpoint(TRUNCATE)`);
+  });
+}
+
 /**
  * Everything, gone — the sign-out path.
  *
