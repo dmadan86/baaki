@@ -1,32 +1,64 @@
 /**
- * The capture inbox: expenses caught before they had a group (A34).
+ * Review: what the app already found, never a field to fill.
  *
- * Each row is a spend the user pinned for later — an amount, maybe a note and a
- * photo of the bill — waiting to be assigned to a group. Assigning opens the
- * ordinary add-expense form prefilled; saving there turns the capture into a
- * real group expense and drops it from this list. Everything here is personal
- * and offline-first: a row still queued wears a faint cloud glyph rather than
- * hiding until the server has seen it (ADR-005). Expenses spoken in one breath
- * fold into a single collapsible "N expenses" row with the running total, and
- * that row's ⋯ can place the whole cluster in one group at once — one answer to
- * "where does this go?" instead of the same answer once per row.
+ * This is the bar's "Review" tab and the one true drafts hub (A34,
+ * `docs/plan-drafts-and-rules.md`) — every spend caught before it had a group,
+ * whatever brought it in: typed, spoken, photographed, or read out of the
+ * phone's own bank messages. It used to open on a list under day headings with
+ * a chat glyph in the corner leading to a paste box. On a phone that has
+ * already granted permission to read those messages, sending somebody to
+ * Messages to select, copy, come back and paste is the app refusing to do its
+ * job — so the paste box is no longer the shape of this screen. It is the
+ * fallback it always was, reachable through a quiet "Add another way", and the
+ * primary path only where there is no other: iPhone, where no reading API
+ * exists at any tier.
  *
- * This is the bar's "Review" tab, promoted from a screen you were pushed onto
- * (traded places with Activity — see `(tabs)/_layout.tsx` and `app/activity.tsx`).
- * The route is unchanged: this file still resolves at `/captures`, because a
- * `(tabs)` group folder contributes no path segment of its own. It is also the
- * screen `docs/plan-drafts-and-rules.md` names as the one true drafts hub —
- * whatever arrives by paste, share or statement in a later phase is one more
- * source feeding these same rows, not a second inbox beside them (the mistake
- * #565 already undid once). The first of those sources has now landed: the
- * header's chat glyph opens `captures/paste`, where bank messages are pasted
- * (or, on a build that has the reader, read) and become `captures` rows that
- * arrive in this very list. No filter, no second tab, no new row shape — that
- * is phase 2's business, and the point of this one is that it needed none of
- * it.
+ * FOUR THINGS CHANGED, AND EACH ANSWERS A COMPLAINT.
+ *
+ * 1. **A status, not an instruction.** The top of the screen used to explain
+ *    what to do. An instruction is what you show somebody you are about to make
+ *    work; when the app is doing the work, the honest object is a *state*. So:
+ *    a dot and "Watching your bank messages · 2 min ago", read in two seconds,
+ *    tappable to look again. It is shown only while something really is
+ *    watching (`useSmsAutoRead`), because a line claiming to watch when nothing
+ *    does would be worse than no line at all. Where nothing watches — every
+ *    iPhone, and any Android build without the reader — the line is the count
+ *    of what is waiting, exactly as before.
+ *
+ * 2. **Two sections, not two tabs.** One list cut into **Ready** and **Worth a
+ *    look** — a split by what the app is *sure of*, which is the only
+ *    distinction a person feels. `lib/reviewFeed.ts` carries the rule and the
+ *    reasoning. Sections need no navigation, carry their own counts, and
+ *    disappear when empty, so a screen with one section looks like a screen
+ *    with one section rather than a tab bar with a dead half.
+ *
+ * 3. **One gesture, not one screen.** Most rows should need a single swipe.
+ *    Toward the leading edge files the draft where that shop's money went last
+ *    time — and the row's chip already *says* where that is, so the gesture
+ *    confirms something visible rather than doing something hidden. The other
+ *    way means **not an expense**: a credit-card bill, a transfer to yourself,
+ *    rent nobody splits. That second one is what earns the feature its keep; an
+ *    inbox you can only add from fills with noise and gets abandoned. Tapping
+ *    still opens the full editor, and both gestures are also plain rows in the
+ *    ⋯ sheet — a swipe is never the only way through (`components/SwipeRow`).
+ *
+ * 4. **The zero state is the point.** Review is trying to reach zero: it is the
+ *    app's list of questions, and a good week is one where it has none. So the
+ *    empty screen says "Nothing needs you" and then says how much went through
+ *    anyway (`data/reviewSources.ts`), rather than apologising for being empty.
+ *
+ * WHAT DID NOT CHANGE. Expenses spoken in one breath still fold into one
+ * collapsible card whose ⋯ can place the whole cluster at once — a batch is one
+ * outing and gets one answer, which is why it keeps the sheet rather than a
+ * swipe of its own. Everything is still personal and offline-first: a row still
+ * queued wears a faint cloud glyph rather than hiding until the server has seen
+ * it (ADR-005), and the destination chip is derived from the local ledger
+ * mirror, so it is right with no network. A draft made from a message the app
+ * *read* still carries no message body at all; that rule lives in
+ * `lib/smsDrafts.ts` and this screen never goes near a body.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
@@ -35,6 +67,7 @@ import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from
 import { MutationKind, peopleSignatureKey } from '@waves/core';
 import {
   Button,
+  directionalIcon,
   Divider,
   EmptyState,
   IconButton,
@@ -56,7 +89,10 @@ import {
 } from '@/components/DestinationPicker';
 import { PendingMark } from '@/components/PendingMark';
 import { InboxSkeleton } from '@/components/Skeletons';
+import { SwipeRow, type SwipeAction } from '@/components/SwipeRow';
+import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
+import { useFiledThisWeek, useMerchantDestinations } from '@/data/reviewSources';
 import {
   useAddGhostMember,
   useAssignCapture,
@@ -73,21 +109,28 @@ import { groupLabel, GroupType, type CaptureRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { assignCaptureHref } from '@/lib/captureAssign';
-import { foldedCaptureCount } from '@/lib/captureBatch';
 import { planCaptureAssign, stillWaiting, type AssignMember } from '@/lib/captureBulkAssign';
-import { buildCaptureFeedItems, type CaptureFeedItem } from '@/lib/captureFeed';
 import { friendlyError } from '@/lib/errors';
 import { useGuestGuard } from '@/lib/guestGuard';
+import { destinationFor, type RowDestination } from '@/lib/merchantDestination';
 import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
+import {
+  buildReviewFeed,
+  doubtsAbout,
+  reviewItemKey,
+  type ReviewFeedItem,
+  type ReviewSectionId,
+} from '@/lib/reviewFeed';
+import { useSmsAutoRead } from '@/lib/smsAutoRead';
 import { useDialog } from '@/lib/dialog';
 import { useToast } from '@/lib/toast';
 import { useSync } from '@/sync';
 
 /**
- * What the ⋯ overflow sheet is open on: a single capture (add to group / edit /
- * delete) or a whole spoken batch (add them all to one group / delete them all).
- * Null when nothing is open.
+ * What the ⋯ overflow sheet is open on: a single capture (file it, add to group,
+ * edit, take it off the list) or a whole spoken batch (add them all to one
+ * group / delete them all). Null when nothing is open.
  */
 type CaptureMenu =
   { kind: 'capture'; capture: CaptureRow } | { kind: 'batch'; items: CaptureRow[] } | null;
@@ -105,45 +148,173 @@ type CaptureMenu =
 type AssignTarget =
   { kind: 'capture'; capture: CaptureRow } | { kind: 'batch'; items: CaptureRow[] };
 
+/** How often the "· 2 min ago" on the status line is allowed to go stale. */
+const CLOCK_TICK = 60_000;
+
 /**
- * One capture, in the card grammar this screen now speaks (Mobbin: Phantom
- * Recent Activity, Apple Wallet Daily Cash): a leading category glyph — always
- * the category colour, never the bill's thumbnail — the note over a muted place
- * line, and the amount at the trailing edge, all on a soft rounded card.
+ * Did the app make this draft, or did a person?
  *
- * The whole card taps to assign — adding it to a group is the one thing you do
- * with a capture, so it is the card's own gesture, not a control to hunt for. It
- * used to say so on a chip under the title ("Add to a group"), which spent the
- * row's second line restating the one gesture the card has; the line now carries
- * where the spend happened, and carries nothing at all when the spend has no
- * place — an empty line is a title with room, not a row missing something.
- * The quieter things (edit, delete) fold behind a single ⋯ at the trailing edge,
- * which opens the actions sheet; the two used to sit on the row as a pencil and
- * an always-red trash, which crowded the amount and put "delete" a mis-tap from
- * the assign gesture. The ⋯ keeps its own hitbox so the card's tap still
- * assigns. Inside a batch a row is `bare` — no card of its own, since the batch
- * card already frames it — and drops the place (the batch is one outing, one
- * location).
+ * It decides how gently the draft is taken off the list. Something the app
+ * found in a bank message costs nothing to dismiss — the message is still in
+ * the phone's Messages app, and nobody typed a word of the draft — so "not an
+ * expense" fires outright. Something a person captured themselves carries their
+ * own words and possibly a photograph of the bill, so it keeps the confirm it
+ * has always had.
+ */
+function wasFound(capture: CaptureRow): boolean {
+  const parsed = capture.parsed;
+  return (
+    !!parsed && typeof parsed === 'object' && (parsed as { source?: unknown }).source === 'sms'
+  );
+}
+
+/**
+ * A pile's heading: what it is, and how many are in it.
+ *
+ * The count rides in a pill beside the words rather than in them, so the two
+ * headings line up whatever the language does to their length. "Worth a look"
+ * wears the warning hue; the words are the difference, the colour only agrees
+ * with them.
+ */
+function SectionHeading({
+  section,
+  count,
+  locale,
+  t,
+}: {
+  section: ReviewSectionId;
+  count: number;
+  locale: string;
+  t: UiStrings;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const warn = section === 'look';
+  const label = warn ? t.captures.sectionLook : t.captures.sectionReady;
+  const spoken = plural(locale, count, warn ? t.captures.lookCount : t.captures.readyCount);
+  return (
+    <Row
+      accessibilityRole="header"
+      accessibilityLabel={spoken}
+      style={{
+        gap: theme.spacing.sm,
+        alignItems: 'center',
+        marginTop: theme.spacing.lg,
+        marginBottom: theme.spacing.xs,
+      }}
+    >
+      <Text
+        variant="micro"
+        style={{
+          textTransform: 'uppercase',
+          color: warn ? theme.color.warning : theme.color.textMuted,
+        }}
+      >
+        {label}
+      </Text>
+      <View
+        style={{
+          minWidth: 20,
+          paddingHorizontal: 6,
+          paddingVertical: 1,
+          borderRadius: theme.radius.pill,
+          alignItems: 'center',
+          backgroundColor: warn ? theme.color.warningSoft : theme.color.surfaceMuted,
+        }}
+      >
+        <Text variant="micro" style={{ color: warn ? theme.color.warning : theme.color.textMuted }}>
+          {String(count)}
+        </Text>
+      </View>
+    </Row>
+  );
+}
+
+/**
+ * Where this row is about to go, said before the gesture that confirms it.
+ *
+ * Two shapes, and they are different in glyph, in wording and in hue — never in
+ * colour alone (#191). A known destination is a brand chip wearing the group's
+ * name and a forward arrow (mirrored in RTL, because an arrow is content). No
+ * known destination is an amber chip that asks "Which group?", which is the
+ * honest version of a chip that would otherwise have to guess.
+ */
+function DestinationChip({ name, t }: { name: string | null; t: UiStrings }): React.JSX.Element {
+  const theme = useTheme();
+  const known = name !== null;
+  return (
+    <Row
+      style={{
+        gap: 3,
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+        borderRadius: theme.radius.pill,
+        backgroundColor: known ? theme.color.brandSoft : theme.color.warningSoft,
+        maxWidth: '100%',
+      }}
+    >
+      <Ionicons
+        name={known ? directionalIcon('arrow-forward') : 'help-circle-outline'}
+        size={iconSize.xs}
+        color={known ? theme.color.brand : theme.color.warning}
+      />
+      <Text
+        variant="micro"
+        numberOfLines={1}
+        style={{ color: known ? theme.color.brand : theme.color.warning, flexShrink: 1 }}
+      >
+        {known ? name : t.captures.whichGroup}
+      </Text>
+    </Row>
+  );
+}
+
+/**
+ * One draft, in the card grammar this screen speaks (Mobbin: Phantom Recent
+ * Activity, Apple Wallet Daily Cash): a leading category glyph — always the
+ * category colour, never the bill's thumbnail — the merchant over the
+ * destination chip, and the amount at the trailing edge, all on a soft rounded
+ * card.
+ *
+ * The whole card taps to assign; the ⋯ at the trailing edge opens everything
+ * else. What the row gained is the second line: where it is about to go. That
+ * line used to carry the place the spend happened, which was true and rarely
+ * useful; the destination is the question this screen exists to ask, and
+ * showing it is what lets a swipe answer it without opening anything.
+ *
+ * A row the app was unsure of says *what* it was unsure of, in a sentence, with
+ * a warning glyph beside it — "check this" with nothing to check against is not
+ * a warning, it is a worry.
+ *
+ * Inside a batch a row is `bare` — no card of its own, since the batch card
+ * already frames it — and carries no chip: a batch is one outing with one
+ * destination, answered once on the batch's own ⋯.
  */
 function CaptureListRow({
   capture,
   locale,
   t,
+  destinationName,
   onAssign,
   onMore,
-  hideLocation = false,
+  onFile,
+  onDismiss,
   bare = false,
 }: {
   capture: CaptureRow;
   locale: string;
   t: UiStrings;
+  /** The group this row would be filed into, or null when nothing is known. */
+  destinationName: string | null;
   onAssign: () => void;
-  /** Open the row's overflow sheet (add to group, edit, delete). */
+  /** Open the row's overflow sheet (file, add to group, edit, take it off). */
   onMore: () => void;
-  /** Inside a batch the description IS the line that matters, so the place is
-   *  suppressed there — the batch stands for one outing, one location. */
-  hideLocation?: boolean;
-  /** A row nested in a batch card: no card frame of its own. */
+  /** File it where the chip says, without opening anything. Null when nowhere. */
+  onFile: (() => void) | null;
+  /** Take it off the list: it was never an expense. */
+  onDismiss: () => void;
+  /** A row nested in a batch card: no card frame of its own, and no chip. */
   bare?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
@@ -154,23 +325,35 @@ function CaptureListRow({
     ? (t.categories as Record<string, string>)[capture.category]
     : undefined;
   const title = capture.description?.trim() || categoryLabel || t.captures.unassigned;
-  // Second line: the place it happened, else a note, else nothing. Never the
-  // date — the section heading already carries the day. A row inside a batch
-  // drops the place; there the description on the title line is the whole point.
-  const locationName = hideLocation ? '' : capture.location?.name?.trim() || '';
-  const subtitle = locationName || capture.notes?.trim() || '';
+  const doubts = bare ? [] : doubtsAbout(capture);
+  const dismissLabel = wasFound(capture) ? t.captures.notAnExpense : t.captures.delete;
+
+  // Both swipe actions, offered to a screen reader as custom actions on the row
+  // itself. A gesture is no good to somebody who does not make one, and a
+  // control nested inside an accessible row can be unreachable — so the row
+  // says what it can do, and the ⋯ sheet says it again in full.
+  const actions = [
+    ...(onFile && destinationName
+      ? [{ name: 'file', label: t.captures.fileTo.replace('{name}', destinationName) }]
+      : []),
+    { name: 'dismiss', label: dismissLabel },
+    { name: 'more', label: t.captures.moreActions },
+  ];
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${title}, ${t.captures.assign}`}
-      // The overflow lives on a control nested inside this row; a nested focusable
-      // can hide from a screen reader, so the row exposes it as a custom action
-      // instead and the ⋯ itself is taken out of the a11y tree below. Assign stays
-      // the row's default activate.
-      accessibilityActions={[{ name: 'more', label: t.captures.moreActions }]}
+      accessibilityLabel={
+        destinationName
+          ? `${title}, ${t.captures.fileTo.replace('{name}', destinationName)}`
+          : `${title}, ${t.captures.assign}`
+      }
+      accessibilityActions={actions}
       onAccessibilityAction={(event) => {
-        if (event.nativeEvent.actionName === 'more') onMore();
+        const name = event.nativeEvent.actionName;
+        if (name === 'more') onMore();
+        else if (name === 'dismiss') onDismiss();
+        else if (name === 'file') onFile?.();
       }}
       onPress={onAssign}
       style={({ pressed }) =>
@@ -183,7 +366,6 @@ function CaptureListRow({
               borderWidth: 1,
               borderColor: theme.color.border,
               paddingHorizontal: theme.spacing.md,
-              marginVertical: theme.spacing.xs,
             }
       }
     >
@@ -201,32 +383,34 @@ function CaptureListRow({
           <Text variant="subheading" numberOfLines={1}>
             {title}
           </Text>
-          {/* Line two is context, not an instruction: where the spend happened,
-              and the unsynced mark when the row is still queued. With neither, it
-              is absent entirely and the title has the row to itself — the line
-              used to be spent on a chip repeating the card's own tap. */}
-          {subtitle || capture.pending ? (
+          {/* Line two is the answer this screen wants: where it goes. A row
+              inside a batch keeps it clear — the batch is answered whole. */}
+          {bare ? null : <DestinationChip name={destinationName} t={t} />}
+          {/* An icon as well as the words, so the uncertainty is not carried by
+              colour (#191) — and the words themselves, so "check this" names
+              something a person can actually go and check. */}
+          {doubts.map((doubt) => (
+            <Row key={doubt} gap={theme.spacing.xs} style={{ alignItems: 'flex-start' }}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={iconSize.sm}
+                color={theme.color.warning}
+                style={{ marginTop: 2 }}
+              />
+              <Text variant="micro" tone="muted" style={{ flex: 1 }}>
+                {doubt === 'date-inferred' ? t.smsImport.dateNotInMessage : t.smsImport.hardToRead}
+              </Text>
+            </Row>
+          ))}
+          {capture.pending ? (
             <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-              {locationName ? (
-                <Ionicons name="location-outline" size={13} color={theme.color.textFaint} />
-              ) : null}
-              {subtitle ? (
-                <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {subtitle}
-                </Text>
-              ) : null}
-              {capture.pending ? <PendingMark /> : null}
+              <PendingMark />
             </Row>
           ) : null}
         </View>
 
         {/* The amount and the ⋯ never shrink (RN's flexShrink is 0 by default),
-            so every row's amount ends at the same point — the ⋯ is a fixed width
-            and the amount is the item before it. That alignment is free, and the
-            76pt minimum this column used to carry bought nothing for it: it only
-            reserved blank space to the amount's left, on the very row where the
-            title needed it. A long title now ellipses ~60pt later, and a short
-            one leaves the gap where a reader expects it, between two columns. */}
+            so every row's amount ends at the same point. */}
         <View style={{ alignItems: 'flex-end' }}>
           <MoneyText
             amount={BigInt(capture.amount)}
@@ -235,18 +419,10 @@ function CaptureListRow({
             variant="subheading"
           />
         </View>
-        {/* One quiet ⋯ instead of the old pencil-and-red-trash pair: the actions
-            that are not "add to group" live behind it, so the row carries the
-            amount and a single neutral control rather than three competing marks.
-            Its own hitbox for a sighted tap, but hidden from the a11y tree — a
-            focusable nested in the accessible row can be unreachable, so screen
-            readers reach it through the row's "more" action instead.
-
-            It used to be followed by an empty 18pt slot standing in for the
-            batch card's expand chevron, so the two kinds of row shared a right
-            edge. That cost every single row 30pt of title width for a blank; the
-            batch card now wears its chevron beside its title instead, and both
-            trailing slots are simply the ⋯. */}
+        {/* One quiet ⋯: everything that is not the card's own tap lives behind
+            it. Its own hitbox for a sighted tap, but hidden from the a11y tree —
+            a focusable nested in the accessible row can be unreachable, so
+            screen readers reach it through the row's "more" action instead. */}
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <IconButton label={t.captures.moreActions} onPress={onMore}>
             <Ionicons name="ellipsis-horizontal" size={iconSize.md} color={theme.color.textMuted} />
@@ -260,9 +436,14 @@ function CaptureListRow({
 /**
  * Several expenses spoken in one breath, folded into one collapsible row: a
  * layered glyph, an "N expenses" title over a preview of what they were, and the
- * running total at the trailing edge with a plus to open. Expanding reveals each
- * as a full capture row — still individually assignable and deletable — so the
- * total is the headline and the breakdown is one tap away.
+ * running total at the trailing edge with a chevron to open. Expanding reveals
+ * each as a full capture row — still individually assignable and deletable — so
+ * the total is the headline and the breakdown is one tap away.
+ *
+ * No swipe of its own, deliberately: a batch is one outing that wants one
+ * destination, and that is exactly what its ⋯ already offers. A gesture that
+ * filed four expenses at once on a flick would be a lot of money moved by an
+ * accident of the thumb.
  */
 function BatchGroupCard({
   items,
@@ -304,7 +485,6 @@ function BatchGroupCard({
         borderColor: theme.color.border,
         backgroundColor: theme.color.surface,
         overflow: 'hidden',
-        marginVertical: theme.spacing.xs,
       }}
     >
       <Pressable
@@ -345,13 +525,8 @@ function BatchGroupCard({
           <View style={{ flex: 1, minWidth: 0 }}>
             {/* The count is the whole headline — a batch stands for one outing,
                 so the individual descriptions belong to the expanded rows, not
-                here. The chevron rides beside it (down closed, up open): the
-                standard reveal mark, but here rather than at the trailing edge,
-                where it forced every standalone row to reserve a blank slot of
-                the same width just to keep the two amounts aligned. Vertical
-                chevrons carry no handedness, so nothing to mirror in RTL. The
-                second line says what the folded row can do, so a person is not
-                left guessing whether it assigns whole or item by item. */}
+                here. Vertical chevrons carry no handedness, so nothing to mirror
+                in RTL. */}
             <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
               <Text variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {plural(locale, items.length, t.captures.batchExpenses)}
@@ -370,9 +545,6 @@ function BatchGroupCard({
             </Row>
           </View>
 
-          {/* The total, then the ⋯ — the same trailing pair a standalone row
-              carries, so a batch total lines up under the single amounts above
-              and below it without either kind of row padding itself out. */}
           <View style={{ alignItems: 'flex-end' }}>
             {total !== null ? (
               <MoneyText amount={total} currency={currency} locale={locale} variant="subheading" />
@@ -382,10 +554,6 @@ function BatchGroupCard({
               </Text>
             )}
           </View>
-          {/* The batch's own ⋯, matching the standalone rows: it opens the sheet
-              that can delete the whole batch at once, rather than a standing red
-              trash on the card. A nested press for a sighted tap, but hidden from
-              the a11y tree (reached through the row's "more" action). */}
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <IconButton label={t.captures.moreActions} onPress={onMoreBatch}>
               <Ionicons
@@ -423,9 +591,11 @@ function BatchGroupCard({
                 capture={capture}
                 locale={locale}
                 t={t}
+                destinationName={null}
                 onAssign={() => onAssign(capture)}
                 onMore={() => onMore(capture)}
-                hideLocation
+                onFile={null}
+                onDismiss={() => onMore(capture)}
                 bare
               />
               {index === items.length - 1 ? <View style={{ height: theme.spacing.xs }} /> : null}
@@ -481,7 +651,7 @@ function ActionSheetRow({
   );
 }
 
-/** Capture inbox route backed by FlashList rows and screen-owned batch expansion state. */
+/** The Review tab: what was found, in two piles, one gesture each. */
 export default function CapturesScreen() {
   const theme = useTheme();
   const { height } = useWindowDimensions();
@@ -492,18 +662,18 @@ export default function CapturesScreen() {
 
   const captures = useCaptures();
   const deleteCapture = useDeleteCapture();
-  // Closing a draft against the expense it became. The single-draft path reaches
-  // this from inside the add-expense form; the batch path calls it here, right
-  // after queueing each expense.
+  // Closing a draft against the expense it became. The single-draft form path
+  // reaches this from inside add-expense; the swipe and batch paths call it here,
+  // right after queueing each expense.
   const assignCapture = useAssignCapture();
-  // The batch path writes the expenses itself rather than opening a form per
-  // draft, so it queues them the way the form does (ADR-005).
+  // The swipe and batch paths write the expenses themselves rather than opening a
+  // form per draft, so they queue them the way the form does (ADR-005).
   const { mutate } = useSync();
   const toast = useToast();
   const { confirm, notify } = useDialog();
-  // A guest past their trial may read but not write. The single-draft path is
-  // stopped by the same guard inside add-expense; a batch write never reaches
-  // that screen, so it asks here.
+  // A guest past their trial may read but not write. The single-draft form path
+  // is stopped by the same guard inside add-expense; a swipe or batch write never
+  // reaches that screen, so it asks here.
   const guard = useGuestGuard();
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
@@ -514,6 +684,24 @@ export default function CapturesScreen() {
   const oneToOne = useOneToOneGroupIds();
   const signatures = useGroupPeopleSignatures(profile?.id ?? null);
   const createGroup = useCreateGroup();
+  // Where each shop's money has been going — the whole basis of the chip and
+  // therefore of the swipe. Local mirror only, so it is right offline.
+  const merchants = useMerchantDestinations();
+  // Is anything actually reading the inbox? The one thing that decides whether
+  // this screen opens on a status or on an instruction, and whether pasting is
+  // the main path or the other way.
+  const auto = useSmsAutoRead();
+
+  // One slow clock for the whole screen: the status line's "2 min ago" and the
+  // empty state's "this week" both read it, and neither may call Date.now()
+  // while rendering.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!auto.enabled) return;
+    const timer = setInterval(() => setNow(Date.now()), CLOCK_TICK);
+    return () => clearInterval(timer);
+  }, [auto.enabled]);
+  const filedThisWeek = useFiledThisWeek(now);
 
   // What is being assigned, if anything — drives the destination sheet: one
   // draft, or a whole spoken batch.
@@ -521,17 +709,13 @@ export default function CapturesScreen() {
   // The one draft under the picker, when it is a single one. The batch case has
   // no single capture to preview or pre-aim from.
   const assigningCapture = assigning?.kind === 'capture' ? assigning.capture : null;
-  // A batch write is several queue writes behind one tap; the lock keeps a
-  // second tap from filing them twice. It guards the write itself — the group a
-  // People-tab confirm creates is made before this is taken, and a double tap
-  // there can still make two groups (as it could before this screen wrote
-  // anything in batch).
-  const placing = useRef(false);
+  // Writing a draft into a group is several queue writes behind one gesture, and
+  // a swipe is easy to repeat by accident. The lock is per target rather than a
+  // single flag, so filing one row never swallows the swipe on the next.
+  const placing = useRef<Set<string>>(new Set());
   // The id a group made from picked people will take, minted before the create
   // so the ghosts and the expense behind it can already name it — the
-  // offline-first pattern the voice review and "add a person" both use. Retired
-  // for a fresh one the moment it is spent, so a second new group in the same
-  // session is not handed the same id.
+  // offline-first pattern the voice review and "add a person" both use.
   const [newGroupId, setNewGroupId] = useState(() => randomUUID());
   const [newMemberId, setNewMemberId] = useState(() => randomUUID());
   const addGhost = useAddGhostMember(newGroupId);
@@ -542,18 +726,27 @@ export default function CapturesScreen() {
   // sheet open, if any. Null when nothing is open.
   const [menu, setMenu] = useState<CaptureMenu>(null);
 
-  // Only groups the viewer still belongs to belong in the picker. Leaving a
-  // group sets `left_at`; it does not remove the group row, so a left (or
-  // owner-removed) group lingers in the local mirror and `useGroups` still
-  // returns it. `membersFor` lists active members only, so a group where the
-  // viewer is no longer among them is one they left — never an assignment
-  // target for a new expense.
+  // Only groups the viewer still belongs to belong in the picker — or on a chip.
+  // Leaving a group sets `left_at`; it does not remove the group row, so a left
+  // (or owner-removed) group lingers in the local mirror and `useGroups` still
+  // returns it.
   const assignableGroups = useMemo(
     () =>
       (groups.data ?? []).filter((group) =>
         summary.membersFor(group.id).some((member) => member.profile_id === profile?.id),
       ),
     [groups.data, summary, profile?.id],
+  );
+  const assignableIds = useMemo(
+    () => new Set(assignableGroups.map((group) => group.id)),
+    [assignableGroups],
+  );
+  const nameOfGroup = useCallback(
+    (groupId: string): string | null => {
+      const group = assignableGroups.find((row) => row.id === groupId);
+      return group ? groupLabel(group, summary.membersFor(groupId), profile?.id) : null;
+    },
+    [assignableGroups, profile?.id, summary],
   );
 
   // The people the picker offers, by name. A contact is somebody whose balance
@@ -564,8 +757,6 @@ export default function CapturesScreen() {
     const byGroup = new Map<string, PersonChoice>();
     for (const row of people.data ?? []) {
       if (!row.only_group_id || !oneToOne.data.has(row.only_group_id)) continue;
-      // One entry per 1:1 group — a person has a row per currency, and they all
-      // carry the same display name.
       byGroup.set(row.only_group_id, {
         personKey: row.person_key,
         name: row.display_name,
@@ -587,25 +778,19 @@ export default function CapturesScreen() {
   }, [signatures.data]);
 
   // Which row the picker opens with ticked: the group the capture was tagged
-  // for at capture time, when it is still one the viewer can assign into. That
-  // pre-aim used to be spelled out on the row itself and skip the picker
-  // entirely; it is now a suggestion the picker shows and a tap confirms.
+  // for at capture time, when it is still one the viewer can assign into.
   const pickerSelection: DestinationSelection = useMemo(() => {
     const targetId = assigningCapture?.target_group_id;
-    return targetId && assignableGroups.some((group) => group.id === targetId)
+    return targetId && assignableIds.has(targetId)
       ? { kind: 'existing', groupId: targetId }
       : { kind: 'none' };
-  }, [assigningCapture?.target_group_id, assignableGroups]);
-  // How tall the picker sheet is ever allowed to get. A ceiling, not a height:
-  // the sheet hugs its rows and only starts scrolling here. In points off the
-  // window rather than the '80%' it used to pass, because a percentage height
-  // needs an ancestor with a definite one to resolve against and this card is
-  // sized by its own content — points can't be quietly dropped.
+  }, [assigningCapture?.target_group_id, assignableIds]);
+  // How tall the picker sheet is ever allowed to get. A ceiling, not a height.
   const pickerMaxHeight = height * 0.8;
 
   // What the picker says it is placing when a whole batch is riding on the
-  // answer: the running total (absent when the drafts are not one currency, as
-  // on the batch card itself) and how many drafts it stands for.
+  // answer: the running total (absent when the drafts are not one currency) and
+  // how many drafts it stands for.
   const batchPreview = useMemo(() => {
     if (assigning?.kind !== 'batch') return null;
     const items = assigning.items;
@@ -619,10 +804,20 @@ export default function CapturesScreen() {
   }, [assigning]);
 
   const rows = useMemo(() => captures.data ?? [], [captures.data]);
-  const feedItems = useMemo(() => buildCaptureFeedItems(rows), [rows]);
-  // A spoken batch is one thing waiting, not one per item — fold before counting,
-  // so the header total matches the rows on screen.
-  const waitingCount = useMemo(() => foldedCaptureCount(rows), [rows]);
+  const { items: feedItems, counts } = useMemo(() => buildReviewFeed(rows), [rows]);
+  const waitingCount = counts.ready + counts.look;
+
+  // Every row's destination, worked out once per render of the list rather than
+  // per recycled row: the group the draft was tagged for, else the group this
+  // shop's money went to last time, else nothing and the chip asks.
+  const destinations = useMemo(() => {
+    const byCapture = new Map<string, RowDestination>();
+    for (const row of rows) {
+      const found = destinationFor(row, merchants, assignableIds);
+      if (found) byCapture.set(row.id, found);
+    }
+    return byCapture;
+  }, [rows, merchants, assignableIds]);
 
   const openAssign = useCallback((capture: CaptureRow): void => {
     setAssigning({ kind: 'capture', capture });
@@ -637,8 +832,8 @@ export default function CapturesScreen() {
   // Open the draft in the capture form to fix its fields — the same screen that
   // drafted it, now in edit mode. Every value the row carries rides along as a
   // param so the form opens filled in and saving updates the row in place rather
-  // than making a second one; `parsed` (which holds the voice-batch id) is
-  // preserved so an edited batch item stays part of its batch.
+  // than making a second one; `parsed` (which holds the voice-batch id and the
+  // message provenance) is preserved.
   const openEdit = useCallback((capture: CaptureRow): void => {
     router.push({
       pathname: '/capture',
@@ -661,23 +856,49 @@ export default function CapturesScreen() {
     });
   }, []);
 
-  // Shared by the standalone rows and the rows inside a batch, so a capture is
-  // deleted the same way wherever it is shown.
-  const confirmDelete = useCallback(
+  /**
+   * Take a draft off the list.
+   *
+   * Two behaviours, one write (`capture.delete`, which the sync protocol has
+   * carried since A34 — no migration, and captures already soft-delete). A draft
+   * the app *found* goes without a question: nobody typed it, and the message it
+   * was made from is still in the phone's own Messages app, so there is nothing
+   * to lose and nothing to confirm. A draft a person *made* keeps the confirm it
+   * has always had, because their words and possibly a photograph of the bill go
+   * with it.
+   */
+  const dismiss = useCallback(
     async (capture: CaptureRow): Promise<void> => {
-      const ok = await confirm({
-        title: t.captures.delete,
-        body: t.captures.deleteConfirm,
-        confirmLabel: t.captures.delete,
-        tone: 'danger',
-      });
-      if (ok) void deleteCapture.mutateAsync(capture.id);
+      if (guard.blockWrite()) return;
+      if (!wasFound(capture)) {
+        const ok = await confirm({
+          title: t.captures.delete,
+          body: t.captures.deleteConfirm,
+          confirmLabel: t.captures.delete,
+          tone: 'danger',
+        });
+        if (!ok) return;
+      }
+      try {
+        await deleteCapture.mutateAsync(capture.id);
+        if (wasFound(capture)) toast.show(t.captures.notAnExpenseDone);
+      } catch (caught) {
+        toast.show(friendlyError(caught, t.captures.couldNotSave, 'captures.dismiss'), 'negative');
+      }
     },
-    [confirm, deleteCapture, t.captures.delete, t.captures.deleteConfirm],
+    [
+      confirm,
+      deleteCapture,
+      guard,
+      t.captures.couldNotSave,
+      t.captures.delete,
+      t.captures.deleteConfirm,
+      t.captures.notAnExpenseDone,
+      toast,
+    ],
   );
 
-  // Delete every capture in a spoken batch at once, behind one confirm — the
-  // trailing trash on the batch card.
+  // Delete every capture in a spoken batch at once, behind one confirm.
   const confirmDeleteBatch = useCallback(
     async (items: CaptureRow[]): Promise<void> => {
       const ok = await confirm({
@@ -703,24 +924,25 @@ export default function CapturesScreen() {
   const closeAssign = useCallback((): void => setAssigning(null), []);
 
   /**
-   * A whole spoken batch into one group, in one go.
+   * Drafts into one group, in one go — one row swiped, or a whole spoken batch.
    *
-   * This is the batch's answer to the same question the single row asks, and it
-   * ends differently on purpose: opening the add-expense form four times to
-   * accept its defaults four times is exactly the work the ⋯ item exists to
-   * remove. So the expenses are written here, with the form's own defaults —
-   * everyone in the group, split equally, the person assigning down as having
-   * paid — and each draft is closed against the expense it became.
+   * This is the answer to the same question the form asks, and it ends
+   * differently on purpose: opening add-expense to accept its defaults is
+   * exactly the work the gesture exists to remove. So the expenses are written
+   * here, with the form's own defaults — everyone in the group, split equally,
+   * the person filing down as having paid — and each draft is closed against the
+   * expense it became.
    *
    * Both writes ride the ordinary offline queue (ADR-005), so this works with no
    * network and survives being killed mid-run. Each draft is its own attempt:
-   * one that refuses does not take the others down, and it is left in the inbox
+   * one that refuses does not take the others down, and it is left in Review
    * (nothing closes it) rather than vanishing into a success message that would
-   * be a lie. What actually happened is then said out loud — the count that
-   * landed, and, when anything did not, the count still waiting.
+   * be a lie.
    */
-  const placeBatch = useCallback(
+  const placeInGroup = useCallback(
     async (input: {
+      /** What the per-target lock is taken on: the row, or the batch's first row. */
+      lockKey: string;
       items: readonly CaptureRow[];
       groupId: string;
       /** What to call the group in the confirmation. */
@@ -730,17 +952,15 @@ export default function CapturesScreen() {
       myMemberId: string | null;
       currency: string;
     }): Promise<void> => {
-      if (placing.current) return;
+      if (placing.current.has(input.lockKey)) return;
       if (guard.blockWrite()) return;
-      placing.current = true;
+      placing.current.add(input.lockKey);
       try {
         // Another device may have placed one of these while the sheet was open;
         // the inbox read already knows, and writing it again would file the same
         // dinner twice.
         const waiting = stillWaiting(input.items, rows);
         if (waiting.length === 0) {
-          // There is nothing left to do, and a sheet that simply closes would
-          // read as "done" for work this device never did. Say what happened.
           toast.show(t.captures.assignBatchAlreadyDone);
           return;
         }
@@ -799,7 +1019,7 @@ export default function CapturesScreen() {
           'negative',
         );
       } finally {
-        placing.current = false;
+        placing.current.delete(input.lockKey);
       }
     },
     [
@@ -818,14 +1038,36 @@ export default function CapturesScreen() {
     ],
   );
 
+  /** The whole of the swipe: this draft, into the group the chip already named. */
+  const fileWhereItSays = useCallback(
+    (capture: CaptureRow): void => {
+      const destination = destinations.get(capture.id);
+      if (!destination) return;
+      const groupId = destination.groupId;
+      const members = summary.membersFor(groupId);
+      const group = assignableGroups.find((row) => row.id === groupId);
+      void placeInGroup({
+        lockKey: capture.id,
+        items: [capture],
+        groupId,
+        label: group ? groupLabel(group, members, profile?.id) : '',
+        members,
+        // Compared against `profile?.id` — undefined, never null — exactly as
+        // the add-expense form resolves the same thing. A ghost's null
+        // `profile_id` can therefore never answer to an unloaded profile.
+        myMemberId: members.find((member) => member.profile_id === profile?.id)?.id ?? null,
+        currency: group?.default_currency ?? capture.currency,
+      });
+    },
+    [assignableGroups, destinations, placeInGroup, profile?.id, summary],
+  );
+
   /**
    * A chosen existing group, for whichever the picker is open on.
    *
    * One draft is unchanged: its own values are handed to the add-expense form as
    * prefill, carrying its id so that saving there closes the capture
-   * (`useAssignCapture`). The href is built by the shared helper so the "New
-   * group" flow, which routes to the very same form, hands it identical params.
-   * A batch skips the form — that is the whole point of the batch item.
+   * (`useAssignCapture`). A batch skips the form — that is the whole point.
    */
   const chooseExistingGroup = useCallback(
     (target: AssignTarget, groupId: string): void => {
@@ -836,32 +1078,26 @@ export default function CapturesScreen() {
       }
       const members = summary.membersFor(groupId);
       const group = assignableGroups.find((row) => row.id === groupId);
-      void placeBatch({
+      void placeInGroup({
+        lockKey: target.items[0]!.id,
         items: target.items,
         groupId,
         label: group ? groupLabel(group, members, profile?.id) : '',
         members,
-        // Compared against `profile?.id` — undefined, never null — exactly as
-        // the add-expense form resolves the same thing. A ghost's null
-        // `profile_id` can therefore never answer to an unloaded profile.
         myMemberId: members.find((member) => member.profile_id === profile?.id)?.id ?? null,
         // A draft assigned through the form takes the group's currency too
         // (the href carries no currency of its own), so the batch does the same.
         currency: group?.default_currency ?? target.items[0]!.currency,
       });
     },
-    [assignableGroups, closeAssign, placeBatch, profile?.id, summary],
+    [assignableGroups, closeAssign, placeInGroup, profile?.id, summary],
   );
 
   // The People tab, confirmed: this draft is with these people. If they already
-  // share a group it is that group's expense — the same assignment a Groups-tab
-  // tap makes. If they do not, the group is made here and the draft assigned
-  // into it: a lone name is the 1:1 "add a person" case, several is a real
-  // group, and both are named after whoever is in them the way WhatsApp does.
-  //
-  // The create rides the offline queue like every other write (ADR-005), and the
-  // ids were minted up front, so the add-expense screen this pushes to can name
-  // the group and the members before the server has ever heard of them.
+  // share a group it is that group's expense. If they do not, the group is made
+  // here and the draft assigned into it: a lone name is the 1:1 "add a person"
+  // case, several is a real group, and both are named after whoever is in them
+  // the way WhatsApp does.
   const assignToPeople = useCallback(
     async (names: string[]): Promise<void> => {
       const target = assigning;
@@ -876,9 +1112,6 @@ export default function CapturesScreen() {
       }
 
       const groupId = newGroupId;
-      // The draft's own currency: it is the money actually spent with these
-      // people, and a fresh group has nothing better to go on. A batch is one
-      // utterance, so its first draft speaks for the lot.
       const currency =
         target.kind === 'capture' ? target.capture.currency : target.items[0]!.currency;
       closeAssign();
@@ -894,8 +1127,7 @@ export default function CapturesScreen() {
         for (const name of clean) ghostIds.push(await addGhost.mutateAsync(name));
       } catch (caught) {
         // With no group to assign into there is nowhere to push, so say why and
-        // leave the draft exactly where it was rather than opening a form over a
-        // group that was never made.
+        // leave the draft exactly where it was.
         toast.show(
           friendlyError(caught, t.captures.couldNotSave, 'captures.newPeopleGroup'),
           'negative',
@@ -912,13 +1144,12 @@ export default function CapturesScreen() {
       // The group and its people exist only on the queue so far, so the mirror
       // cannot list its members yet. Their ids were minted here, so the batch
       // names them itself rather than waiting for a read that has not happened.
-      void placeBatch({
+      void placeInGroup({
+        lockKey: target.items[0]!.id,
         items: target.items,
         groupId,
         label: clean.join(', '),
         members: [{ id: newMemberId }, ...ghostIds.map((id) => ({ id }))],
-        // Not looked up but minted: this group's creator membership is the one
-        // this screen just chose an id for, so who paid is known outright.
         myMemberId: newMemberId,
         currency,
       });
@@ -932,7 +1163,7 @@ export default function CapturesScreen() {
       groupBySignature,
       newGroupId,
       newMemberId,
-      placeBatch,
+      placeInGroup,
       t.captures.couldNotSave,
       toast,
     ],
@@ -948,17 +1179,6 @@ export default function CapturesScreen() {
     [],
   );
 
-  const keyCaptureItem = useCallback((item: CaptureFeedItem): string => {
-    switch (item.kind) {
-      case 'day':
-        return item.key;
-      case 'batch':
-        return `batch-${item.id}`;
-      case 'single':
-        return item.capture.id;
-    }
-  }, []);
-
   const toggleBatch = useCallback((batchId: string): void => {
     setOpenBatchIds((current) => {
       const next = new Set(current);
@@ -968,9 +1188,11 @@ export default function CapturesScreen() {
     });
   }, []);
 
-  const renderCaptureItem = useCallback(
-    ({ item }: { item: CaptureFeedItem }) => {
+  const renderItem = useCallback(
+    ({ item }: { item: ReviewFeedItem }) => {
       switch (item.kind) {
+        case 'section':
+          return <SectionHeading section={item.section} count={item.count} locale={locale} t={t} />;
         case 'day':
           return (
             <Text
@@ -987,38 +1209,68 @@ export default function CapturesScreen() {
           );
         case 'batch':
           return (
-            <BatchGroupCard
-              items={item.items}
-              locale={locale}
-              t={t}
-              open={openBatchIds.has(item.id)}
-              onToggle={() => toggleBatch(item.id)}
-              onAssign={openAssign}
-              onMore={openCaptureMenu}
-              onMoreBatch={() => openBatchMenu(item.items)}
-            />
+            <View style={{ marginVertical: theme.spacing.xs }}>
+              <BatchGroupCard
+                items={item.items}
+                locale={locale}
+                t={t}
+                open={openBatchIds.has(item.id)}
+                onToggle={() => toggleBatch(item.id)}
+                onAssign={openAssign}
+                onMore={openCaptureMenu}
+                onMoreBatch={() => openBatchMenu(item.items)}
+              />
+            </View>
           );
         case 'single': {
           const capture = item.capture;
+          const destination = destinations.get(capture.id) ?? null;
+          const destinationName = destination ? nameOfGroup(destination.groupId) : null;
+          // Leading: file it where the chip says — offered only when the chip
+          // actually says somewhere, so the gesture can never do something the
+          // row did not first state. Trailing: take it off the list.
+          const leading: SwipeAction | null =
+            destination && destinationName
+              ? {
+                  label: destinationName,
+                  icon: 'checkmark-circle-outline',
+                  tone: 'brand',
+                  onAction: () => fileWhereItSays(capture),
+                }
+              : null;
+          const trailing: SwipeAction = {
+            label: wasFound(capture) ? t.captures.notAnExpense : t.captures.delete,
+            icon: wasFound(capture) ? 'close-circle-outline' : 'trash-outline',
+            tone: 'muted',
+            onAction: () => void dismiss(capture),
+          };
           return (
-            <CaptureListRow
-              capture={capture}
-              locale={locale}
-              t={t}
-              // Every row opens the picker, pre-aimed or not. It used to skip
-              // straight to the group a capture was tagged for, which was fair
-              // while a chip on the row named that group; with the chip gone the
-              // jump would be unannounced, so the picker opens with that group
-              // already ticked and one more tap confirms it.
-              onAssign={() => openAssign(capture)}
-              onMore={() => openCaptureMenu(capture)}
-            />
+            <View style={{ marginVertical: theme.spacing.xs }}>
+              {/* Keyed by the draft: FlashList recycles this cell, and a fresh
+                  SwipeRow per draft is what stops one arriving half-open. */}
+              <SwipeRow key={capture.id} leading={leading} trailing={trailing}>
+                <CaptureListRow
+                  capture={capture}
+                  locale={locale}
+                  t={t}
+                  destinationName={destinationName}
+                  onAssign={() => openAssign(capture)}
+                  onMore={() => openCaptureMenu(capture)}
+                  onFile={leading ? () => fileWhereItSays(capture) : null}
+                  onDismiss={() => void dismiss(capture)}
+                />
+              </SwipeRow>
+            </View>
           );
         }
       }
     },
     [
+      destinations,
+      dismiss,
+      fileWhereItSays,
       locale,
+      nameOfGroup,
       openAssign,
       openBatchIds,
       openBatchMenu,
@@ -1030,21 +1282,35 @@ export default function CapturesScreen() {
     ],
   );
 
+  // One object so a chip, a fold or a swipe re-renders a row FlashList would
+  // otherwise recycle unchanged.
+  const listState = useMemo(() => ({ openBatchIds, destinations }), [openBatchIds, destinations]);
+
+  const menuCapture = menu?.kind === 'capture' ? menu.capture : null;
+  const menuDestination = menuCapture ? (destinations.get(menuCapture.id) ?? null) : null;
+  const menuDestinationName = menuDestination ? nameOfGroup(menuDestination.groupId) : null;
+
+  // Where pasting lives now. With a reader running it is one quiet line at the
+  // foot of the list — a fallback, labelled as an alternative rather than as the
+  // way in. With nothing reading (every iPhone) it is a real, labelled button,
+  // because it is the only path there is and a consolation prize is not what a
+  // person on an iPhone should be handed.
+  const anotherWay = (
+    <View style={{ alignItems: 'center', paddingTop: theme.spacing.lg }}>
+      <Button
+        label={auto.enabled ? t.captures.addAnotherWay : t.captures.fromMessage}
+        variant={auto.enabled ? 'ghost' : 'secondary'}
+        onPress={() => router.push('/captures/paste')}
+      />
+    </View>
+  );
+
   return (
     <Screen edges={['top']}>
-      {/* Review is a bar destination now, not a screen somebody was pushed onto
-          — so, like the other three tabs, it wears no back chevron: there is
-          nowhere "back" from a tab, and a chevron that did nothing (or popped
-          somewhere unrelated) would be worse than none. The icon-plus-title
-          row instead matches `ActivityScreen`'s own header, the tab this one
-          traded places with. The waiting count rides under the title exactly
-          as it did before the move.
-
-          `edges` drops `'bottom'`: the screen used to add its own bottom
-          safe-area padding on top of `useTabBarClearance()` below, shrinking
-          the list's own viewport by the inset for no gain — the FlashList's
+      {/* Review is a bar destination, so it wears no back chevron: there is
+          nowhere "back" from a tab. `edges` drops `'bottom'` — the FlashList's
           `paddingBottom: clearance` already reserves the room the tab bar
-          needs, top edge is all `Screen` has to add. */}
+          needs. */}
       <Row
         style={{
           paddingHorizontal: theme.spacing.xl,
@@ -1058,37 +1324,53 @@ export default function CapturesScreen() {
           <Text variant="title" numberOfLines={1}>
             {t.captures.title}
           </Text>
-          {/* How many are waiting, right under the title — so the screen answers
-              "what is this and how much is here?" before a person reads a row.
-              Hidden at zero, where the empty state already says it. */}
-          {waitingCount > 0 ? (
+          {/* The line under the title is a *state*, not an instruction. With
+              something reading, it says so and when it last looked. With nothing
+              reading, it falls back to how many are waiting — and says nothing
+              at all at zero, where the empty state already speaks. */}
+          {auto.enabled ? (
+            <WatchingLine
+              checking={auto.checking}
+              lastCheckedAt={auto.lastCheckedAt}
+              now={now}
+              locale={locale}
+              t={t}
+              onRefresh={() => void auto.refresh()}
+            />
+          ) : waitingCount > 0 ? (
             <Text variant="micro" tone="muted" numberOfLines={1}>
               {plural(locale, waitingCount, t.captures.unassignedBody)}
             </Text>
           ) : null}
         </View>
-        {/* The second way a draft gets here: a bank message. A single labelled
-            glyph rather than a ⋯ holding one item — an overflow with nothing to
-            overflow hides the only thing in it. When the plan's later phases
-            add their own header actions, this is the one that folds behind the
-            ⋯ with them. */}
-        <IconButton label={t.captures.fromMessage} onPress={() => router.push('/captures/paste')}>
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={iconSize.md}
-            color={theme.color.text}
-          />
-        </IconButton>
+        {/* With nothing reading, the message path keeps its glyph in the header:
+            it is the main way a spend arrives on an iPhone and must not be
+            buried. With a reader running, the header holds nothing — pasting has
+            moved to "Add another way" at the foot of the list. */}
+        {auto.enabled ? null : (
+          <IconButton label={t.captures.fromMessage} onPress={() => router.push('/captures/paste')}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={iconSize.md}
+              color={theme.color.text}
+            />
+          </IconButton>
+        )}
       </Row>
 
-      {/* One virtualized scroll region for every state, the way `ActivityScreen`
-          does it — pull-to-refresh still works while loading or empty, but a
-          large draft inbox only mounts the rows near the viewport. */}
+      {/* One virtualized scroll region for every state — pull-to-refresh still
+          works while loading or empty, but a pasted month only mounts the rows
+          near the viewport. */}
       <FlashList
         data={captures.isLoading || rows.length === 0 ? [] : feedItems}
-        keyExtractor={keyCaptureItem}
-        renderItem={renderCaptureItem}
+        keyExtractor={reviewItemKey}
+        renderItem={renderItem}
         getItemType={(item) => item.kind}
+        // The group-ledger settings: `extraData` because a chip or a fold changes
+        // a row FlashList would otherwise recycle unchanged, and the draw
+        // distance so a pasted month scrolls without blanking.
+        extraData={listState}
+        drawDistance={1500}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
@@ -1101,23 +1383,38 @@ export default function CapturesScreen() {
             tintColor={theme.color.brand}
           />
         }
+        ListFooterComponent={rows.length > 0 ? anotherWay : null}
         ListEmptyComponent={
           captures.isLoading ? (
             <InboxSkeleton />
           ) : (
+            /* The zero state, designed as carefully as the full one. Review is
+               trying to reach *this*: it is the app's list of questions, and a
+               good week is one where it has none. So it never apologises for
+               being empty — it says nothing needs you, and then says how much
+               went through anyway. */
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <EmptyState
-                title={t.captures.emptyTitle}
-                body={t.captures.emptyBody}
+                icon={
+                  <Ionicons
+                    name="checkmark-done-outline"
+                    size={iconSize.huge}
+                    color={theme.color.brand}
+                  />
+                }
+                title={t.captures.nothingNeedsYou}
+                body={
+                  filedThisWeek > 0
+                    ? plural(locale, filedThisWeek, t.captures.filedThisWeek)
+                    : auto.enabled
+                      ? t.captures.watchingNothingYet
+                      : t.captures.emptyBody
+                }
                 action={
-                  // Two ways in, with the ranking said by weight rather than by
-                  // order alone: type one out, or hand over the messages your
-                  // bank already sent you. The second is quiet because it is
-                  // the less obvious of the two, not the lesser.
                   <View style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
                     <Button label={t.captures.captureCta} onPress={() => router.push('/capture')} />
                     <Button
-                      label={t.captures.fromMessage}
+                      label={auto.enabled ? t.captures.addAnotherWay : t.captures.fromMessage}
                       variant="ghost"
                       onPress={() => router.push('/captures/paste')}
                     />
@@ -1130,13 +1427,11 @@ export default function CapturesScreen() {
       />
 
       {/* The group picker, as a sheet over the list rather than a screen away —
-          assigning is one tap and one choice, and a whole route for it would be
-          a scroll and a back button around a short list.
+          assigning is one tap and one choice.
 
           A real Modal, not an absolute overlay: the one bottom bar (`AppTabBar`)
           is rendered at the root over the whole stack, so an in-tree overlay
-          paints *under* it and the sheet's lower rows hide behind the nav bar.
-          A Modal floats above everything, the way the other sheets do. */}
+          paints *under* it and the sheet's lower rows hide behind the nav bar. */}
       <Sheet
         visible={assigning !== null}
         onClose={closeAssign}
@@ -1150,11 +1445,8 @@ export default function CapturesScreen() {
       >
         <Text variant="heading">{t.captures.assignTitle}</Text>
 
-        {/* What is being placed, so the sheet stands on its own over the
-                list it hides: the amount and its note beside the capture's own
-                glyph. The title says what this sheet is for; a line under this
-                repeating "choose where to add this expense" only said it again,
-                so the summary is the whole of the preamble now. */}
+        {/* What is being placed, so the sheet stands on its own over the list it
+            hides: the amount and its note beside the capture's own glyph. */}
         {assigningCapture ? (
           <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
             <CategoryBadge
@@ -1178,9 +1470,6 @@ export default function CapturesScreen() {
             </View>
           </Row>
         ) : batchPreview ? (
-          /* A whole cluster is being placed: the batch card's own glyph and
-             running total, so the sheet says how much money the next tap moves
-             and how many drafts it clears. */
           <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
             <View
               style={{
@@ -1211,18 +1500,12 @@ export default function CapturesScreen() {
         ) : null}
 
         {/* The same picker the voice review opens, so "where does this go?" is
-            one control in the app rather than two that drifted apart — and the
-            drafts inbox inherits its People tab, which this screen never had.
+            one control in the app rather than two that drifted apart.
 
             A plain ScrollView, not the FlashList this screen uses everywhere
-            else, and the exception is deliberate: FlashList's container is
-            `flex: 1` by construction, so it cannot size itself to its rows — it
-            needs a height handed down, and a fixed fraction of the window left a
-            person with two groups staring at a half-screen of white. The picker
-            holds the groups you are in and the people you already share one
-            with — a handful, and filtered by its own search once there are more
-            — so rendering them all costs nothing, and `flexShrink` lets the
-            sheet hug them and only start scrolling at `pickerMaxHeight`. */}
+            else: FlashList's container is `flex: 1` by construction, so it
+            cannot size itself to its rows, and a fixed fraction of the window
+            left a person with two groups staring at a half-screen of white. */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -1230,8 +1513,7 @@ export default function CapturesScreen() {
         >
           <DestinationPicker
             // Remount per draft (or per batch), so the tab and any half-made
-            // people selection start fresh on each open rather than carrying
-            // over from the last.
+            // people selection start fresh on each open.
             key={
               assigning
                 ? assigning.kind === 'capture'
@@ -1240,21 +1522,13 @@ export default function CapturesScreen() {
                 : 'closed'
             }
             selection={pickerSelection}
-            // The sheet's own heading already says what this is; a second
-            // "SAVE TO" line under it would only say it again.
             eyebrow={null}
             // Neither pinned default belongs here: a draft already *is*
             // unassigned, and "just me" writes to the personal ledger, which
             // this screen has no path to.
             pinned={[]}
-            // "New group" routes away to /new-group, which carries one draft
-            // back to the form; a batch stays here, so the row is not offered
-            // for one. Naming the people it was with still makes a group —
-            // that path (the People tab) places the whole batch into it.
             createRow={assigning?.kind === 'batch' ? null : { label: t.captures.assignNew }}
             emptyGroups={t.captures.noGroups}
-            // A group with no name of its own reads as its members here, which
-            // needs the membership only the home summary holds.
             labelFor={(group) => groupLabel(group, summary.membersFor(group.id), profile?.id)}
             groups={assignableGroups}
             people={peopleChoices}
@@ -1267,8 +1541,6 @@ export default function CapturesScreen() {
               if (choice.kind === 'existing') {
                 chooseExistingGroup(target, choice.groupId);
               } else if (choice.kind === 'create' && target.kind === 'capture') {
-                // Carry the capture through group creation so new-group can hand
-                // it back and finish the assignment.
                 closeAssign();
                 router.push({
                   pathname: '/new-group',
@@ -1281,11 +1553,9 @@ export default function CapturesScreen() {
         </ScrollView>
       </Sheet>
 
-      {/* The row's ⋯ overflow, as a small sheet: the actions that are not "add to
-          group" (the card's own tap) plus a labelled way to reach it, so the one
-          thing a person does with a capture is spelled out and delete no longer
-          rides on every row. A real Modal for the same reason the assign sheet is
-          one — an in-tree overlay would paint under the root tab bar. */}
+      {/* The row's ⋯ overflow, as a small sheet. Every gesture this screen has
+          is also a plain row in here: filing it where the chip says, and taking
+          it off the list. A swipe is a shortcut, never the only way through. */}
       <Sheet
         visible={menu !== null}
         onClose={closeMenu}
@@ -1293,21 +1563,36 @@ export default function CapturesScreen() {
         closeLabel={t.common.close}
         style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.xs }}
       >
-        {menu?.kind === 'capture' ? (
+        {menuCapture ? (
           <>
             <Text variant="heading" numberOfLines={1} style={{ marginBottom: theme.spacing.xs }}>
-              {menu.capture.description?.trim() ||
-                (menu.capture.category
-                  ? (t.categories as Record<string, string>)[menu.capture.category]
+              {menuCapture.description?.trim() ||
+                (menuCapture.category
+                  ? (t.categories as Record<string, string>)[menuCapture.category]
                   : undefined) ||
                 t.captures.unassigned}
             </Text>
+            {menuDestinationName ? (
+              <>
+                <ActionSheetRow
+                  icon="checkmark-circle-outline"
+                  label={t.captures.fileTo.replace('{name}', menuDestinationName)}
+                  tone="brand"
+                  onPress={() => {
+                    const capture = menuCapture;
+                    setMenu(null);
+                    fileWhereItSays(capture);
+                  }}
+                />
+                <Divider />
+              </>
+            ) : null}
             <ActionSheetRow
               icon="people-outline"
               label={t.captures.assign}
-              tone="brand"
+              tone={menuDestinationName ? 'default' : 'brand'}
               onPress={() => {
-                const capture = menu.capture;
+                const capture = menuCapture;
                 setMenu(null);
                 openAssign(capture);
               }}
@@ -1317,20 +1602,20 @@ export default function CapturesScreen() {
               icon="create-outline"
               label={t.captures.edit}
               onPress={() => {
-                const capture = menu.capture;
+                const capture = menuCapture;
                 setMenu(null);
                 openEdit(capture);
               }}
             />
             <Divider />
             <ActionSheetRow
-              icon="trash-outline"
-              label={t.captures.delete}
+              icon={wasFound(menuCapture) ? 'close-circle-outline' : 'trash-outline'}
+              label={wasFound(menuCapture) ? t.captures.notAnExpense : t.captures.delete}
               tone="negative"
               onPress={() => {
-                const capture = menu.capture;
+                const capture = menuCapture;
                 setMenu(null);
-                void confirmDelete(capture);
+                void dismiss(capture);
               }}
             />
           </>
@@ -1339,10 +1624,8 @@ export default function CapturesScreen() {
             <Text variant="heading" numberOfLines={1} style={{ marginBottom: theme.spacing.xs }}>
               {plural(locale, menu.items.length, t.captures.batchExpenses)}
             </Text>
-            {/* The whole cluster into one group, in one tap — the alternative
-                to expanding it and answering the same question once per row.
-                Opens the very same picker a single draft opens, so the choice
-                is made the same way whichever is riding on it. */}
+            {/* The whole cluster into one group, in one tap — the alternative to
+                expanding it and answering the same question once per row. */}
             <ActionSheetRow
               icon="people-outline"
               label={t.captures.assignBatch}

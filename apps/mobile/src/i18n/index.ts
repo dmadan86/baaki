@@ -1568,6 +1568,45 @@ export interface UiStrings {
   };
   /** Captures (A34): an expense caught before it has a group, kept in a personal inbox. */
   captures: {
+    /**
+     * The reader's own state, which replaced the paragraph of instructions that
+     * used to sit at the top of Review. An instruction is what you show somebody
+     * you are about to make work; when the app is doing the work the honest
+     * object is a state. Only ever shown while something really is watching.
+     */
+    watching: string;
+    watchingSince: string;
+    checkingNow: string;
+    /** The status line is tappable — this is what tapping it promises. */
+    checkNow: string;
+    /**
+     * The two piles Review is cut into: what the app is sure of, and what it
+     * read but was not certain about. Sections, not tabs — see lib/reviewFeed.ts.
+     * The `…Count` forms are the spoken name of each heading, count and all.
+     */
+    sectionReady: string;
+    sectionLook: string;
+    readyCount: PluralForms;
+    lookCount: PluralForms;
+    /** The chip on a row with no destination to name. It asks; it never guesses. */
+    whichGroup: string;
+    /** The one gesture, in words. Also the ⋯ sheet's first row when it applies. */
+    fileTo: string;
+    /**
+     * The other gesture: a credit-card bill, a transfer to yourself, rent nobody
+     * splits. An inbox you can only add from fills with noise and gets abandoned.
+     */
+    notAnExpense: string;
+    notAnExpenseDone: string;
+    /**
+     * The zero state, which is the state Review is trying to reach — it is the
+     * app's list of questions, and a good week is one where it has none.
+     */
+    nothingNeedsYou: string;
+    filedThisWeek: PluralForms;
+    watchingNothingYet: string;
+    /** Where pasting lives once the messages are being read for you. */
+    addAnotherWay: string;
     title: string;
     captureCta: string;
     /** The Review tab's second way in: a bank message, pasted (or, on a build that
@@ -1595,7 +1634,6 @@ export interface UiStrings {
     newTitle: string;
     editTitle: string;
     edit: string;
-    emptyTitle: string;
     emptyBody: string;
     amount: string;
     description: string;
@@ -4379,7 +4417,26 @@ const en: UiStrings = {
     paidHint: 'Group photos are a Plus feature. Pick an icon, or upgrade to add a photo.',
   },
   captures: {
-    title: 'Saved for later',
+    watching: 'Watching your bank messages',
+    watchingSince: 'Watching your bank messages · {when}',
+    checkingNow: 'Checking your messages…',
+    checkNow: 'Check now',
+    sectionReady: 'Ready',
+    sectionLook: 'Worth a look',
+    readyCount: { one: '{n} ready', other: '{n} ready' },
+    lookCount: { one: '{n} worth a look', other: '{n} worth a look' },
+    whichGroup: 'Which group?',
+    fileTo: 'File to {name}',
+    notAnExpense: 'Not an expense',
+    notAnExpenseDone: 'Taken off your list',
+    nothingNeedsYou: 'Nothing needs you',
+    filedThisWeek: {
+      one: '{n} payment from this week is already in its group.',
+      other: '{n} payments from this week are already in their groups.',
+    },
+    watchingNothingYet: 'Waves is watching your bank messages. Anything it finds turns up here.',
+    addAnotherWay: 'Add another way',
+    title: 'Review',
     captureCta: 'Save an expense',
     fromMessage: 'Add from a message',
     paidWith: 'Paid with',
@@ -4403,7 +4460,6 @@ const en: UiStrings = {
     newTitle: 'Save an expense',
     editTitle: 'Edit expense',
     edit: 'Edit',
-    emptyTitle: 'Nothing saved yet',
     emptyBody:
       'Catch a spend the moment it happens — the amount, a note, a photo of the bill — and choose which group it belongs to later.',
     amount: 'Amount',
@@ -7086,7 +7142,27 @@ const ta: UiStrings = {
       'குழு புகைப்படங்கள் Plus அம்சம். ஒரு ஐகானைத் தேர்ந்தெடுக்கவும், அல்லது புகைப்படம் சேர்க்க மேம்படுத்தவும்.',
   },
   captures: {
-    title: 'பிறகுக்காகச் சேமித்தவை',
+    watching: 'உங்கள் வங்கிச் செய்திகளைக் கவனித்து வருகிறது',
+    watchingSince: 'உங்கள் வங்கிச் செய்திகளைக் கவனித்து வருகிறது · {when}',
+    checkingNow: 'உங்கள் செய்திகளைப் பார்க்கிறது…',
+    checkNow: 'இப்போது பார்',
+    sectionReady: 'தயார்',
+    sectionLook: 'ஒரு பார்வை தேவை',
+    readyCount: { one: '{n} தயார்', other: '{n} தயார்' },
+    lookCount: { one: '{n} ஒரு பார்வை தேவை', other: '{n} ஒரு பார்வை தேவை' },
+    whichGroup: 'எந்தக் குழு?',
+    fileTo: '{name} இல் சேர்',
+    notAnExpense: 'இது செலவு அல்ல',
+    notAnExpenseDone: 'உங்கள் பட்டியலிலிருந்து நீக்கப்பட்டது',
+    nothingNeedsYou: 'உங்களிடம் எதுவும் கேட்கவில்லை',
+    filedThisWeek: {
+      one: 'இந்த வாரத்தின் {n} பணம் ஏற்கனவே அதன் குழுவில் உள்ளது.',
+      other: 'இந்த வாரத்தின் {n} பணங்கள் ஏற்கனவே அவற்றின் குழுக்களில் உள்ளன.',
+    },
+    watchingNothingYet:
+      'Waves உங்கள் வங்கிச் செய்திகளைக் கவனித்து வருகிறது. அது கண்டுபிடிப்பவை இங்கே வந்து சேரும்.',
+    addAnotherWay: 'வேறு வழியில் சேர்',
+    title: 'மறுபார்வை',
     captureCta: 'ஒரு செலவைச் சேமியுங்கள்',
     fromMessage: 'செய்தியிலிருந்து சேர்',
     paidWith: 'எப்படிச் செலுத்தினீர்கள்',
@@ -7111,7 +7187,6 @@ const ta: UiStrings = {
     newTitle: 'ஒரு செலவைச் சேமியுங்கள்',
     editTitle: 'செலவைத் திருத்து',
     edit: 'திருத்து',
-    emptyTitle: 'இன்னும் எதுவும் சேமிக்கப்படவில்லை',
     emptyBody:
       'செலவு நடந்த அந்த நொடியிலேயே பிடித்து வையுங்கள் — தொகை, ஒரு குறிப்பு, ரசீதின் படம் — எந்தக் குழுவுக்கு உரியது என்பதைப் பிறகு தீர்மானியுங்கள்.',
     amount: 'தொகை',
@@ -9854,7 +9929,26 @@ const hi: UiStrings = {
     paidHint: 'ग्रुप फ़ोटो एक Plus सुविधा है। कोई आइकन चुनें, या फ़ोटो जोड़ने के लिए अपग्रेड करें।',
   },
   captures: {
-    title: 'बाद के लिए सहेजे',
+    watching: 'आपके बैंक संदेशों पर नज़र है',
+    watchingSince: 'आपके बैंक संदेशों पर नज़र है · {when}',
+    checkingNow: 'आपके संदेश देखे जा रहे हैं…',
+    checkNow: 'अभी देखें',
+    sectionReady: 'तैयार',
+    sectionLook: 'एक नज़र डालें',
+    readyCount: { one: '{n} तैयार', other: '{n} तैयार' },
+    lookCount: { one: '{n} पर एक नज़र डालें', other: '{n} पर एक नज़र डालें' },
+    whichGroup: 'कौन-सा समूह?',
+    fileTo: '{name} में डालें',
+    notAnExpense: 'यह खर्च नहीं है',
+    notAnExpenseDone: 'आपकी सूची से हटा दिया',
+    nothingNeedsYou: 'आपसे कुछ नहीं पूछा जा रहा',
+    filedThisWeek: {
+      one: 'इस हफ़्ते का {n} भुगतान पहले ही अपने समूह में है।',
+      other: 'इस हफ़्ते के {n} भुगतान पहले ही अपने समूहों में हैं।',
+    },
+    watchingNothingYet: 'Waves आपके बैंक संदेशों पर नज़र रखे है। जो मिलेगा वह यहीं आ जाएगा।',
+    addAnotherWay: 'किसी और तरह से जोड़ें',
+    title: 'समीक्षा',
     captureCta: 'एक खर्च सहेजें',
     fromMessage: 'संदेश से जोड़ें',
     paidWith: 'कैसे चुकाया',
@@ -9878,7 +9972,6 @@ const hi: UiStrings = {
     newTitle: 'एक खर्च सहेजें',
     editTitle: 'खर्च बदलें',
     edit: 'बदलें',
-    emptyTitle: 'अभी तक कुछ सहेजा नहीं',
     emptyBody:
       'खर्च होते ही उसे पकड़ लें — रकम, एक नोट, बिल की तस्वीर — और बाद में तय करें कि यह किस समूह का है।',
     amount: 'रकम',
@@ -12620,7 +12713,44 @@ const ar: UiStrings = {
     paidHint: 'صور المجموعة ميزة Plus. اختر أيقونة، أو قم بالترقية لإضافة صورة.',
   },
   captures: {
-    title: 'محفوظة لوقت لاحق',
+    watching: 'نراقب رسائل بنكك',
+    watchingSince: 'نراقب رسائل بنكك · {when}',
+    checkingNow: 'نتحقق من رسائلك…',
+    checkNow: 'تحقّق الآن',
+    sectionReady: 'جاهزة',
+    sectionLook: 'تستحق نظرة',
+    readyCount: {
+      zero: 'لا شيء جاهز',
+      one: 'واحد جاهز',
+      two: 'اثنان جاهزان',
+      few: '{n} جاهزة',
+      many: '{n} جاهزًا',
+      other: '{n} جاهز',
+    },
+    lookCount: {
+      zero: 'لا شيء يستحق النظر',
+      one: 'واحد يستحق نظرة',
+      two: 'اثنان يستحقان نظرة',
+      few: '{n} تستحق نظرة',
+      many: '{n} تستحق نظرة',
+      other: '{n} يستحق نظرة',
+    },
+    whichGroup: 'أي مجموعة؟',
+    fileTo: 'أضِف إلى {name}',
+    notAnExpense: 'ليس مصروفًا',
+    notAnExpenseDone: 'أُزيل من قائمتك',
+    nothingNeedsYou: 'لا شيء يحتاجك',
+    filedThisWeek: {
+      zero: 'لا مدفوعات من هذا الأسبوع في مجموعاتها بعد.',
+      one: 'دفعة واحدة من هذا الأسبوع صارت في مجموعتها.',
+      two: 'دفعتان من هذا الأسبوع صارتا في مجموعتيهما.',
+      few: '{n} مدفوعات من هذا الأسبوع صارت في مجموعاتها.',
+      many: '{n} دفعة من هذا الأسبوع صارت في مجموعاتها.',
+      other: '{n} دفعة من هذا الأسبوع صارت في مجموعاتها.',
+    },
+    watchingNothingYet: 'يراقب Waves رسائل بنكك. وكل ما يجده يظهر هنا.',
+    addAnotherWay: 'أضف بطريقة أخرى',
+    title: 'مراجعة',
     captureCta: 'احفظ مصروفًا',
     fromMessage: 'أضف من رسالة',
     paidWith: 'طريقة الدفع',
@@ -12644,7 +12774,6 @@ const ar: UiStrings = {
     newTitle: 'احفظ مصروفًا',
     editTitle: 'تعديل المصروف',
     edit: 'تعديل',
-    emptyTitle: 'لا شيء محفوظ بعد',
     emptyBody:
       'التقط المصروف لحظة حدوثه — المبلغ، ملاحظة، صورة الفاتورة — وقرّر لاحقًا إلى أي مجموعة ينتمي.',
     amount: 'المبلغ',
