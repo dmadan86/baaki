@@ -42,6 +42,17 @@ describe('buildMerchantDestinations', () => {
     expect(map.has('blue tokai')).toBe(false);
   });
 
+  it('asks when user, rider, traveller and financer histories split the shop evenly', () => {
+    const map = buildMerchantDestinations([
+      filed('user', 'Airport Cab', '2026-09-01T10:00:00Z'),
+      filed('rider', 'Airport Cab', '2026-09-02T10:00:00Z'),
+      filed('traveller', 'Airport Cab', '2026-09-03T10:00:00Z'),
+      filed('financer', 'Airport Cab', '2026-09-04T10:00:00Z'),
+    ]);
+
+    expect(map.has('airport cab')).toBe(false);
+  });
+
   it('answers when the newest group is also the busiest', () => {
     const map = buildMerchantDestinations([
       filed('flat', 'Blue Tokai', '2026-09-01T10:00:00Z'),
