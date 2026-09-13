@@ -108,7 +108,7 @@ import { parseAnnotations, type Annotations } from '@/lib/annotations';
 import { sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import type { VoiceAccess } from '@/lib/voiceAccess';
 import { myStake } from './activity';
-import { isViewer, SettlementStatus } from './types';
+import { isGhost, isViewer, SettlementStatus } from './types';
 import type {
   ActivityActor,
   ActivityGroup,
@@ -274,9 +274,9 @@ export function useGroupPeopleSignatures(
       const members = (
         materialiseMembers(mirror, queue, { groupId: group.id }) as unknown as MemberRow[]
       ).filter((member) => member.left_at === null);
-      if (!members.some((member) => member.profile_id === profileId)) continue;
+      if (!members.some((member) => isViewer(member, profileId))) continue;
       const names = members
-        .filter((member) => member.profile_id !== profileId)
+        .filter((member) => !isViewer(member, profileId))
         .map((member) => member.profile?.display_name ?? member.ghost_name ?? '')
         .filter((name) => name.length > 0);
       out.push({ groupId: group.id, names });
@@ -733,7 +733,7 @@ export function usePeopleBalances(profileId: string | null): LocalRead<PersonBal
           displayName:
             other.profile?.display_name ?? merge?.display_name ?? other.ghost_name ?? 'Someone',
           avatarUrl: other.profile?.avatar_url ?? null,
-          isGhost: other.profile_id === null,
+          isGhost: isGhost(other),
           currency: edge.currency,
           net,
           lastActivityAt: activity.get(other.id) ?? null,
@@ -849,7 +849,7 @@ export function useRecentActivity(myProfileId: string | null = null): RecentActi
           profile_id: string | null;
           left_at: string | null;
         };
-        if (m.profile_id === myProfileId && !m.left_at) myMemberByGroup.set(m.group_id, m.id);
+        if (isViewer(m, myProfileId) && !m.left_at) myMemberByGroup.set(m.group_id, m.id);
       }
     }
 
@@ -1159,7 +1159,7 @@ export function useGroupLedger(groupId: string, myProfileId: string | null): Gro
     }
 
     const myMemberId =
-      (members.data ?? []).find((member) => member.profile_id === myProfileId)?.id ?? null;
+      (members.data ?? []).find((member) => isViewer(member, myProfileId))?.id ?? null;
     const myBalance = myMemberId ? (computed.get(myMemberId) ?? 0n) : 0n;
     const myPending = myMemberId
       ? (withPending.get(currency)?.get(myMemberId) ?? 0n) - myBalance

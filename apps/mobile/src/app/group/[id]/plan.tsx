@@ -61,9 +61,9 @@ import {
   useSetMyTripBudget,
   useSetPlanItemDone,
 } from '@/data/hooks';
-import { displayName } from '@/data/types';
+import { displayName, isViewer } from '@/data/types';
 import { friendlyError } from '@/lib/errors';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { SkeletonList } from '@/components/Skeletons';
 import { CategoryBudgets } from '@/components/CategoryBudgets';
 import { fill, useStrings, type UiStrings } from '@/i18n';
@@ -97,7 +97,12 @@ export default function PlanScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
 
-  const { profile } = useAuth();
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
   const { group, members, expenses } = useGroup(groupId);
   const plan = usePlanItems(groupId);
   const budgets = useMemberBudgets(groupId);
@@ -189,8 +194,7 @@ export default function PlanScreen() {
     [expenses.rows],
   );
 
-  const myProfileId = profile?.id ?? null;
-  const myMember = (members.data ?? []).find((m) => m.profile_id === myProfileId) ?? null;
+  const myMember = (members.data ?? []).find((m) => isViewer(m, viewerId)) ?? null;
   const myMemberId = myMember?.id ?? null;
   const isAdmin = myMember?.role === 'admin';
 
@@ -217,7 +221,7 @@ export default function PlanScreen() {
       return progress
         ? {
             memberId: row.member_id,
-            name: member ? displayName(member, myProfileId) : '—',
+            name: member ? displayName(member, viewerId) : '—',
             visibility: row.visibility,
             isMine: row.member_id === myMemberId,
             progress,
@@ -307,7 +311,7 @@ export default function PlanScreen() {
 
   const nameOf = (memberId: string): string => {
     const member = (members.data ?? []).find((m) => m.id === memberId);
-    return member ? displayName(member, myProfileId) : '—';
+    return member ? displayName(member, viewerId) : '—';
   };
 
   // Burn-rate: the pace so far, projected across the whole trip, per currency

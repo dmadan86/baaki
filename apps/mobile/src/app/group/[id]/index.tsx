@@ -64,6 +64,7 @@ import {
   groupLabel,
   isBlockedMember,
   isGhost,
+  isViewer,
   payableAt,
   type ActivityActor,
   type ActivityRow,
@@ -72,7 +73,7 @@ import {
   type MemberRow,
 } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { canRemindFromBalanceRow } from '@/lib/balanceRowActions';
 import { router, useGoBack } from '@/lib/navigation';
 import { paidBy } from '@/lib/payerLines';
@@ -462,7 +463,12 @@ export default function GroupScreen() {
   // The param is gone on any later visit, so the nudge is a moment, not a nag.
   const { id, welcome } = useLocalSearchParams<{ id: string; welcome?: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
   const [tab, setTab] = useState<Tab>(Tab.Expenses);
   const [showDeleted, setShowDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -476,7 +482,7 @@ export default function GroupScreen() {
   const { queue, rejected } = useSync();
 
   const { group, members, expenses, settlements, activity } = useGroup(groupId);
-  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const ledger = useGroupLedger(groupId, viewerId);
   // Pin/Unpin lives in this screen's own ••• menu — the discoverable path; a
   // long-press on the group's row (dashboard or All groups) is the fast one.
   const pinnedIds = usePinnedGroupIds();
@@ -498,9 +504,9 @@ export default function GroupScreen() {
   const nameOf = useCallback(
     (memberId: string | null): string => {
       const member = memberId ? lookup.get(memberId) : undefined;
-      return member ? displayName(member, profile?.id, blockedIds, t.misc.someone) : t.misc.someone;
+      return member ? displayName(member, viewerId, blockedIds, t.misc.someone) : t.misc.someone;
     },
-    [blockedIds, lookup, profile?.id, t.misc.someone],
+    [blockedIds, lookup, viewerId, t.misc.someone],
   );
 
   // Where a Balances row goes when it is tapped: that person, un-collapsed
@@ -529,7 +535,7 @@ export default function GroupScreen() {
       // and is null for the frame before they land — long enough for your own
       // row to be drawn as a doorway into yourself.
       if (member.id === ledger.myMemberId) return null;
-      if (member.profile_id !== null && member.profile_id === profile?.id) return null;
+      if (isViewer(member, viewerId)) return null;
       if (member.pending) return null;
       return personKeyOf({
         profileId: member.profile_id,
@@ -537,7 +543,7 @@ export default function GroupScreen() {
         memberId: member.id,
       });
     },
-    [ledger.myMemberId, mergePersonIds, profile?.id],
+    [ledger.myMemberId, mergePersonIds, viewerId],
   );
 
   // The joined actor an activity row would carry on the cross-group feed, rebuilt
@@ -821,7 +827,7 @@ export default function GroupScreen() {
     // long-press action does.
     {
       icon: isPinned ? 'pin' : 'pin-outline',
-      label: `${isPinned ? t.group.unpin : t.group.pin} ${groupLabel(groupData, members.data, profile?.id)}`,
+      label: `${isPinned ? t.group.unpin : t.group.pin} ${groupLabel(groupData, members.data, viewerId)}`,
       onPress: () => setGroupPin.mutate({ groupId, pinned: !isPinned }),
     },
     { icon: 'pie-chart-outline', label: t.spending, route: `/group/${groupId}/insights` },
@@ -883,7 +889,7 @@ export default function GroupScreen() {
       // The name the row is allowed to say — already masked for a blocked
       // person, and it travels with the tap so the destination opens under the
       // same mask rather than flashing the real name while it loads.
-      const shownName = displayName(member, profile?.id, blockedIds, t.misc.someone);
+      const shownName = displayName(member, viewerId, blockedIds, t.misc.someone);
       const personKey = personKeyFor(member);
       const canRemind = canRemindFromBalanceRow({
         balance,
@@ -1026,11 +1032,11 @@ export default function GroupScreen() {
     const resolved = entry.actor ? entry : { ...entry, actor: actorFor(entry.actor_member_id) };
     // The full sentence stays the spoken label; the visible title leads with the
     // event and the actor drops to the metadata line, so the feed is skimmable.
-    const label = describeActivity(resolved, profile?.id ?? null, blockedIds, t.misc.someone);
+    const label = describeActivity(resolved, viewerId, blockedIds, t.misc.someone);
     const headline = activityHeadline(entry);
     // No actor on an auto-event — omit it rather than say "Someone".
     const who = resolved.actor
-      ? actorName(resolved.actor, profile?.id ?? null, blockedIds, t.misc.someone)
+      ? actorName(resolved.actor, viewerId, blockedIds, t.misc.someone)
       : null;
     // This feed is flat — no day headings — so the row keeps the full relative
     // wording ("yesterday", "3 days ago"), the day the reader would otherwise
@@ -1110,7 +1116,7 @@ export default function GroupScreen() {
           groupId={groupId}
           group={group.data}
           members={members.data ?? []}
-          profileId={profile?.id ?? null}
+          profileId={viewerId}
           currency={currency}
           myBalance={ledger.myBalance}
           pending={ledger.pending}

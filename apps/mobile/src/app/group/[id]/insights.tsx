@@ -49,9 +49,10 @@ import type { SpendingRow } from '@/data/api';
 import { computeSpendingRows } from '@/data/spending';
 import { useGroup } from '@/data/hooks';
 import { useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { useBottomClearance } from '@/lib/clearance';
 import { router } from '@/lib/navigation';
+import { isViewer } from '@/data/types';
 
 enum Scope {
   Group = 'group',
@@ -67,7 +68,13 @@ export default function InsightsScreen() {
   const { t, locale } = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
 
@@ -79,8 +86,8 @@ export default function InsightsScreen() {
   const [scope, setScope] = useState<Scope>(Scope.Group);
 
   const myMemberId = useMemo(
-    () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
-    [members.data, profile?.id],
+    () => (members.data ?? []).find((member) => isViewer(member, viewerId))?.id ?? null,
+    [members.data, viewerId],
   );
 
   // The group's own currency first; anything else follows it, so a single

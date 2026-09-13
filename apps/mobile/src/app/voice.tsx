@@ -72,9 +72,9 @@ import {
 } from '@/data/hooks';
 import { nudgeToSettle } from '@/data/api';
 import { useUpsertPersonalRecord } from '@/data/personal';
-import { displayName, groupLabel, GroupType, type GroupRow } from '@/data/types';
+import { displayName, groupLabel, GroupType, isViewer, type GroupRow } from '@/data/types';
 import { isRtl, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { useBottomClearance } from '@/lib/clearance';
 import { useDefaultCurrency } from '@/lib/currency';
 import { friendlyError } from '@/lib/errors';
@@ -201,7 +201,13 @@ export default function VoiceScreen() {
   // it (a KeyboardAvoidingView does not resize inside an Android Modal).
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { t, locale } = useStrings();
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
   const dc = useDefaultCurrency();
   // "That worked", said over whichever screen the save leaves you on — see the
   // note on the landings in `save` below.
@@ -225,12 +231,12 @@ export default function VoiceScreen() {
   const upsertPersonal = useUpsertPersonalRecord();
   // "Who is in this" for every group I am in — used to tell whether a set of
   // selected people already share a group (assign to it) or not (make one).
-  const signatures = useGroupPeopleSignatures(profile?.id ?? null);
+  const signatures = useGroupPeopleSignatures(viewerId);
   // Existing people, by name, so a spoken expense can be pointed at an
   // individual — not only a group. Each is a pairwise balance the viewer has;
   // the ones explained by a single group (`only_group_id`) are their 1:1 group,
   // which the picker reuses. Computed from the mirror, so it works offline.
-  const people = usePeopleBalances(profile?.id ?? null);
+  const people = usePeopleBalances(viewerId);
   // Groups that are a true 1:1 (you + one other) — these are the People-tab
   // contacts, and the only groups the Groups tab hides. A multi-person group is
   // never treated as a person, even when it is your sole shared group with
@@ -380,7 +386,7 @@ export default function VoiceScreen() {
   const recordSettlement = useRecordSettlement(dest.kind === 'settle' ? dest.groupId : '');
   // The ledger behind a spoken "what's my balance in <group>". Empty id (no such
   // question pending) reads nothing, so it stays inert until one is asked.
-  const queryLedger = useGroupLedger(queryGroupId, profile?.id ?? null);
+  const queryLedger = useGroupLedger(queryGroupId, viewerId);
 
   // A confident command writes itself after this many ms, unless Undo is tapped.
   const AUTO_COMMIT_MS = 4000;
@@ -1084,7 +1090,7 @@ export default function VoiceScreen() {
         // sets the direction; the amount is the whole balance or a partial. Cash
         // is the neutral default rail — the reader can change it on the ledger.
         const members = target.members.data ?? [];
-        const myMemberId = members.find((member) => member.profile_id === profile?.id)?.id;
+        const myMemberId = members.find((member) => isViewer(member, viewerId))?.id;
         if (!myMemberId) throw new Error('no member to settle as');
         await recordSettlement.mutateAsync({
           groupId: dest.groupId,
@@ -1124,7 +1130,7 @@ export default function VoiceScreen() {
         // duplicate (there is no member id to reuse the way a `people` batch has).
         const existing = new Set(
           (target.members.data ?? []).map((member) =>
-            displayName(member, profile?.id).trim().toLowerCase(),
+            displayName(member, viewerId).trim().toLowerCase(),
           ),
         );
         for (const name of dest.names) {
@@ -1209,8 +1215,7 @@ export default function VoiceScreen() {
       const groupMembers = target.members.data ?? [];
       const payer =
         dest.kind === 'existing'
-          ? (groupMembers.find((member) => member.profile_id === profile?.id)?.id ??
-            groupMembers[0]?.id)
+          ? (groupMembers.find((member) => isViewer(member, viewerId))?.id ?? groupMembers[0]?.id)
           : dest.memberId;
       if (!payer) throw new Error('no members to split among');
       const participants =
@@ -1220,7 +1225,7 @@ export default function VoiceScreen() {
               payer,
               members: groupMembers.map((member) => ({
                 id: member.id,
-                name: displayName(member, profile?.id),
+                name: displayName(member, viewerId),
               })),
               peopleText: voicePeopleText,
               splitCount: voiceSplitCount,

@@ -30,9 +30,9 @@ import { useGroup, useGroupLedger, useSetMemberRole, useUpdateMember } from '@/d
 import { friendlyError } from '@/lib/errors';
 import { expenseTitle } from '@/data/expenseTitle';
 import { useBlockedUsers } from '@/data/blocked';
-import { displayName, groupLabel, isBlockedMember, isGhost } from '@/data/types';
+import { displayName, groupLabel, isBlockedMember, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useViewerId } from '@/lib/auth';
 import { useBottomClearance } from '@/lib/clearance';
 import { router } from '@/lib/navigation';
 import { useDialog } from '@/lib/dialog';
@@ -45,16 +45,22 @@ export default function MemberScreen() {
   const { id, memberId } = useLocalSearchParams<{ id: string; memberId: string }>();
   const groupId = id ?? '';
   const { profile } = useAuth();
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
-  const ledger = useGroupLedger(groupId, profile?.id ?? null);
+  const ledger = useGroupLedger(groupId, viewerId);
   const updateMember = useUpdateMember(groupId);
   const setRole = useSetMemberRole(groupId);
   const { blockedIds, block, unblock } = useBlockedUsers();
 
   const member = members.data?.find((row) => row.id === memberId);
-  const isMe = member?.profile_id === profile?.id;
-  const iAmAdmin = members.data?.find((row) => row.profile_id === profile?.id)?.role === 'admin';
+  const isMe = member ? isViewer(member, viewerId) : false;
+  const iAmAdmin = members.data?.find((row) => isViewer(row, viewerId))?.role === 'admin';
   const currency = group.data?.default_currency ?? 'INR';
 
   const [name, setName] = useState(member?.ghost_name ?? '');
@@ -87,7 +93,7 @@ export default function MemberScreen() {
   // A blocked person wears the ghost look and the ghost name here too — the one
   // exception is the block card below, which needs their real name to name the
   // action. Blocking is display-only; it never touches the balance shown here.
-  const shownName = displayName(member, profile?.id, blockedIds, t.misc.someone);
+  const shownName = displayName(member, viewerId, blockedIds, t.misc.someone);
   const realName = member.profile?.display_name ?? member.ghost_name ?? t.misc.someone;
 
   const confirmBlock = async (): Promise<void> => {

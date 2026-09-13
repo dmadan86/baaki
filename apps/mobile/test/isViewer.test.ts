@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isViewer } from '@/data/types';
+import { isGhost, isViewer } from '@/data/types';
 
 const me = { profile_id: 'profile-me' };
 const someoneElse = { profile_id: 'profile-them' };
@@ -60,5 +60,27 @@ describe('when it does not', () => {
     expect(members.find((member) => isViewer(member, null))).toBeUndefined();
     // And for contrast, the spelling this function exists to replace:
     expect(members.find((member) => member.profile_id === null)).toBe(ghost);
+  });
+});
+
+describe('the other question', () => {
+  // `isGhost` asks what a bare `profile_id === null` used to ask all over the
+  // codebase. It is the one comparison that is *meant* to match a ghost, which
+  // is why it has a name — the lint rule bans the spelling, and a banned
+  // spelling needs a sanctioned one to point at.
+  it('knows a ghost', () => {
+    expect(isGhost(ghost)).toBe(true);
+  });
+
+  it('knows a real member', () => {
+    expect(isGhost(me)).toBe(false);
+  });
+
+  it('is not the negation of isViewer', () => {
+    // Somebody else's account is neither the viewer nor a ghost. Collapsing the
+    // two questions into one is how "is this me?" and "is this a real person?"
+    // get confused, which is the confusion that started all of this.
+    expect(isViewer(someoneElse, 'profile-me')).toBe(false);
+    expect(isGhost(someoneElse)).toBe(false);
   });
 });

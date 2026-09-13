@@ -84,9 +84,9 @@ import { router } from '@/lib/navigation';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { StorageCapError } from '@/lib/storage';
 import { useAssignCapture, useGroup } from '@/data/hooks';
-import { displayName, groupLabel, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { useGuestGuard } from '@/lib/guestGuard';
 import { handoverKey } from '@/lib/handover';
 import { resolveDraftCurrency, resolveDraftFx } from '@/lib/expenseDraft';
@@ -395,7 +395,13 @@ export default function AddExpenseScreen() {
     focus?: string;
   }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
   const { mutate } = useSync();
@@ -514,9 +520,9 @@ export default function AddExpenseScreen() {
   const nameHints = useMemo(
     () =>
       (members.data ?? [])
-        .map((member) => displayName(member, profile?.id))
+        .map((member) => displayName(member, viewerId))
         .filter((name) => name !== 'You' && name !== 'Someone'),
-    [members.data, profile?.id],
+    [members.data, viewerId],
   );
 
   const [expenseCurrency, setExpenseCurrency] = useState<string | null>(null);
@@ -570,8 +576,8 @@ export default function AddExpenseScreen() {
   const queryClient = useQueryClient();
 
   const myMemberId = useMemo(
-    () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
-    [members.data, profile?.id],
+    () => (members.data ?? []).find((member) => isViewer(member, viewerId))?.id ?? null,
+    [members.data, viewerId],
   );
 
   // Seed the kept bill from R2 when reopening an expense that already has one
@@ -642,7 +648,7 @@ export default function AddExpenseScreen() {
               voicePeople,
               memberRows.map((member) => ({
                 id: member.id,
-                name: displayName(member, profile?.id),
+                name: displayName(member, viewerId),
               })),
             )
           : [];
@@ -659,7 +665,7 @@ export default function AddExpenseScreen() {
               captureDescription ?? '',
               memberRows.map((member) => ({
                 id: member.id,
-                name: displayName(member, profile?.id),
+                name: displayName(member, viewerId),
               })),
             )
           : (captureDescription ?? ''),
@@ -962,7 +968,7 @@ export default function AddExpenseScreen() {
     if (!plan) return;
     const keeping = plan.selected[0]!;
     const member = (members.data ?? []).find((row) => row.id === keeping);
-    const name = member ? displayName(member, profile?.id) : t.misc.someone;
+    const name = member ? displayName(member, viewerId) : t.misc.someone;
     // Collapsing is not undoable inside the form: going back to several payers
     // re-divides evenly, so the figures somebody typed are gone either way. On
     // a bill that already records several payers those figures are recorded
@@ -993,7 +999,7 @@ export default function AddExpenseScreen() {
       editingVersion.payers.some((row) => row.member_id === myMemberId)),
   );
   const iAmGroupAdmin =
-    (members.data ?? []).find((row) => row.profile_id === profile?.id)?.role === 'admin';
+    (members.data ?? []).find((row) => isViewer(row, viewerId))?.role === 'admin';
 
   /** A figure typed against one payer. Typing locks it; the others absorb. */
   const setPaidEntry = (memberId: MemberId, text: string): void => {
@@ -1627,7 +1633,7 @@ export default function AddExpenseScreen() {
           title={`${editing ? t.expense.edit : t.addExpense} · ${groupLabel(
             group.data,
             members.data ?? [],
-            profile?.id,
+            viewerId,
           )}`}
           category={category}
           categoryMeta={categoryMeta}
@@ -2038,7 +2044,7 @@ export default function AddExpenseScreen() {
                     // using a screen reader the opposite of what will happen.
                     accessibilityRole={manyPayers ? 'checkbox' : 'radio'}
                     accessibilityState={manyPayers ? { checked: isPayer } : { selected: isPayer }}
-                    accessibilityLabel={`${t.paidBy}: ${displayName(member, profile?.id)}`}
+                    accessibilityLabel={`${t.paidBy}: ${displayName(member, viewerId)}`}
                     onPress={() => togglePayer(member.id)}
                     style={{
                       width: PAYER_TILE_WIDTH,
@@ -2054,7 +2060,7 @@ export default function AddExpenseScreen() {
                       numberOfLines={1}
                       style={{ textAlign: 'center' }}
                     >
-                      {displayName(member, profile?.id)}
+                      {displayName(member, viewerId)}
                     </Text>
                   </Pressable>
                 );
@@ -2065,7 +2071,7 @@ export default function AddExpenseScreen() {
               <View style={{ gap: theme.spacing.xs }}>
                 {payerIds.map((memberId) => {
                   const member = (members.data ?? []).find((row) => row.id === memberId);
-                  const name = member ? displayName(member, profile?.id) : t.misc.someone;
+                  const name = member ? displayName(member, viewerId) : t.misc.someone;
                   return (
                     <Row key={memberId} style={{ gap: theme.spacing.md, alignItems: 'center' }}>
                       <Avatar
@@ -2166,7 +2172,7 @@ export default function AddExpenseScreen() {
 
             {(members.data ?? []).map((member) => {
               const selected = participants.includes(member.id);
-              const name = displayName(member, profile?.id);
+              const name = displayName(member, viewerId);
               return (
                 <View
                   key={member.id}
@@ -2402,7 +2408,7 @@ export default function AddExpenseScreen() {
                     >
                       <Avatar name={displayName(member)} ghost={isGhost(member)} size={32} />
                       <Text variant="body" numberOfLines={1}>
-                        {displayName(member, profile?.id)}
+                        {displayName(member, viewerId)}
                       </Text>
                     </Row>
                     <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
@@ -2417,7 +2423,7 @@ export default function AddExpenseScreen() {
                         keyboardType="number-pad"
                         placeholder="0"
                         placeholderTextColor={theme.color.textFaint}
-                        accessibilityLabel={displayName(member, profile?.id)}
+                        accessibilityLabel={displayName(member, viewerId)}
                         style={{
                           width: 56,
                           minHeight: 44,
@@ -2442,7 +2448,7 @@ export default function AddExpenseScreen() {
               ? roster.map((member) => (
                   <ChoiceRow
                     key={member.id}
-                    label={displayName(member, profile?.id)}
+                    label={displayName(member, viewerId)}
                     selected={riderPick.includes(member.id)}
                     onPress={() => toggleRider(member.id)}
                     leading={
@@ -2469,7 +2475,7 @@ export default function AddExpenseScreen() {
                           onPress={() => toggleRider(member.id)}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: isRider }}
-                          accessibilityLabel={displayName(member, profile?.id)}
+                          accessibilityLabel={displayName(member, viewerId)}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -2484,7 +2490,7 @@ export default function AddExpenseScreen() {
                             color={isRider ? theme.color.brand : theme.color.textFaint}
                           />
                           <Text variant="body" numberOfLines={1}>
-                            {displayName(member, profile?.id)}
+                            {displayName(member, viewerId)}
                           </Text>
                         </Pressable>
                         {isRider ? (
@@ -2527,7 +2533,7 @@ export default function AddExpenseScreen() {
               ? roster.map((member) => (
                   <ChoiceRow
                     key={member.id}
-                    label={displayName(member, profile?.id)}
+                    label={displayName(member, viewerId)}
                     selected={(treatHostPick ?? myMemberId) === member.id}
                     onPress={() => setTreatHostPick(member.id)}
                     leading={

@@ -44,9 +44,9 @@ import { router } from '@/lib/navigation';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
 import { recogniseReceipt } from '@/lib/ocr';
 import { useGroup, useItemClaims, useReceipt, useWriteExpense } from '@/data/hooks';
-import { displayName, groupLabel, isGhost } from '@/data/types';
+import { displayName, groupLabel, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { handoverIsFresh, handoverKey, type ReceiptHandover } from '@/lib/handover';
 import { clearDraft, useRestoredDraft } from '@/sync';
 
@@ -91,7 +91,13 @@ export default function ItemizeScreen() {
   const { t, locale } = useStrings();
   const { id, receipt: receiptParam } = useLocalSearchParams<{ id: string; receipt?: string }>();
   const groupId = id ?? '';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members } = useGroup(groupId);
   const writeExpense = useWriteExpense(groupId);
@@ -247,8 +253,8 @@ export default function ItemizeScreen() {
   };
 
   const myMemberId = useMemo(
-    () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
-    [members.data, profile?.id],
+    () => (members.data ?? []).find((member) => isViewer(member, viewerId))?.id ?? null,
+    [members.data, viewerId],
   );
 
   const isShared = sharedId !== null;
@@ -670,7 +676,7 @@ export default function ItemizeScreen() {
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: claimed }}
                     accessibilityLabel={fill(t.itemize.hadItem, {
-                      name: displayName(member, profile?.id),
+                      name: displayName(member, viewerId),
                       label: item.label,
                     })}
                     // Deliberately still tappable when it is not yours to
@@ -692,7 +698,7 @@ export default function ItemizeScreen() {
                   >
                     <Avatar name={displayName(member)} ghost={isGhost(member)} size={38} />
                     <Text variant="micro" tone={claimed ? 'brand' : 'muted'}>
-                      {displayName(member, profile?.id)}
+                      {displayName(member, viewerId)}
                     </Text>
                   </Pressable>
                 );
@@ -781,7 +787,7 @@ export default function ItemizeScreen() {
                       size={30}
                     />
                     <Text variant="body">
-                      {member ? displayName(member, profile?.id) : t.itemize.someone}
+                      {member ? displayName(member, viewerId) : t.itemize.someone}
                     </Text>
                   </Row>
                   <MoneyText amount={share} currency={currency} locale={locale} variant="caption" />

@@ -60,8 +60,8 @@ import { plural, useStrings, type UiStrings } from '@/i18n';
 import { router } from '@/lib/navigation';
 import { useReducedMotion } from '@/lib/reducedMotion';
 import { useGroups } from '@/data/hooks';
-import { displayName, groupLabel, GroupType, type MemberRow } from '@/data/types';
-import { useAuth } from '@/lib/auth';
+import { displayName, groupLabel, GroupType, isViewer, type MemberRow } from '@/data/types';
+import { useViewerId } from '@/lib/auth';
 import { useBottomClearance } from '@/lib/clearance';
 
 /** What a column in the file has been mapped to. */
@@ -138,7 +138,13 @@ export default function ImportScreen() {
   const { t, locale } = useStrings();
   const reduceMotion = useReducedMotion();
   const groups = useGroups();
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const [file, setFile] = useState<string | null>(null);
   const [parsed, setParsed] = useState<Loaded | null>(null);
@@ -297,7 +303,7 @@ export default function ImportScreen() {
   const cycle = (person: string): void => {
     setMapping((current) => {
       const now = current[person] ?? { kind: 'ghost' };
-      const others = members.filter((member) => member.profile_id !== profile?.id);
+      const others = members.filter((member) => !isViewer(member, viewerId));
 
       let next: Mapping;
       if (now.kind === 'ghost') next = { kind: 'me' };
@@ -328,7 +334,7 @@ export default function ImportScreen() {
     if (chosen.kind === 'me') return t.account.you;
     if (chosen.kind === 'ghost') return t.importLedger.newPerson;
     const member = members.find((one) => one.id === chosen.memberId);
-    return member ? displayName(member, profile?.id) : t.importLedger.newPerson;
+    return member ? displayName(member, viewerId) : t.importLedger.newPerson;
   };
 
   const claimedByMe = Object.values(mapping).some((value) => value.kind === 'me');
@@ -364,7 +370,7 @@ export default function ImportScreen() {
     if (
       chosenTarget !== NEW_GROUP &&
       iClaimedAColumn &&
-      !members.some((member) => member.profile_id === profile?.id)
+      !members.some((member) => isViewer(member, viewerId))
     ) {
       setError(t.importLedger.couldNotFindYou);
       return;
@@ -387,9 +393,7 @@ export default function ImportScreen() {
 
           // Whoever is "you" maps to your own membership in the target group; the
           // server resolves the rest, so a null memberId means "make a ghost".
-          const mine = (await fetchMembers(groupId)).find(
-            (member) => member.profile_id === profile?.id,
-          );
+          const mine = (await fetchMembers(groupId)).find((member) => isViewer(member, viewerId));
           if (iClaimedAColumn && !mine) throw new Error(t.importLedger.couldNotFindYou);
 
           const people: ImportPerson[] = snapshot.people.map((person) => {

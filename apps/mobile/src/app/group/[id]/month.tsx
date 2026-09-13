@@ -37,9 +37,9 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { memberLookup, useGroup } from '@/data/hooks';
 import { expenseTitle } from '@/data/expenseTitle';
-import { displayName, groupLabel, type ExpenseRow } from '@/data/types';
+import { displayName, groupLabel, isViewer, type ExpenseRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
-import { useAuth } from '@/lib/auth';
+import { useViewerId } from '@/lib/auth';
 import { router } from '@/lib/navigation';
 import { paidBy } from '@/lib/payerLines';
 import { useBottomClearance } from '@/lib/clearance';
@@ -72,19 +72,25 @@ export default function SpendingMonthScreen() {
   const month = (params.month ?? '').slice(0, 7); // 'YYYY-MM'
   const currency = params.currency ?? '';
   const mine = params.scope === 'mine';
-  const { profile } = useAuth();
+
+  // Identity for "which member am I", from the session rather than the profile:
+  // the session is on the device at launch, the profile is a fetch that lands
+  // later, and in the gap `profile?.id` is undefined — which `isViewer` refuses
+  // to match, but only if it is given the right thing to compare. See
+  // `lib/auth.useViewerId`.
+  const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
 
   const myMemberId = useMemo(
-    () => (members.data ?? []).find((member) => member.profile_id === profile?.id)?.id ?? null,
-    [members.data, profile?.id],
+    () => (members.data ?? []).find((member) => isViewer(member, viewerId))?.id ?? null,
+    [members.data, viewerId],
   );
 
   const lookup = memberLookup(members.data);
   const nameOf = (memberId: string | null): string => {
     const member = memberId ? lookup.get(memberId) : undefined;
-    return member ? displayName(member, profile?.id) : t.misc.someone;
+    return member ? displayName(member, viewerId) : t.misc.someone;
   };
 
   // The expenses that make up the tapped column: live, in this currency, in this

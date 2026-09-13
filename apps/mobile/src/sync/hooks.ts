@@ -28,6 +28,7 @@ import {
 import type { GroupRow, MemberRow, SettlementRow } from '@/data/types';
 
 import { useSync } from './provider';
+import { isViewer } from '@/data/types';
 
 export interface LocalGroup {
   group: GroupRow | null;
@@ -117,8 +118,7 @@ export function useOfflineLedger(groupId: string, myProfileId: string | null): O
 
     const net = computeNetBalances(snapshots, settlementSnapshots);
     const balances = net.get(currency) ?? new Map<MemberId, bigint>();
-    const myMemberId =
-      local.members.find((member) => member.profile_id === myProfileId)?.id ?? null;
+    const myMemberId = local.members.find((member) => isViewer(member, myProfileId))?.id ?? null;
 
     return {
       balances,

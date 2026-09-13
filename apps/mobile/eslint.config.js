@@ -6,6 +6,28 @@ const expoConfig = require('eslint-config-expo/flat');
  * Said once, because the two selectors that catch a native alert are two
  * spellings of the same mistake.
  */
+/**
+ * Comparing `profile_id` by hand is the bug that showed a ghost's balance as
+ * yours.
+ *
+ * A ghost is a member with no `profile_id`. An unloaded profile is `undefined`,
+ * threaded down as `null`. So `member.profile_id === profile?.id` matches the
+ * *first ghost in the group* for the first second of every cold start — and the
+ * screens that ask it were deciding whose balance to show, who to record as
+ * having paid, and whether to call somebody "You". The dashboard rendered a
+ * −₹82,001 that was really a +₹112,807, with the sign, the colour, the label and
+ * every group row agreeing.
+ *
+ * `isViewer(member, viewerId)` matches nothing when there is no viewer, and
+ * `isGhost(member)` is the one place allowed to ask the other question. Both
+ * live in `data/types.ts`, which is exempt below because it is where they are
+ * defined.
+ */
+const VIEWER_MESSAGE =
+  'Do not compare profile_id directly — use isViewer(member, viewerId) from @/data/types ' +
+  '(or isGhost(member)). A bare comparison matches the first ghost while the profile is ' +
+  'still loading. Identity comes from useViewerId(), not profile?.id.';
+
 const ALERT_MESSAGE =
   'Use `useDialog()` (@/lib/dialog) for a question and `useToast()` (@/lib/toast) for a notice. `Alert.alert` is the native dialog this app replaced.';
 
@@ -108,8 +130,20 @@ module.exports = [
           selector: "MemberExpression[property.name='alert'][object.property.name='Alert']",
           message: ALERT_MESSAGE,
         },
+        {
+          // `member.profile_id === someId`, either way round.
+          selector:
+            "BinaryExpression[operator=/^[!=]==$/] > MemberExpression[property.name='profile_id']",
+          message: VIEWER_MESSAGE,
+        },
       ],
     },
+  },
+  {
+    // Where `isViewer` and `isGhost` are defined, and therefore the one file
+    // that has to compare `profile_id` directly.
+    files: ['**/data/types.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     // The adapter and the port are the two places the vendor is allowed.

@@ -372,7 +372,15 @@ export function groupLabel(
   return `You, ${others[0]} and ${others.length - 1} others`;
 }
 
-export function isGhost(member: MemberRow): boolean {
+/**
+ * A member with no account behind them — somebody a person added by name.
+ *
+ * Narrowed to the one field it reads, as `isViewer` is, so it can be asked of
+ * anything member-shaped rather than only of a full row. This *is* the
+ * definition of a ghost, which is why it is the one place in the app allowed to
+ * compare `profile_id` against null directly.
+ */
+export function isGhost(member: Pick<MemberRow, 'profile_id'>): boolean {
   return member.profile_id === null;
 }
 
