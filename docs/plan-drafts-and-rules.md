@@ -7,8 +7,12 @@ toggle, an "Added from SMS" tag on the ledger, and a banner offering to bring in
 
 The short version, before the detail:
 
-- **The SMS half cannot ship on Google Play as the recording shows it**, and
-  Waves already reached that conclusion once and acted on it (#241). §1.
+- **The SMS half can ship on Android, and can never ship on iPhone.** Google
+  Play has an approved use case that describes this app — _SMS-based money
+  management_ — so the inbox read is obtainable, at the price of a declaration,
+  a store-listing edit and a standing promise that no message body leaves the
+  device. iOS has no such API at any tier. So Android reads the inbox; iPhone
+  pastes and shares. §1.
 - **Almost every piece of the drafts half already exists** and is either dark or
   one screen away. The parser is written and tested. So is an _email statement_
   parser nobody has ever seen. `captures` is already the "a transaction with no
@@ -20,7 +24,7 @@ The short version, before the detail:
 
 ---
 
-## 1. The permission verdict, first, because it is the bad news
+## 1. The permission verdict, first, because it has changed
 
 ### 1.1 What Waves declares today
 
@@ -38,56 +42,97 @@ log on any device.
 `react-native-get-sms-android@2.1.0` **is still a declared dependency**
 (`apps/mobile/package.json:70`, patched at
 `patches/react-native-get-sms-android@2.1.0.patch` — the patch only swaps
-`jcenter()` for `mavenCentral()`). It is imported by nothing. I checked its own
-library manifest in the installed tree: it declares no permissions of its own
-(only its bundled _example_ app does), so it is not currently leaking `READ_SMS`
-into a merged manifest. It is dead weight in the binary, and it should be
-removed — see Phase 0.
+`jcenter()` for `mavenCentral()`). It is imported by nothing. Its own library
+manifest declares no permissions (only its bundled _example_ app does), so it is
+not currently leaking `READ_SMS` into a merged manifest. An earlier revision of
+this document called it dead weight and scheduled its removal; it is now the
+starting point for §9's Android lane, and it stays.
 
-### 1.2 What the policy says
+### 1.2 What the policy actually says
 
-From the installed compliance playbook,
-`~/.claude/skills/app-store-compliance/data/rejection-patterns.json`, id
-`GOOGLE-PERM-SMS-CALLLOG`, severity **critical**:
+**There is an approved use case, and it is this app.**
 
-> **What triggers it.** `READ_SMS`, `SEND_SMS`, `RECEIVE_SMS`, `READ_CALL_LOG`,
-> or `WRITE_CALL_LOG` declared without an approved use case.
-> **How to fix it.** Use the permissions declaration form for an approved core
-> use case, or drop the permission.
+Google Play's _Use of SMS or Call Log permission groups_ page lists the permitted
+uses in a table. One row, quoted verbatim:
 
-and `docs/GOOGLE-PLAY.md:50`:
+> **Use:** SMS-based money management
+> **Description:** "For example, apps that track and manage budget"
+> **Eligible permissions:** `READ_SMS, RECEIVE_MMS, RECEIVE_SMS, RECEIVE_WAP_PUSH`
 
-> | SMS and Call Log | Requesting SMS or Call Log without an approved core use
-> case | Use the permissions declaration, drop the permission if not core |
+Both permissions this feature would want — the inbox read and the live receive —
+are eligible, under a case that describes Waves in six words.
 
-The Permissions Declaration Form does not take free text. It asks you to pick
-your app's use case from a fixed list — default SMS handler, default phone
-handler, backup-and-restore, device automation, connected/companion device,
-enterprise device management, caller ID and spam, OEM-privileged. Personal
-finance and expense tracking is not on it, and the form gives you no way to
-argue for a case that is not listed. This is also why the severity is
-_critical_ rather than _high_: the enforcement for a restricted permission held
-without an approved case is **removal from Play**, not a rejected update you can
-fix and resubmit.
+> **Correction, recorded rather than quietly fixed.** An earlier revision of this
+> section said personal finance and expense tracking were "not on the list" and
+> concluded the permission was unobtainable at any price. **That was wrong.** It
+> was drawn from the compliance playbook's `rejection-patterns.json`, which
+> records the _rejection_ pattern — a restricted permission declared with no
+> approved use case — and does not enumerate the approved cases. The live policy
+> page does. Everything that followed from that error in the earlier revision —
+> the "fatal" verdict, the removal-first Phase 0 — has been rewritten here. The
+> rest of the document (the rules engine, the drafts hub, the data model) never
+> depended on it and stands unchanged.
 
-> **Action, not assumption.** Open the Permissions Declaration Form in the Play
-> Console for `app.waves.mobile` and read the current dropdown before anybody
-> writes SMS-reading code. If a case Waves could honestly claim has appeared,
-> that changes §1.4 and nothing else in this document. I am reporting what the
-> playbook and the form's published shape say today; I have not read the live
-> console.
+The precedent is not theoretical: Splitkaro (`com.bsquare.splitkaro`) ships this
+exact feature, on Play, at roughly 340k downloads. The recording that started this
+plan is of an app doing a permitted thing.
 
-### 1.3 Waves already made this call
+Also changing, though not for us: from **27 January 2027**, account verification
+by phone call is no longer a permitted use of `READ_CALL_LOG`. Waves requests no
+call-log permission and is unaffected. It is noted because it shows the list is
+actively maintained — a case that exists today can be narrowed tomorrow, which is
+the entire argument for §9's kill switch.
 
-This is not a new question here. Amendment A2, `waves-tdr.md:386`:
+### 1.3 What the declaration actually costs
+
+Approval is not a form you file and forget. The policy attaches conditions, and
+each one is a build requirement rather than a paragraph:
+
+| the policy says                                                                                                                                | what it obliges in this repo                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Only access Call Log or SMS permissions when your app falls within permitted uses and only to enable your app's critical core functionality." | The reader may only ever produce drafts for the expense inbox — no other caller, now or later. Minimum necessary: read on demand for a bounded window, and hold no live receiver unless §9's auto-fetch phase is separately declared. |
+| "Make sure that your app's description prominently documents and promotes its core feature(s)."                                                | The **Play listing text must describe SMS expense import before the declaration is filed.** This is a store-listing edit the account owner makes, and it is a prerequisite, not a follow-up.                                          |
+| User Data Policy — Prominent Disclosure and Consent                                                                                            | A disclosure screen **before** the system permission dialog, in the app's own words, saying what is read and what becomes of it. Not a rationale string bolted onto the system prompt. Four locales, like everything else.            |
+| Spyware Policy — no exfiltration of non-compliant data                                                                                         | **A message body must never leave the device.** See §1.4. This is the condition that would end the app, and it is also the one Waves is already built to satisfy.                                                                     |
+| Privacy Policy                                                                                                                                 | Must name SMS as a data source and state that it is processed on-device.                                                                                                                                                              |
+
+### 1.4 The one that would actually end the app
+
+Parsing happens on-device today. `packages/core/src/sms/parse.ts` is a pure
+function: text in, a structured candidate out, no network. That is not a
+convenient accident — it is the single most valuable compliance property this
+feature has, and it now has to be defended on purpose rather than left true by
+luck:
+
+- A raw message body must never reach Sentry, Clarity, or any analytics event.
+  Parser failures may report **shape** — did it match, which bank format, a
+  confidence bucket — and never text. §10 already said this for parser-quality
+  reasons; it is restated because the reason is now a policy one.
+- `captures.raw_text` is the one column that would hold a message body, and a
+  capture **syncs to the server**. Two things must be settled before the reader
+  ships, and neither is settled today:
+  1. whether `raw_text` is covered by the at-rest mirror encryption (#475) on the
+     way up, and
+  2. whether an SMS-derived capture should send `raw_text` **at all**, given that
+     the parsed fields are what the inbox actually renders.
+
+  My recommendation is the blunt one: **a silently-read SMS capture syncs its
+  parsed fields and leaves `raw_text` on the device.** A bank message body sitting
+  in a server-side column is precisely the shape the Spyware Policy exists to
+  describe, and nothing in the drafts hub needs it. A _pasted_ message is the
+  person's own deliberate act and can keep today's behaviour; one the app took
+  from the inbox by itself should not.
+
+### 1.5 Waves already made this call, on a premise that has now changed
+
+Amendment A2, `waves-tdr.md:386`:
 
 > **Bank SMS import (amendment A2):** ~~built~~ — **withdrawn from the app.** The
 > parser is still there and still tested (`packages/core/src/sms/parse.ts`), but
 > the screen that read the phone's inbox and the Android reader behind it were
-> removed with the rest of the per-group "Bring things in" section, so no message
-> is read on any device today and the app asks for no SMS permission.
+> removed…
 
-and `waves-adr.md:18` says why:
+and `waves-adr.md:18`:
 
 > …it did ship (#114) before being withdrawn with the rest of the group-import
 > section (#241) because **pasting proved a better trade than holding an
@@ -95,46 +140,62 @@ and `waves-adr.md:18` says why:
 
 The history is precise. `9b03bc8b` (#114, 2026-08-10) added
 `apps/mobile/src/lib/smsReader.ts` (262 lines, dependency-injected, 27 tests) and
-`android.permission.READ_SMS` in `app.json`. `92ac9306` (#241, 2026-08-17)
-deleted 2,092 lines: the screen, the reader, `importPlan.ts`, `smsWindow.ts`,
-`importId.ts`, `imported.ts` and their tests. A dormant `sms_inbox_read` feature
-flag was seeded into the database (`…/20260904000000_waves_baseline/migration.sql:13038`,
-`enabled=false, rollout_percent=0`) and **no code reads it**.
+`android.permission.READ_SMS`. `92ac9306` (#241, 2026-08-17) deleted 2,092 lines:
+the screen, the reader, `importPlan.ts`, `smsWindow.ts`, `importId.ts`,
+`imported.ts` and their tests. A dormant `sms_inbox_read` feature flag was seeded
+into the database (`…/20260904000000_waves_baseline/migration.sql:13038`,
+`enabled=false`, `rollout_percent=0`) and **no code reads it**.
 
-Re-opening this would reverse a documented decision, not fill a gap.
+That call was a judgement about a trade — a broad permission against a paste
+screen — and it was defensible. It is now being reversed deliberately, with the
+permission's availability established rather than assumed in either direction.
+The reader is recoverable in full:
+`git show 9b03bc8b^:apps/mobile/src/lib/smsReader.ts`.
 
-### 1.4 The alternatives, and what each costs
+The seeded flag row, which the earlier revision proposed **deleting** so that
+nobody could re-enable the feature, is now **the mechanism** — see §9.
 
-| approach                                                                          | permission                           | works on iOS           | what it actually gets you                                                                                                                                                                                                                                                | cost                                                                                                                                                                      |
-| --------------------------------------------------------------------------------- | ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Paste the messages**                                                            | none                                 | yes                    | whatever the person selects and copies. The flow #241 deleted; the parser, and ~45 already-translated i18n keys, survive.                                                                                                                                                | **low** — one screen                                                                                                                                                      |
-| **Share-sheet target** (Android `ACTION_SEND` intent filter; iOS Share Extension) | none                                 | yes                    | one message at a time, but with zero typing: long-press the bank SMS → Share → Waves. The closest honest thing to "Auto fetch".                                                                                                                                          | **medium** — native, not OTA                                                                                                                                              |
-| **Email statement paste / forward**                                               | none                                 | yes                    | a _month_ at a time. `packages/core/src/import/email.ts` already parses multi-row statements and booking confirmations, shares the SMS dedupe key, and guesses a category. Never wired to any UI.                                                                        | **low** — one screen                                                                                                                                                      |
-| `READ_SMS` at install                                                             | **restricted**                       | no API at all          | the whole inbox, and the backfill banner                                                                                                                                                                                                                                 | **fatal** — §1.2                                                                                                                                                          |
-| `RECEIVE_SMS` for "Auto fetch"                                                    | **restricted**                       | no API at all          | live capture as messages arrive                                                                                                                                                                                                                                          | **fatal**, and strictly worse: a broadcast receiver on every message                                                                                                      |
-| `SmsRetriever` / SMS User Consent API                                             | none                                 | n/a (Android-only API) | the wrong thing. Retriever only returns messages your own server sent, matched by an app-signature hash. User Consent returns one message, only if it arrives inside a ~5-minute listening window and contains a short alphanumeric code. Bank debit alerts are neither. | high effort, does not work                                                                                                                                                |
-| Notification listener                                                             | `BIND_NOTIFICATION_LISTENER_SERVICE` | no                     | every notification from every app — a wider grab than `READ_SMS`, under the same core-use-case scrutiny                                                                                                                                                                  | worse, not better                                                                                                                                                         |
-| Account Aggregator / bank APIs                                                    | none                                 | yes                    | the real answer, eventually                                                                                                                                                                                                                                              | out of reach: India's AA framework requires registration as a Financial Information User with the RBI; commercial equivalents carry the same regulated-entity requirement |
+### 1.6 The alternatives, and what each now costs
 
-Apple's own guideline points the same way — `APPLE.md:90`, 5.1.1(iii): _"Collect
-the minimum, **use the system picker or share sheet instead of full access**."_
+| approach                                                            | permission                           | works on iOS       | what it actually gets you                                                                                                                                                             | cost                                                                                                                                                                          |
+| ------------------------------------------------------------------- | ------------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Paste the messages**                                              | none                                 | yes                | whatever the person selects and copies. The flow #241 deleted; the parser and ~45 translated i18n keys survive.                                                                       | **low** — one screen. **The spine: this is the only SMS lane iPhone ever gets.**                                                                                              |
+| **Share-sheet target** (Android `ACTION_SEND`; iOS Share Extension) | none                                 | yes                | one message at a time, with zero typing: long-press the bank SMS → Share → Waves.                                                                                                     | **medium** — native, not OTA                                                                                                                                                  |
+| **Email statement paste / forward**                                 | none                                 | yes                | a _month_ at a time. `packages/core/src/import/email.ts` already parses multi-row statements, shares the SMS dedupe key and guesses a category. Never wired to any UI.                | **low** — one screen                                                                                                                                                          |
+| **`READ_SMS`, declared**                                            | restricted, **declarable** (§1.2)    | no API at all      | the inbox, and the "133 older transactions" backfill — on Android                                                                                                                     | **medium-high** — a Play declaration, a store-listing edit that lands first, a disclosure screen, §1.4's data discipline, and a standing removal risk if the case is narrowed |
+| **`RECEIVE_SMS`, declared** — "Auto fetch"                          | restricted, **declarable** (§1.2)    | no API at all      | live capture as messages arrive                                                                                                                                                       | all of the above, **plus** a broadcast receiver on every message. A separate decision from the read — §9 phase 7                                                              |
+| `SmsRetriever` / SMS User Consent API                               | none                                 | n/a (Android-only) | the wrong thing. Retriever returns only messages your own server sent. User Consent returns one message, inside a ~5-minute window, containing a short code. Bank alerts are neither. | high effort, does not work                                                                                                                                                    |
+| Notification listener                                               | `BIND_NOTIFICATION_LISTENER_SERVICE` | no                 | every notification from every app — a wider grab than `READ_SMS`, under the same scrutiny, and with **no** matching approved use case                                                 | strictly worse than the declared permission                                                                                                                                   |
+| Account Aggregator / bank APIs                                      | none                                 | yes                | the real answer, eventually                                                                                                                                                           | out of reach: RBI registration as a Financial Information User                                                                                                                |
 
-**iOS has no equivalent at any tier.** There is no API that reads the Messages
-database. Everything in the recording's SMS lane is an Android-only screen. Any
-design that makes SMS the spine of the feature ships a materially different app
-on iPhone.
+### 1.7 iOS has no equivalent, at any tier
 
-### 1.5 The verdict, stated plainly
+There is no API on iOS that reads the Messages database. Not a restricted one, not
+an entitlement, not a paid tier. Every inbox-reading screen is Android-only, and
+any design that makes the inbox read the _spine_ of this feature ships a
+materially different app on iPhone.
 
-> **Waves cannot read the SMS inbox and stay on Google Play.** The "Auto fetch"
-> toggle, the "134 not added" count and the "add 133 older transactions" banner
-> all depend on holding the inbox, and all three are off the table. Everything
-> _downstream_ of a parsed transaction — the drafts list, the "Add to" button,
-> provenance, and the entire rules engine — is unaffected, and most of it is
-> already built.
+Apple's own guideline points where the alternatives already do — `APPLE.md:90`,
+5.1.1(iii): _"Collect the minimum, **use the system picker or share sheet instead
+of full access**."_
+
+### 1.8 The verdict, stated plainly
+
+> **Android may read the inbox. iPhone never will.** The permission is obtainable
+> under _SMS-based money management_, and the app it would make is the one in the
+> recording. It costs a Play declaration, a store-listing edit that has to land
+> first, a disclosure screen, and a standing obligation that no message body ever
+> leaves the phone.
 >
-> The transactions have to arrive some other way: **pasted, shared in, or
-> parsed out of an emailed statement.** Two of those three run on iPhone too.
+> So the feature gets built in that order: **the paste, share and statement lanes
+> first**, because they are the entire feature on iPhone and the fallback on
+> Android; **then the inbox read on top**, Android-only, behind the
+> `sms_inbox_read` flag that already exists — so that if the case is ever
+> narrowed, one server flag retires the lane and nobody loses the app.
+>
+> Everything downstream of a parsed transaction — the drafts hub, "Add to",
+> provenance, the entire rules engine — is platform-neutral, permission-free, and
+> mostly already built.
 
 ---
 
@@ -148,8 +209,8 @@ on iPhone.
 | Keyword auto-categorisation from free text                                                                | `packages/core/src/category/categories.ts:370` `guessCategory`, market vocab in `markets.ts`                                                                                     | **live** — add-expense, capture, voice, web                                                                                                                                                |
 | SMS-import UI strings, 4 locales, ~45 keys                                                                | `apps/mobile/src/i18n/index.ts:2519-2573` (type) + four locale blocks                                                                                                            | **built, referenced by nothing**                                                                                                                                                           |
 | Android inbox reader, permission flow, trip window, dedupe persistence                                    | deleted in `92ac9306` (#241) — recoverable with `git show 92ac9306^:<path>`                                                                                                      | **deleted**                                                                                                                                                                                |
-| `sms_inbox_read` feature flag                                                                             | seeded row in the baseline migration, `enabled=false`                                                                                                                            | **dormant, read by no code**                                                                                                                                                               |
-| `react-native-get-sms-android`                                                                            | `apps/mobile/package.json:70` + `patches/`                                                                                                                                       | **dead dependency**                                                                                                                                                                        |
+| `sms_inbox_read` feature flag                                                                             | seeded row in the baseline migration, `enabled=false`                                                                                                                            | **dormant, read by no code** — phase 0 makes it the Android lane’s kill switch (§1.8)                                                                                                      |
+| `react-native-get-sms-android`                                                                            | `apps/mobile/package.json:70` + `patches/`                                                                                                                                       | **unused, and now kept on purpose** — phase 4 builds on it (§1.1)                                                                                                                          |
 | Captures: an expense with no group, assigned later                                                        | table `captures` (`…/20260904000000_waves_baseline/migration.sql:7365`), Prisma `Capture` (`schema.prisma:943`), screens `apps/mobile/src/app/capture.tsx` + `captures.tsx`      | **live**                                                                                                                                                                                   |
 | "Add to" — put a capture into a group                                                                     | `apps/mobile/src/lib/captureAssign.ts:45` (prefill href) → `expense.create` → `useAssignCapture` (`apps/mobile/src/data/hooks.ts:1609`) → `supabase/functions/sync/index.ts:957` | **live**                                                                                                                                                                                   |
 | Bulk assign a cluster                                                                                     | `apps/mobile/src/lib/captureBulkAssign.ts:110` `planCaptureAssign`                                                                                                               | **live**, but only for one voice utterance's batch — no free multi-select                                                                                                                  |
@@ -453,8 +514,11 @@ It is a screen, not a lane, and it is worth it — but call it what it is. Not
 ### 5.3 The backfill banner, and what it costs
 
 _"Auto-tracking is on — Add 133 older transactions too"_ is a promise the
-inbox-read permission makes. Without it, the honest equivalent is the email
-statement: paste a month, get a month.
+inbox-read permission makes, and on Android §9's phase 4 can now keep it. On
+iPhone the equivalent is the email statement: paste a month, get a month. Both
+land in the same inbox and both run through the same rules, so this section
+applies whichever way the rows arrived — the only difference is how many arrive
+at once, and the phone that did it.
 
 Three costs to name:
 
@@ -653,36 +717,74 @@ Each phase ships something true on its own. "Deploy-gated" means it needs
 `migrate deploy` and/or `edge:deploy` before it does anything for a real person —
 migration first, then edge (the #789 ordering).
 
-| #     | PR                                                                                                                                                                                                                                                                                                  | ships                                                                         | gated                         |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------- |
-| **0** | **Remove the dead SMS reader** — drop `react-native-get-sms-android` from `apps/mobile/package.json`, delete `patches/react-native-get-sms-android@2.1.0.patch` and the `pnpm-workspace.yaml` entry, drop the licence credit at `settings/licenses.tsx:83`, delete the eleven reader-only i18n keys | a smaller binary and one fewer thing a Play reviewer can find. Native rebuild | no                            |
-| **1** | **Paste a bank message** — one screen, `captures/paste`, using `proposeFromSms` and the existing `smsImport.*` strings; creates captures with derived ids and `parsed.source='sms'`                                                                                                                 | the SMS lane's honest half, on both platforms                                 | no                            |
-| **2** | **The inbox grows up** — source filter tabs, Waiting/Added, provenance line, free multi-select assign                                                                                                                                                                                               | `/captures` becomes the drafts hub, for every source                          | no                            |
-| **3** | **Waiting to send** — the pending list under `settings/sync`, with per-item retry/discard                                                                                                                                                                                                           | closes the gap #786 opened                                                    | no                            |
-| **4** | **Rules, stored and edited** — table + Prisma model + sync kinds + edge handlers + the Rules screen, with hand-written rules only                                                                                                                                                                   | rules a person authors work end to end                                        | **yes** — migration then edge |
-| **5** | **Rules that learn** — the post-move prompt, `learned` rules, correction and auto-disable, the "by a rule" line                                                                                                                                                                                     | the magic, with the brakes on                                                 | no                            |
-| **6** | **Paste a statement** — `import/email.ts` gets its first UI; the batch runs through the rules before it is shown; only unmatched drafts need a person                                                                                                                                               | the backfill, without a restricted permission                                 | no                            |
-| **7** | **Share a message into Waves** — Android `ACTION_SEND` intent filter, iOS Share Extension, landing on the paste screen pre-filled                                                                                                                                                                   | the closest legitimate thing to "Auto fetch"                                  | no, but **native** — not OTA  |
-| **8** | _(optional)_ `source` plumbed through `expense-write`                                                                                                                                                                                                                                               | provenance survives onto the ledger row                                       | **yes** — edge                |
+The order is not arbitrary. **Phases 1–3 are the whole feature on iPhone and the
+fallback on Android**, and they hold no permission. The inbox read arrives at
+phase 4, on top of a hub that already works without it. That ordering is what
+makes the kill switch in §1.8 survivable: turning the Android lane off costs
+Android users a convenience, not the feature.
 
-Phases 1–3 are independent of 4–6 and can run in parallel. Phase 6 depends on 4
-(a 133-row paste without rules is a chore, §5.3). Phase 7 requires a native
-build and should ride whatever native release is next rather than forcing one.
+| #      | PR                                                                                                                                                                                                                                                                                                   | ships                                                      | platform    | gated                                          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------- | ---------------------------------------------- |
+| **0**  | **Wire the kill switch** — make `sms_inbox_read` a flag some code actually reads. It is seeded `enabled=false` and read by nothing, so today it is decoration. Keep `react-native-get-sms-android` (reverses the earlier revision's delete). No permission, no reader, no UI change yet.             | a switch that works before there is anything to switch off | both        | no                                             |
+| **1**  | **Paste a bank message** — one screen, `captures/paste`, using `proposeFromSms` and the existing `smsImport.*` strings; creates captures with derived ids and `parsed.source='sms'`                                                                                                                  | the SMS lane, permission-free, on both platforms           | both        | no                                             |
+| **2**  | **The inbox grows up** — source filter tabs, Waiting/Added, provenance line, free multi-select assign                                                                                                                                                                                                | the Review tab becomes the drafts hub, for every source    | both        | no                                             |
+| **3**  | **Waiting to send** — the pending list under `settings/sync`, with per-item retry/discard                                                                                                                                                                                                            | closes the gap #786 opened                                 | both        | no                                             |
+| **4**  | **Read the inbox, on Android, behind the flag** — restore `smsReader.ts` from `9b03bc8b`, `READ_SMS` in `app.json`, the §1.3 disclosure screen ahead of the system dialog, a bounded read window, on-device parse only, `raw_text` kept local per §1.4. Every entry point gated on the phase-0 flag. | the recording's headline feature, legally                  | **Android** | no, but **native** — and see the gate below    |
+| **5**  | **Rules, stored and edited** — table + Prisma model + sync kinds + edge handlers + the Rules screen, hand-written rules only                                                                                                                                                                         | rules a person authors work end to end                     | both        | **yes** — migration then edge                  |
+| **6**  | **Rules that learn** — the post-move prompt, `learned` rules, correction and auto-disable, the "by a rule" line                                                                                                                                                                                      | the magic, with the brakes on                              | both        | no                                             |
+| **7**  | _(decide separately)_ **Auto fetch** — `RECEIVE_SMS`, a broadcast receiver, drafts appearing as messages arrive                                                                                                                                                                                      | the last thing in the recording Waves would not have       | **Android** | **native**, and a **second** declaration scope |
+| **8**  | **Paste a statement** — `import/email.ts` gets its first UI; the batch runs through the rules before it is shown; only unmatched drafts need a person                                                                                                                                                | the backfill, on both platforms, with no permission at all | both        | no                                             |
+| **9**  | **Share a message into Waves** — Android `ACTION_SEND` intent filter, iOS Share Extension, landing on the paste screen pre-filled                                                                                                                                                                    | the closest thing to "Auto fetch" that iPhone can have     | both        | no, but **native** — not OTA                   |
+| **10** | _(optional)_ `source` plumbed through `expense-write`                                                                                                                                                                                                                                                | provenance survives onto the ledger row                    | both        | **yes** — edge                                 |
+
+**Phase 4 has a gate that is not code.** Before its PR is merged, three things
+must be true, and none of them is in this repository:
+
+1. The Play **store listing** for `app.waves.mobile` documents SMS expense import
+   prominently (§1.3). The policy requires the described feature to be there to
+   describe.
+2. The **Permissions Declaration Form** has been submitted for _SMS-based money
+   management_ and **approved**. Filing it is not the same as clearing it.
+3. The **privacy policy** names SMS as an on-device-only data source.
+
+Phase 4's code can be written and reviewed while those are pending — what it must
+not do is reach a production build first. The phase-0 flag makes that safe by
+construction: shipped dark, it does nothing until a server row says otherwise.
+
+Phases 1–3 are independent of 5–6 and can run in parallel. Phase 8 depends on 5
+(a 133-row paste with no rules is a chore, §5.3). Phases 4, 7 and 9 all require a
+native build and should ride whatever native release is next rather than forcing
+one; 4 and 9 can share it.
 
 Doc amendments owed, at whichever phase lands first: **A2 in `waves-tdr.md`**
-needs a third paragraph — the parser came back, by paste and share, and the
-permission did not. A **new amendment** covers the rules engine (it is not in the
-TDR at all), and should record §3's verdict that no rule is ever evaluated on the
-server.
+needs a third paragraph — the parser came back by paste and share, and on Android
+the permission came back with it, declared. The **ADR note at `waves-adr.md:18`**
+needs the same treatment: "pasting proved a better trade" was a call made against
+a premise §1.2 has now corrected, and reversing it is a decision worth recording
+as one. A **new amendment** covers the rules engine (it is not in the TDR at all)
+and should record §3's verdict that no rule is ever evaluated on the server.
 
 ---
 
 ## 10. Risks
 
-- **Somebody re-adds `READ_SMS` later.** The parser being present and the flag
-  row existing (`sms_inbox_read`) makes it look like a switch. Mitigation: a
-  comment at the top of `sms/parse.ts` naming §1, and — better — delete the
-  seeded flag row in Phase 0's migration so there is no switch to find.
+- **The approved use case is narrowed, or the declaration is refused.** This is
+  now the top risk in the document, and it is not hypothetical: §1.2 records a
+  use case being removed from the same list in January 2027. The mitigation is
+  the shape of §9 rather than a comment — the Android lane is the last thing
+  built, never the spine, and hangs off `sms_inbox_read`. Retiring it is a server
+  flag, not a release. **Nothing should be built on the assumption that the inbox
+  read is permanent.**
+- **A message body reaches a server, an analytics event, or a crash report.**
+  §1.4 is the whole of it. This is the failure that ends the app rather than the
+  feature, and it deserves a test rather than a comment: assert that an
+  SMS-sourced capture's sync payload carries no `raw_text`, and that the parser's
+  failure reporting carries shape and never text.
+- **The store listing and the declaration drift apart.** The policy requires the
+  listing to promote the feature the permission serves. If the Android lane is
+  later turned off by flag while the listing still advertises it, the app is
+  describing a feature it does not have — a policy problem in the opposite
+  direction. Whoever flips the flag owns the listing edit too.
 - **Parser quality on real Indian bank SMS.** `parseSms` is dated 2026-08 and
   its date handling is day-first only (documented at `sms/parse.ts:169-172`).
   Paste is more forgiving than auto-fetch — the person sees what came out — but
@@ -697,10 +799,18 @@ server.
   `docs/plan-recurring-money-events.md:249` documents exactly this hazard for
   `personal_records`: _"a field a future build adds does not survive today's
   decode."_
-- **iOS/Android divergence.** Phases 1, 2, 3, 4, 5, 6 are identical on both.
-  Phase 7 is a Share Extension on iOS and an intent filter on Android — same
-  feature, two implementations, and the iOS one needs an app-target change
-  (`@bacons/apple-targets` is already in the plugin list).
+- **iOS/Android divergence, which is now deliberate and needs saying out loud.**
+  Phases 0, 1, 2, 3, 5, 6, 8 are identical on both. Phase 4 (and 7) exist only on
+  Android, by platform limit rather than by choice — there is no iOS API to
+  match them. Two consequences worth planning for rather than discovering:
+  **the marketing cannot be shared** (an App Store listing must not advertise
+  automatic SMS import), and **the app's own copy must not promise it either** —
+  a settings row reading "Auto-import from SMS" that is simply absent on iPhone
+  reads as a broken build, so the iOS surface should offer paste and share in its
+  own words rather than hide an Android row. Phase 9 is the one that closes the
+  gap as far as it can close: a Share Extension on iOS, an intent filter on
+  Android, same feature, two implementations, and the iOS half needs an
+  app-target change (`@bacons/apple-targets` is already in the plugin list).
 - **Two writers on `capture.tsx`.** `feat/capture-asks-who-paid` is live in that
   file right now. Phases 1 and 2 touch `captures.tsx` and a new screen, not
   `capture.tsx`, but the i18n block is shared and will conflict.
@@ -708,6 +818,14 @@ server.
 ---
 
 ## 11. Open questions for the user
+
+**O0 — Auto fetch: is `RECEIVE_SMS` worth a second declaration?** The inbox
+read (phase 4) and the live receive (phase 7) are separately declarable and
+separately refusable, and the second puts a broadcast receiver on every message
+that arrives. Phase 4 alone gets the drafts and the backfill, one tap later than
+the recording. **Decided: Android reads the inbox, iPhone gets paste and share.**
+Still open is whether the live receive follows, or whether an on-demand read is
+enough. §1.6, §9 phase 7.
 
 **O1 — When does a rule get learned?** Ask on the first manual move ("Put CRED
 Club in Flat from now on?"), or learn silently on the second consistent move and
@@ -725,9 +843,9 @@ to help with anything. My default is plaintext. §6.1.
 
 **O4 — Does the email/statement lane matter to you at all?** It is already
 written (`import/email.ts`, #397, never wired), works on iPhone, needs no
-permission, and is the only path that delivers the "133 older transactions"
-backfill. It is also the least like the recording. Is it worth Phase 6, or is
-the SMS paste enough?
+permission, and delivers the "133 older transactions" backfill on both platforms
+— which on iPhone is the _only_ way to get it. It is also the least like the
+recording. Is it worth phase 8?
 
 **O5 — "Waiting to send": a screen, or a row in an existing one?** I am
 recommending a real list because #786 can now hold a month of unsent work
