@@ -106,7 +106,7 @@ import {
   useOneToOneGroupIds,
   usePeopleBalances,
 } from '@/data/hooks';
-import { groupLabel, GroupType, type CaptureRow } from '@/data/types';
+import { groupLabel, GroupType, isViewer, type CaptureRow } from '@/data/types';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { assignCaptureHref } from '@/lib/captureAssign';
@@ -662,8 +662,20 @@ export default function CapturesScreen() {
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
   const pull = usePullRefresh();
-  const { profile } = useAuth();
+  const { session } = useAuth();
 
+  /**
+   * Who to resolve "me" against: the session's user id, not the profile's.
+   *
+   * Same id, different arrival times — the session is restored from storage at
+   * launch, the profile is a network fetch. Using the profile here made two
+   * things wrong for as long as that fetch took: the group list was filtered by
+   * a comparison that matches the first *ghost* rather than you (see
+   * `data/types.isViewer`), and `myMemberId` — who goes down as having paid —
+   * resolved the same way. An expense filed in that window would have named a
+   * ghost as the payer.
+   */
+  const viewerId = session?.user?.id ?? null;
   const captures = useCaptures();
   const deleteCapture = useDeleteCapture();
   // Closing a draft against the expense it became. The single-draft form path
@@ -680,13 +692,13 @@ export default function CapturesScreen() {
   // reaches that screen, so it asks here.
   const guard = useGuestGuard();
   const groups = useGroups();
-  const summary = useHomeSummary(profile?.id ?? null);
+  const summary = useHomeSummary(viewerId);
   // The people the picker can point a draft at, and the raw material for
   // deciding whether a chosen set of them already share a group. All read from
   // the mirror, so the picker works with no network (ADR-005).
-  const people = usePeopleBalances(profile?.id ?? null);
+  const people = usePeopleBalances(viewerId);
   const oneToOne = useOneToOneGroupIds();
-  const signatures = useGroupPeopleSignatures(profile?.id ?? null);
+  const signatures = useGroupPeopleSignatures(viewerId);
   const createGroup = useCreateGroup();
   // Where each shop's money has been going — the whole basis of the chip and
   // therefore of the swipe. Local mirror only, so it is right offline.
@@ -741,9 +753,9 @@ export default function CapturesScreen() {
   const assignableGroups = useMemo(
     () =>
       (groups.data ?? []).filter((group) =>
-        summary.membersFor(group.id).some((member) => member.profile_id === profile?.id),
+        summary.membersFor(group.id).some((member) => isViewer(member, viewerId)),
       ),
-    [groups.data, summary, profile?.id],
+    [groups.data, summary, viewerId],
   );
   const assignableIds = useMemo(
     () => new Set(assignableGroups.map((group) => group.id)),
@@ -752,9 +764,9 @@ export default function CapturesScreen() {
   const nameOfGroup = useCallback(
     (groupId: string): string | null => {
       const group = assignableGroups.find((row) => row.id === groupId);
-      return group ? groupLabel(group, summary.membersFor(groupId), profile?.id) : null;
+      return group ? groupLabel(group, summary.membersFor(groupId), viewerId) : null;
     },
-    [assignableGroups, profile?.id, summary],
+    [assignableGroups, viewerId, summary],
   );
 
   // The people the picker offers, by name. A contact is somebody whose balance
@@ -1058,16 +1070,16 @@ export default function CapturesScreen() {
         lockKey: capture.id,
         items: [capture],
         groupId,
-        label: group ? groupLabel(group, members, profile?.id) : '',
+        label: group ? groupLabel(group, members, viewerId) : '',
         members,
-        // Compared against `profile?.id` — undefined, never null — exactly as
-        // the add-expense form resolves the same thing. A ghost's null
-        // `profile_id` can therefore never answer to an unloaded profile.
-        myMemberId: members.find((member) => member.profile_id === profile?.id)?.id ?? null,
+        // `isViewer`, never a bare comparison: this decides who the ledger
+        // records as having paid, and a ghost answering to an unloaded profile
+        // would put somebody else's name on the expense.
+        myMemberId: members.find((member) => isViewer(member, viewerId))?.id ?? null,
         currency: group?.default_currency ?? capture.currency,
       });
     },
-    [assignableGroups, destinations, placeInGroup, profile?.id, summary],
+    [assignableGroups, destinations, placeInGroup, viewerId, summary],
   );
 
   /**
@@ -1090,15 +1102,15 @@ export default function CapturesScreen() {
         lockKey: target.items[0]!.id,
         items: target.items,
         groupId,
-        label: group ? groupLabel(group, members, profile?.id) : '',
+        label: group ? groupLabel(group, members, viewerId) : '',
         members,
-        myMemberId: members.find((member) => member.profile_id === profile?.id)?.id ?? null,
+        myMemberId: members.find((member) => isViewer(member, viewerId))?.id ?? null,
         // A draft assigned through the form takes the group's currency too
         // (the href carries no currency of its own), so the batch does the same.
         currency: group?.default_currency ?? target.items[0]!.currency,
       });
     },
-    [assignableGroups, closeAssign, placeInGroup, profile?.id, summary],
+    [assignableGroups, closeAssign, placeInGroup, viewerId, summary],
   );
 
   // The People tab, confirmed: this draft is with these people. If they already
@@ -1598,7 +1610,7 @@ export default function CapturesScreen() {
             pinned={[]}
             createRow={assigning?.kind === 'batch' ? null : { label: t.captures.assignNew }}
             emptyGroups={t.captures.noGroups}
-            labelFor={(group) => groupLabel(group, summary.membersFor(group.id), profile?.id)}
+            labelFor={(group) => groupLabel(group, summary.membersFor(group.id), viewerId)}
             groups={assignableGroups}
             people={peopleChoices}
             t={t}

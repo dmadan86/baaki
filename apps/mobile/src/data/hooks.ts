@@ -108,7 +108,7 @@ import { parseAnnotations, type Annotations } from '@/lib/annotations';
 import { sanitizeCommentMarkdown } from '@/lib/commentMarkdown';
 import type { VoiceAccess } from '@/lib/voiceAccess';
 import { myStake } from './activity';
-import { SettlementStatus } from './types';
+import { isViewer, SettlementStatus } from './types';
 import type {
   ActivityActor,
   ActivityGroup,
@@ -322,7 +322,7 @@ export function useSettledTotals(profileId: string | null): LocalRead<Map<string
   const totals = useMemo(() => {
     const mine = new Set(
       (rowsFor(mirror, SyncTable.GroupMembers) as unknown as MemberRow[])
-        .filter((member) => member.profile_id === profileId)
+        .filter((member) => isViewer(member, profileId))
         .map((member) => member.id),
     );
 
@@ -426,8 +426,11 @@ export function useHomeSummary(profileId: string | null) {
       if (snapshots.length > 0 || settlements.length > 0) withLedger.add(group.id);
 
       const net = computeNetBalances(snapshots, toSettlementSnapshots(settlements));
-      const mine = (membersByGroup.get(group.id) ?? []).find(
-        (member) => member.profile_id === profileId,
+      // Never `member.profile_id === profileId`: with the profile still
+      // loading that matches the first ghost, and this line is what decides
+      // whose balance the dashboard shows. See `isViewer`.
+      const mine = (membersByGroup.get(group.id) ?? []).find((member) =>
+        isViewer(member, profileId),
       );
       if (mine) {
         byGroup.set(group.id, net.get(currency)?.get(mine.id) ?? 0n);
@@ -486,6 +489,18 @@ export function useHomeSummary(profileId: string | null) {
       monthSpent: summary.monthSpent,
       isLoading: !hydrated,
       isFetching: status === 'syncing',
+      /**
+       * The profile has not arrived, so there is no "you" to compute against.
+       *
+       * Distinct from `isLoading` (the mirror) and `pendingFirstSync` (the
+       * server): the ledger can be hydrated and synced and still be unreadable,
+       * because a balance is only meaningful from somebody's point of view. Now
+       * that `isViewer` refuses to guess, that state produces *no* balance
+       * rather than a ghost's — which is right, but an empty total rendered
+       * confidently is its own small lie ("settled up", in green). So callers
+       * hold the skeleton on this, exactly as they do on the other two.
+       */
+      viewerUnknown: profileId === null,
       // The mirror hydrates from disk instantly (ADR-005), but that snapshot can
       // be behind the server — a settlement that cleared your debt may only exist
       // server-side until the session's first pull lands. Painting a confident,
@@ -504,7 +519,7 @@ export function useHomeSummary(profileId: string | null) {
         hydrated && lastSyncedAt === null && (status === 'idle' || status === 'syncing'),
       refetch: () => void flush(),
     }),
-    [summary, hydrated, status, lastSyncedAt, flush],
+    [summary, hydrated, status, lastSyncedAt, flush, profileId],
   );
 }
 
@@ -566,7 +581,7 @@ export function useMergeCandidates(someoneLabel: string): LocalRead<MergeCandida
       const rows = materialiseMembers(mirror, queue, {
         groupId: group.id,
       }) as unknown as MemberRow[];
-      if (!rows.some((member) => member.profile_id === profileId && member.left_at === null)) {
+      if (!rows.some((member) => isViewer(member, profileId) && member.left_at === null)) {
         continue;
       }
       for (const member of rows) {
@@ -679,9 +694,7 @@ export function usePeopleBalances(profileId: string | null): LocalRead<PersonBal
       const members = materialiseMembers(mirror, queue, {
         groupId: group.id,
       }) as unknown as MemberRow[];
-      const me = members.find(
-        (member) => member.profile_id === profileId && member.left_at === null,
-      );
+      const me = members.find((member) => isViewer(member, profileId) && member.left_at === null);
       if (!me) continue;
       const byId = new Map(members.map((member) => [member.id, member] as const));
 
@@ -1925,7 +1938,7 @@ export function useMemberBudgets(groupId: string): LocalRead<MemberBudgetRow[]> 
   const budgets = useMemo(() => {
     const myMemberId =
       (materialiseMembers(mirror, queue, { groupId }) as unknown as MemberRow[]).find(
-        (member) => member.profile_id === profile?.id && member.left_at === null,
+        (member) => isViewer(member, profile?.id) && member.left_at === null,
       )?.id ?? null;
     return materialiseMemberBudgets(mirror, queue, {
       groupId,

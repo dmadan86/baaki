@@ -86,7 +86,7 @@ import {
   useOneToOneGroupIds,
   usePeopleBalances,
 } from '@/data/hooks';
-import { groupLabel, GroupType } from '@/data/types';
+import { groupLabel, GroupType, isViewer } from '@/data/types';
 import { plural, useStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { planCaptureAssign, type AssignMember } from '@/lib/captureBulkAssign';
@@ -121,10 +121,22 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const clearance = useBottomClearance();
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const ownerId = session?.user?.id ?? '';
   const reader = useSmsInboxReader();
 
+  /**
+   * Who to resolve "me" against: the session's user id, not the profile's.
+   *
+   * Same id, different arrival times — the session is restored from storage at
+   * launch, the profile is a network fetch. Using the profile here made two
+   * things wrong for as long as that fetch took: the group list was filtered by
+   * a comparison that matches the first *ghost* rather than you (see
+   * `data/types.isViewer`), and `myMemberId` — who goes down as having paid —
+   * resolved the same way. An expense filed in that window would have named a
+   * ghost as the payer.
+   */
+  const viewerId = session?.user?.id ?? null;
   const { rows, loading, reload } = useSmsMessages();
   const toast = useToast();
   const guard = useGuestGuard();
@@ -166,10 +178,10 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   // ─────────────────────────────────────────────── where things go ──
 
   const groups = useGroups();
-  const summary = useHomeSummary(profile?.id ?? null);
-  const people = usePeopleBalances(profile?.id ?? null);
+  const summary = useHomeSummary(viewerId);
+  const people = usePeopleBalances(viewerId);
   const oneToOne = useOneToOneGroupIds();
-  const signatures = useGroupPeopleSignatures(profile?.id ?? null);
+  const signatures = useGroupPeopleSignatures(viewerId);
   const createGroup = useCreateGroup();
   const assignCapture = useAssignCapture();
   const captures = useCaptures();
@@ -184,9 +196,9 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   const assignableGroups = useMemo(
     () =>
       (groups.data ?? []).filter((group) =>
-        summary.membersFor(group.id).some((member) => member.profile_id === profile?.id),
+        summary.membersFor(group.id).some((member) => isViewer(member, viewerId)),
       ),
-    [groups.data, summary, profile?.id],
+    [groups.data, summary, viewerId],
   );
 
   const peopleChoices = useMemo(() => {
@@ -323,13 +335,13 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
       const group = assignableGroups.find((row) => row.id === groupId);
       void placeInGroup({
         groupId,
-        label: group ? groupLabel(group, members, profile?.id) : '',
+        label: group ? groupLabel(group, members, viewerId) : '',
         members,
-        myMemberId: members.find((member) => member.profile_id === profile?.id)?.id ?? null,
+        myMemberId: members.find((member) => isViewer(member, viewerId))?.id ?? null,
         currency: group?.default_currency ?? chosen[0]?.currency ?? 'INR',
       });
     },
-    [assignableGroups, chosen, placeInGroup, profile?.id, summary],
+    [assignableGroups, chosen, placeInGroup, viewerId, summary],
   );
 
   // The People tab, confirmed. If they already share a group it is that group's
@@ -751,7 +763,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
             pinned={[]}
             createRow={null}
             emptyGroups={t.captures.noGroups}
-            labelFor={(group) => groupLabel(group, summary.membersFor(group.id), profile?.id)}
+            labelFor={(group) => groupLabel(group, summary.membersFor(group.id), viewerId)}
             groups={assignableGroups}
             people={peopleChoices}
             t={t}

@@ -316,6 +316,37 @@ export function isBlockedMember(
 }
 
 /**
+ * Is this member the person holding the phone?
+ *
+ * Written out as a function because the obvious spelling is wrong, and wrong in
+ * a way nothing catches. `member.profile_id === profile?.id` reads perfectly and
+ * behaves perfectly — until the profile has not loaded yet. Then `profile?.id`
+ * is `undefined`, `profileId` is passed down as `null`, and the comparison
+ * matches **the first ghost in the group**, because a ghost is exactly a member
+ * with no `profile_id`.
+ *
+ * That is not an edge case, it is the first second of every cold start, and it
+ * is not a harmless one. The dashboard computes its balances from whichever
+ * member it decides is you — so for that second the whole ledger was being read
+ * from a ghost's point of view, and the hero said "Net payable −₹82,001" with
+ * the sign, the colour, the label and every group row agreeing, before flipping
+ * to "Net receivable +₹112,807" when the profile arrived. Nothing about the
+ * first number looked provisional; it was simply somebody else's balance shown
+ * as yours.
+ *
+ * `captureBulkAssign.AssignMember` warns about the same trap for payers, having
+ * hit it from the other direction. This is the shared, safe spelling: no viewer,
+ * no match, ever.
+ */
+export function isViewer(
+  member: Pick<MemberRow, 'profile_id'>,
+  profileId: string | null | undefined,
+): boolean {
+  if (!profileId) return false;
+  return member.profile_id === profileId;
+}
+
+/**
  * What to call a group that has no name.
  *
  * The people are the group, so they are the label: "You, Priya and Ravi". It
