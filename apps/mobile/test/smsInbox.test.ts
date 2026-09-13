@@ -279,7 +279,6 @@ describe('ticking rows', () => {
     const cleared = toggleAll([visible[0]!], toggleAll([visible[0]!], held));
     expect([...cleared]).toEqual(['b']);
   });
-
 });
 
 describe('what the ticked rows come to', () => {

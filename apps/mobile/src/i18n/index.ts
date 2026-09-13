@@ -5560,8 +5560,7 @@ const en: UiStrings = {
     cardEnding: 'Card ending {tail}',
     readOn: 'Read {when}',
     forget: 'Delete from Waves',
-    forgetConfirm:
-      'This removes it from Waves. The message itself stays in your Messages app.',
+    forgetConfirm: 'This removes it from Waves. The message itself stays in your Messages app.',
     emptyNothingYet: 'Nothing read yet',
     emptyNothingYetBody: 'Scan your messages and Waves will find the payments in them.',
     emptyAllDone: 'All caught up',
@@ -8395,7 +8394,10 @@ const ta: UiStrings = {
     scanReading: 'உங்கள் செய்திகளைப் படிக்கிறது…',
     scanSorting: '{total} இல் {done} வரிசைப்படுத்தப்பட்டது',
     scanSaving: 'கிட்டத்தட்ட முடிந்தது…',
-    scanFound: { one: '{count} பணப்பரிமாற்றம் கிடைத்தது', other: '{count} பணப்பரிமாற்றங்கள் கிடைத்தன' },
+    scanFound: {
+      one: '{count} பணப்பரிமாற்றம் கிடைத்தது',
+      other: '{count} பணப்பரிமாற்றங்கள் கிடைத்தன',
+    },
     scanNothingNew: 'கடந்த முறைக்குப் பிறகு புதிதாக ஒன்றுமில்லை.',
     scanUnreadable: {
       one: '{count} செய்தி பணப்பரிமாற்றம் போலத் தெரிந்தது, ஆனால் படிக்க முடியவில்லை.',
@@ -8439,7 +8441,8 @@ const ta: UiStrings = {
     forgetConfirm:
       'இது Waves இலிருந்து மட்டும் நீக்கும். செய்தி உங்கள் Messages ஆப்பில் அப்படியே இருக்கும்.',
     emptyNothingYet: 'இதுவரை எதுவும் படிக்கப்படவில்லை',
-    emptyNothingYetBody: 'செய்திகளைப் படியுங்கள் — அவற்றில் உள்ள பணப்பரிமாற்றங்களை Waves கண்டுபிடிக்கும்.',
+    emptyNothingYetBody:
+      'செய்திகளைப் படியுங்கள் — அவற்றில் உள்ள பணப்பரிமாற்றங்களை Waves கண்டுபிடிக்கும்.',
     emptyAllDone: 'எல்லாம் முடிந்தது',
     emptyAllDoneBody: 'இங்குள்ள ஒவ்வொரு செய்தியும் கவனிக்கப்பட்டுவிட்டது.',
     emptyNoMatch: 'எதுவும் பொருந்தவில்லை',
