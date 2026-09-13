@@ -43,4 +43,6 @@ export async function unsettleMessage(): Promise<void> {}
 
 export async function forgetMessage(): Promise<void> {}
 
+export async function forgetMessagesForOwner(): Promise<void> {}
+
 export async function forgetEverything(): Promise<void> {}
