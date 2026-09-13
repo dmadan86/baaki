@@ -62,7 +62,26 @@ export default function HomeScreen() {
   const pull = usePullRefresh();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();
-  const { profile, isGuest } = useAuth();
+  const { session, profile, isGuest } = useAuth();
+  /**
+   * Who to compute balances as — the *session's* user id, not the profile's.
+   *
+   * They are the same id by construction (`loadProfile` selects the profile row
+   * whose id is the session user's), but they do not arrive at the same time.
+   * The session is restored from secure storage at launch, with no network. The
+   * profile is a fetch, retried, and on a phone on mobile data it lands a good
+   * second later — which is the "Hi, You" in the screenshot before it becomes
+   * "Hi, Madan D".
+   *
+   * Reading the viewer from the profile therefore made a network round trip a
+   * prerequisite for showing a number that was already on the device. Reading it
+   * from the session makes the balance correct on the first frame, offline
+   * included, which is what ADR-005 asks of every other surface in the app.
+   *
+   * The greeting and the avatar still wait for the profile — those genuinely are
+   * profile fields, and a name that appears a beat late is not a wrong name.
+   */
+  const viewerId = session?.user?.id ?? null;
   // The header avatar sits in the private bucket, so its path has to be signed
   // before an Image can show it — the same resolution the profile screen does.
   // Without this the dashboard falls back to initials while settings shows the
@@ -75,7 +94,7 @@ export default function HomeScreen() {
   // preview's own order depends on it before any row exists to ask.
   const pinnedIds = usePinnedGroupIds();
   const setGroupPin = useSetGroupPin();
-  const summary = useHomeSummary(profile?.id ?? null);
+  const summary = useHomeSummary(viewerId);
   const guard = useGuestGuard();
   const tour = useTour();
 
@@ -131,7 +150,15 @@ export default function HomeScreen() {
   // lands. Bounded either way — `pendingFirstSync` clears on the first success
   // *or* on a can't-sync status (offline, metered, error), where the local
   // snapshot is the best there is.
-  const hydrating = groups.isLoading || summary.isLoading;
+  // Three ways of not knowing, and the third is the one that bit. The mirror may
+  // not have hydrated; the first sync may not have landed; and — separately from
+  // both — the *profile* may not have arrived, in which case there is no "you"
+  // for a balance to be about. That last state used to paint anyway, from the
+  // first ghost in each group, and a whole ledger read from somebody else's side
+  // is not a rough number: it is the opposite sign, in the opposite colour,
+  // under the opposite word. `data/types.isViewer` stops it being computed;
+  // this stops the empty result that remains being shown as an answer.
+  const hydrating = groups.isLoading || summary.isLoading || summary.viewerUnknown;
   // And a third case that is neither: the mirror answered, but with nothing in
   // it, while the first sync is still out. That is "we do not know yet", not
   // "you have no groups" — and on a fresh install or a new sign-in the two look
@@ -544,7 +571,7 @@ export default function HomeScreen() {
                   return (
                     <GroupRow
                       key={group.id}
-                      title={groupLabel(group, members, profile?.id)}
+                      title={groupLabel(group, members, viewerId)}
                       memberLabel={plural(locale, summary.memberCountFor(group.id), t.memberCount)}
                       coverEmoji={group.cover_emoji}
                       balance={balance}
@@ -579,7 +606,7 @@ export default function HomeScreen() {
                       // custom accessibility action carries the same toggle to
                       // a screen reader, which has no long-press gesture.
                       pinned={pinnedIds.has(group.id)}
-                      pinLabel={`${pinnedIds.has(group.id) ? t.group.unpin : t.group.pin} ${groupLabel(group, members, profile?.id)}`}
+                      pinLabel={`${pinnedIds.has(group.id) ? t.group.unpin : t.group.pin} ${groupLabel(group, members, viewerId)}`}
                       onTogglePin={() =>
                         setGroupPin.mutate({ groupId: group.id, pinned: !pinnedIds.has(group.id) })
                       }

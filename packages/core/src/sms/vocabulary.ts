@@ -743,3 +743,164 @@ export const MONTHS: Readonly<Record<string, number>> = Object.freeze({
   kas: 11,
   ara: 12,
 });
+
+/* ------------------------------------------------------------------ *
+ * Kinds
+ * ------------------------------------------------------------------ */
+
+/**
+ * Money that moved but was not spent or earned.
+ *
+ * A splitting app cares about one thing: what a person paid somebody else for
+ * something. A great deal of what a bank sends is money moving without that
+ * being true — a card bill settled out of the same account that made the
+ * purchases, a wallet loaded, a fund bought, cash taken out of a machine. Every
+ * one of those is a debit, and reading them as expenses is how an imported
+ * ledger ends up double-counting a month: once when the card was used, and
+ * again when the card was paid.
+ *
+ * These lists sort them out. Each is deliberately narrow — an "other" that
+ * swallowed a real expense would lose it silently, which is the failure this
+ * parser is built to avoid — and each keeps the file's three rules: unaccented,
+ * Latin and non-Latin separated, and no term that is an ordinary word somewhere
+ * the parser might be pointed.
+ *
+ * None of them carries the `g` flag. Every one is used with `test` over a whole
+ * inbox, and a global regex remembers where it stopped: the second call on an
+ * identical message comes back false, and half of somebody's credit card bills
+ * quietly become expenses.
+ */
+
+/**
+ * A card bill being settled, not a purchase being made.
+ *
+ * `payment` alone is nowhere near specific enough — half of all bank messages
+ * contain it — so every term here names the card or the statement as well.
+ */
+export const CARD_BILL = new RegExp(
+  [
+    latin([
+      'credit\\s*card\\s*(?:bill\\s*)?payment',
+      'card\\s*payment\\s+(?:settled|received|successful)',
+      'payment\\s+(?:received|credited)\\s+(?:towards|to|for)\\s+(?:your\\s+)?(?:credit\\s+)?card',
+      'towards\\s+(?:your\\s+)?(?:credit\\s+)?card\\s+(?:bill|dues|outstanding)',
+      'statement\\s+(?:dues?|amount)\\s+(?:paid|settled)',
+      'card\\s+bill\\s+(?:paid|settled)',
+      'e-?mandate\\s+(?:executed|processed)',
+      'autopay\\s+(?:executed|processed|successful)',
+      'pago\\s+de\\s+tarjeta',
+      'paiement\\s+de\\s+carte',
+      'kartenzahlung\\s+ausgeglichen',
+    ]),
+    script(['بطاقة\\s*الائتمان\\s*سداد', 'क्रेडिट\\s*कार्ड\\s*भुगतान', 'ชำระบัตรเครดิต']),
+  ].join('|'),
+  'iu',
+);
+
+/**
+ * A wallet, prepaid card or transit pass being loaded.
+ *
+ * Bare `recharge` is left out on purpose: a mobile recharge is a real expense,
+ * and in Indian English "recharge" means that far more often than it means a
+ * wallet top-up. Every term here names the wallet.
+ */
+export const WALLET_TOPUP = new RegExp(
+  latin([
+    'wallet\\s+(?:recharge|top[\\s-]?up|load(?:ed)?)',
+    '(?:recharge|top[\\s-]?up|loaded|added)\\s+(?:to\\s+)?(?:your\\s+)?wallet',
+    'added\\s+to\\s+(?:your\\s+)?(?:paytm|phonepe|amazon\\s*pay|gpay)\\s*(?:balance|wallet)',
+    'prepaid\\s+(?:card\\s+)?(?:reload|top[\\s-]?up)',
+    'recarga\\s+de\\s+(?:billetera|monedero)',
+    'rechargement\\s+du\\s+portefeuille',
+  ]),
+  'iu',
+);
+
+/**
+ * Money going into an investment: a fund, a deposit, a pension.
+ *
+ * Bought units are savings, not spending — and in a splitting app they are
+ * never somebody else's share of anything.
+ */
+export const INVESTMENT = new RegExp(
+  [
+    latin([
+      'sip\\s+(?:payment|instal+ment|debit)',
+      'systematic\\s+investment',
+      'mutual\\s+fund',
+      'units?\\s+(?:allot+ed|purchased)',
+      'folio\\s*(?:no|number)',
+      'recurring\\s+deposit',
+      'fixed\\s+deposit',
+      'nps\\s+contribution',
+      'ppf\\s+(?:contribution|deposit)',
+      'towards\\s+(?:your\\s+)?(?:rd|fd|sip)',
+    ]),
+    script(['म्यूचुअल\\s*फंड', 'กองทุนรวม']),
+  ].join('|'),
+  'iu',
+);
+
+/**
+ * A transfer between the person's own accounts. Not a payment to anybody.
+ */
+export const SELF_TRANSFER = new RegExp(
+  [
+    latin([
+      '(?:to|between)\\s+your\\s+own\\s+accounts?',
+      'own\\s+account\\s+transfer',
+      'self\\s*-?\\s*transfer',
+      'transfer(?:red)?\\s+to\\s+self',
+      'entre\\s+(?:tus|sus)\\s+cuentas',
+      'virement\\s+interne',
+    ]),
+    script(['अपने\\s*खाते\\s*में']),
+  ].join('|'),
+  'iu',
+);
+
+/**
+ * Cash out of a machine or over a counter.
+ *
+ * The money has not been spent yet; it has changed shape. FinArt calls the same
+ * idea "cash in hand", and counting it as an expense double-counts every cash
+ * purchase a person later enters by hand.
+ */
+export const CASH_WITHDRAWAL = new RegExp(
+  [
+    latin([
+      'cash\\s+(?:withdraw\\w*|wdl)',
+      'withdraw\\w*\\s+(?:from|at)\\s+(?:atm|a\\s*t\\s*m)',
+      'atm\\s+(?:cash\\s+)?withdraw\\w*',
+      'atm\\s+wdl',
+      'retiro\\s+(?:en\\s+)?cajero',
+      'retrait\\s+(?:au\\s+)?distributeur',
+      'bargeldabhebung',
+    ]),
+    script(['नकद\\s*निकासी', 'ถอนเงินสด', 'سحب\\s*نقدي']),
+  ].join('|'),
+  'iu',
+);
+
+/**
+ * A payment coming back. Real, and worth seeing — but it is the reversal of an
+ * expense rather than income, so it belongs with neither.
+ */
+export const REFUND = new RegExp(
+  [
+    latin([
+      'refund(?:ed)?',
+      'reversed',
+      'reversal',
+      'charge\\s*back',
+      'reembolso',
+      'remboursement',
+      'erstattung',
+      'rimborso',
+      'iade\\s+edildi',
+      'hoan\\s*tien',
+    ]),
+    script(['वापसी', 'استرداد', 'คืนเงิน', 'возврат']),
+  ].join('|'),
+  'iu',
+);
