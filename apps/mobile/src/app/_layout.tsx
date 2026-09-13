@@ -45,6 +45,7 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { AutoBackup } from '@/lib/backup/AutoBackup';
 import { backendConfigured } from '@/lib/backend';
 import { CaptureNudge } from '@/lib/captureNudge/CaptureNudge';
+import { SmsAutoRead } from '@/lib/smsAutoRead';
 import { DeviceSessionProvider } from '@/lib/deviceSession';
 import { useFlagEnabled } from '@/lib/flags';
 import { isRtl, isRtlLanguage, useStrings } from '@/i18n';
@@ -272,6 +273,15 @@ function RootLayout() {
                                 read from the mirror, which must not be touched
                                 while the app is still locked. */}
                                           <CaptureNudge />
+                                          {/* Renders nothing: it reads the bank
+                                messages this phone is allowed to read, on a
+                                permission somebody already granted, and keeps
+                                the hourly background check in step with the
+                                gates. Beside the nudge and inside the same ones
+                                — a build we have stopped trusting should not be
+                                reading anybody's inbox, and nothing should touch
+                                the mirror while the app is still locked. */}
+                                          <SmsAutoRead />
                                           {/* Inside the lock so the two-device gate never
                                 paints over the lock screen, and past auth so it
                                 only ever asks a signed-in account. */}
