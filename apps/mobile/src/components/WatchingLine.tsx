@@ -43,10 +43,20 @@ export function WatchingLine({
   onRefresh: () => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  // The screen's clock ticks once a minute; a read writes its timestamp the
+  // instant it happens. So for up to a minute after every check, `lastCheckedAt`
+  // is *ahead* of `now`, and `relativeTime` — correctly, for a trip date —
+  // renders that as the future: "Watching your bank messages · in 1 second".
+  //
+  // Clamped here rather than in `relativeTime`, which has other callers that do
+  // describe things yet to happen. The rule this enforces is narrow and true:
+  // a moment the app has already lived through is never in the future, however
+  // stale the clock it is being compared against.
+  const sinceNow = lastCheckedAt ? Math.max(now, Date.parse(lastCheckedAt) || now) : now;
   const words = checking
     ? t.captures.checkingNow
     : lastCheckedAt
-      ? t.captures.watchingSince.replace('{when}', relativeTime(locale, lastCheckedAt, now))
+      ? t.captures.watchingSince.replace('{when}', relativeTime(locale, lastCheckedAt, sinceNow))
       : t.captures.watching;
 
   return (

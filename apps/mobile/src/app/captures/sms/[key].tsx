@@ -226,7 +226,14 @@ export default function SmsMessageScreen(): React.JSX.Element | null {
             </Text>
           ) : null}
           <Text variant="caption" tone="muted">
-            {t.smsInbox.readOn.replace('{when}', relativeTime(locale, row.readAt, now))}
+            {t.smsInbox.readOn.replace(
+              '{when}',
+              // Clamped for the same reason `WatchingLine` clamps: the screen's
+              // clock ticks once a minute and this row was read on the minute,
+              // so for up to sixty seconds "when it was read" is ahead of "now"
+              // and renders as "in 1 second".
+              relativeTime(locale, row.readAt, Math.max(now, Date.parse(row.readAt) || now)),
+            )}
           </Text>
         </View>
 
