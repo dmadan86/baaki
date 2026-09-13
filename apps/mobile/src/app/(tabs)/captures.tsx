@@ -66,6 +66,7 @@ import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from
 
 import { MutationKind, peopleSignatureKey } from '@waves/core';
 import {
+  Badge,
   Button,
   directionalIcon,
   Divider,
@@ -123,6 +124,9 @@ import {
   type ReviewSectionId,
 } from '@/lib/reviewFeed';
 import { useSmsAutoRead } from '@/lib/smsAutoRead';
+import { useSmsInboxReader } from '@/lib/smsFeature';
+import { useSmsMessages } from '@/lib/smsMessages';
+import { totalWaiting } from '@/lib/smsInbox';
 import { useDialog } from '@/lib/dialog';
 import { useToast } from '@/lib/toast';
 import { useSync } from '@/sync';
@@ -691,6 +695,10 @@ export default function CapturesScreen() {
   // this screen opens on a status or on an instruction, and whether pasting is
   // the main path or the other way.
   const auto = useSmsAutoRead();
+  // Whether this build and this phone have a reader at all — the same gate the
+  // Bank messages screen asks itself, so the door is never shown to a screen
+  // that would render nothing.
+  const smsReader = useSmsInboxReader();
 
   // One slow clock for the whole screen: the status line's "2 min ago" and the
   // empty state's "this week" both read it, and neither may call Date.now()
@@ -1290,6 +1298,66 @@ export default function CapturesScreen() {
   const menuDestination = menuCapture ? (destinations.get(menuCapture.id) ?? null) : null;
   const menuDestinationName = menuDestination ? nameOfGroup(menuDestination.groupId) : null;
 
+  // ── The way through to the bank messages ──────────────────────────────
+  //
+  // Bank messages used to be poured into this list. They should not have been:
+  // Review is the short list of things genuinely waiting on a person, and a
+  // stream of a hundred rows nobody has looked at makes the four that need an
+  // answer unfindable. They have their own screen now, and this is the door to
+  // it — one row, carrying the one number that decides whether it is worth
+  // opening.
+  //
+  // The confident expenses are still *here* as well, by design: a message the
+  // app read cleanly is an answer, not a question, and it belongs in the list of
+  // things to file. Everything it was unsure of waits behind this row.
+  const bankMessages = useSmsMessages(smsReader);
+  const bankWaiting = useMemo(() => totalWaiting(bankMessages.rows), [bankMessages.rows]);
+  const bankMessagesRow = smsReader ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t.smsInbox.entryTitle}. ${
+        bankWaiting > 0
+          ? plural(locale, bankWaiting, t.smsInbox.entryWaiting)
+          : t.smsInbox.entryNothing
+      }`}
+      onPress={() => router.push('/captures/sms')}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.color.brandSoft,
+        }}
+      >
+        <Ionicons name="chatbubbles" size={iconSize.md} color={theme.color.brand} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="body">{t.smsInbox.entryTitle}</Text>
+        <Text variant="micro" tone="muted">
+          {t.smsInbox.onDevice}
+        </Text>
+      </View>
+      {bankWaiting > 0 ? (
+        <Badge label={plural(locale, bankWaiting, t.smsInbox.entryWaiting)} tone="brand" />
+      ) : null}
+      <Ionicons
+        name={directionalIcon('chevron-forward')}
+        size={iconSize.md}
+        color={theme.color.textMuted}
+      />
+    </Pressable>
+  ) : null;
+
   // Where pasting lives now. With a reader running it is one quiet line at the
   // foot of the list — a fallback, labelled as an alternative rather than as the
   // way in. With nothing reading (every iPhone) it is a real, labelled button,
@@ -1383,6 +1451,7 @@ export default function CapturesScreen() {
             tintColor={theme.color.brand}
           />
         }
+        ListHeaderComponent={bankMessagesRow}
         ListFooterComponent={rows.length > 0 ? anotherWay : null}
         ListEmptyComponent={
           captures.isLoading ? (

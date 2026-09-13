@@ -2685,6 +2685,108 @@ export interface UiStrings {
       nextScreen: string;
     };
   };
+  /**
+   * The Bank messages screen: its own place, separate from Review.
+   *
+   * Review is the list of questions waiting on a person. This is the stream the
+   * phone reads for itself — searched, narrowed by date, ticked in batches. The
+   * two were one screen and should not have been.
+   */
+  smsInbox: {
+    title: string;
+    /** The promise, stated where it cannot be missed rather than in fine print. */
+    onDevice: string;
+    onDeviceMore: string;
+    /** The three piles. `classifySms` decides which; these name them. */
+    tabExpenses: string;
+    tabIncome: string;
+    tabOther: string;
+    /** The band under the tabs: what this view comes to. */
+    periodAll: string;
+    /** Search. */
+    searchPlaceholder: string;
+    searchClear: string;
+    /** Quick date windows, and the filter sheet behind the funnel. */
+    last7: string;
+    last30: string;
+    last90: string;
+    allTime: string;
+    filterTitle: string;
+    filterByMonth: string;
+    filterCustom: string;
+    filterOlder: string;
+    filterNewer: string;
+    filterApply: string;
+    filterClear: string;
+    /** Starting a scan. */
+    scan: string;
+    scanAgain: string;
+    scanTitle: string;
+    scanRecent: string;
+    scanRecentNote: string;
+    scanEverything: string;
+    scanEverythingNote: string;
+    scanKeepsWhatYouDid: string;
+    /** While it runs — three stages a person can watch. */
+    scanReading: string;
+    scanSorting: string;
+    scanSaving: string;
+    /** What it found. */
+    scanFound: PluralForms;
+    scanNothingNew: string;
+    scanUnreadable: PluralForms;
+    scanDrafted: PluralForms;
+    /**
+     * The warning for phones whose manufacturer stops scheduled work. Named
+     * rather than universal — see `lib/smsBattery.ts`.
+     */
+    batteryTitle: string;
+    batteryBody: string;
+    batteryOpenSettings: string;
+    /** Ticking rows and doing something with them. */
+    selected: PluralForms;
+    selectAll: string;
+    selectNone: string;
+    addToGroup: PluralForms;
+    setAside: PluralForms;
+    setAsideDone: PluralForms;
+    placed: PluralForms;
+    undo: string;
+    /** Row furniture. */
+    isNew: string;
+    inReview: string;
+    dateGuessed: string;
+    hardToRead: string;
+    noShopNamed: string;
+    /** Why a row is in the third pile. */
+    reasonCardBill: string;
+    reasonWalletTopUp: string;
+    reasonInvestment: string;
+    reasonSelfTransfer: string;
+    reasonCashWithdrawal: string;
+    reasonRefund: string;
+    /** The detail screen. */
+    detailTitle: string;
+    fromTheMessage: string;
+    onThisPhoneOnly: string;
+    messageUnavailable: string;
+    sentBy: string;
+    cardEnding: string;
+    readOn: string;
+    forget: string;
+    forgetConfirm: string;
+    /** Empty states, one per reason for being empty. */
+    emptyNothingYet: string;
+    emptyNothingYetBody: string;
+    emptyAllDone: string;
+    emptyAllDoneBody: string;
+    emptyNoMatch: string;
+    emptyNoMatchBody: string;
+    /** The entry row in Review. */
+    entryTitle: string;
+    entryWaiting: PluralForms;
+    entryNothing: string;
+  };
   /** Splitting one bill line by line, on one phone or several. */
   itemize: {
     title: string;
@@ -5383,6 +5485,92 @@ const en: UiStrings = {
       nextScreen:
         'On the next screen Android asks whether Waves may read your messages. You can say no — pasting them still works.',
     },
+  },
+  smsInbox: {
+    title: 'Bank messages',
+    onDevice: 'Read on this phone. Never uploaded.',
+    onDeviceMore:
+      'Waves reads your bank messages here, on this phone. The messages stay on it — only the expenses you add to a group are shared with anyone.',
+    tabExpenses: 'Spent',
+    tabIncome: 'Received',
+    tabOther: 'Neither',
+    periodAll: 'All time',
+    searchPlaceholder: 'Search shop, bank or amount',
+    searchClear: 'Clear search',
+    last7: '7 days',
+    last30: '30 days',
+    last90: '90 days',
+    allTime: 'All',
+    filterTitle: 'Show which days',
+    filterByMonth: 'By month',
+    filterCustom: 'Pick your own dates',
+    filterOlder: 'Earlier month',
+    filterNewer: 'Later month',
+    filterApply: 'Show these',
+    filterClear: 'Show everything',
+    scan: 'Scan messages',
+    scanAgain: 'Scan again',
+    scanTitle: 'How far back?',
+    scanRecent: 'Last 30 days',
+    scanRecentNote: 'Quick — a few seconds.',
+    scanEverything: 'Everything on this phone',
+    scanEverythingNote: 'Thorough. Can take a minute on a full inbox.',
+    scanKeepsWhatYouDid: 'Nothing you have already added or set aside will change.',
+    scanReading: 'Reading your messages…',
+    scanSorting: 'Sorting {done} of {total}',
+    scanSaving: 'Almost there…',
+    scanFound: { one: 'Found {count} payment', other: 'Found {count} payments' },
+    scanNothingNew: 'Nothing new since last time.',
+    scanUnreadable: {
+      one: '{count} message looked like a payment but could not be read.',
+      other: '{count} messages looked like payments but could not be read.',
+    },
+    scanDrafted: {
+      one: '{count} was clear enough to go straight to Review.',
+      other: '{count} were clear enough to go straight to Review.',
+    },
+    batteryTitle: 'Your phone may stop the hourly check',
+    batteryBody:
+      '{maker} phones often stop background work to save battery. To keep Waves reading new messages on its own, allow it to run in the background in your phone settings.',
+    batteryOpenSettings: 'Open settings',
+    selected: { one: '{count} selected', other: '{count} selected' },
+    selectAll: 'Select all',
+    selectNone: 'Clear',
+    addToGroup: { one: 'Add to a group', other: 'Add {count} to a group' },
+    setAside: { one: 'Set aside', other: 'Set aside {count}' },
+    setAsideDone: { one: 'Set aside', other: '{count} set aside' },
+    placed: { one: 'Added to {name}', other: '{count} added to {name}' },
+    undo: 'Undo',
+    isNew: 'New',
+    inReview: 'In Review',
+    dateGuessed: 'Date guessed',
+    hardToRead: 'Check this one',
+    noShopNamed: 'No shop named',
+    reasonCardBill: 'Card bill',
+    reasonWalletTopUp: 'Wallet top-up',
+    reasonInvestment: 'Investment',
+    reasonSelfTransfer: 'Your own account',
+    reasonCashWithdrawal: 'Cash out',
+    reasonRefund: 'Refund',
+    detailTitle: 'Message',
+    fromTheMessage: 'From the message',
+    onThisPhoneOnly: 'On this phone only',
+    messageUnavailable: 'The message could not be opened on this phone.',
+    sentBy: 'Sent by {sender}',
+    cardEnding: 'Card ending {tail}',
+    readOn: 'Read {when}',
+    forget: 'Delete from Waves',
+    forgetConfirm:
+      'This removes it from Waves. The message itself stays in your Messages app.',
+    emptyNothingYet: 'Nothing read yet',
+    emptyNothingYetBody: 'Scan your messages and Waves will find the payments in them.',
+    emptyAllDone: 'All caught up',
+    emptyAllDoneBody: 'Every message here has been dealt with.',
+    emptyNoMatch: 'Nothing matches',
+    emptyNoMatchBody: 'Try fewer words, or a wider date range.',
+    entryTitle: 'Bank messages',
+    entryWaiting: { one: '{count} new', other: '{count} new' },
+    entryNothing: 'Nothing waiting',
   },
   itemize: {
     title: 'Split by item',
@@ -8174,6 +8362,92 @@ const ta: UiStrings = {
         'அடுத்த திரையில், உங்கள் செய்திகளை Waves படிக்கலாமா என்று Android கேட்கும். வேண்டாம் எனச் சொல்லலாம் — ஒட்டுவது அப்போதும் வேலை செய்யும்.',
     },
   },
+  smsInbox: {
+    title: 'வங்கிச் செய்திகள்',
+    onDevice: 'இந்த ஃபோனில் மட்டும் படிக்கப்படுகிறது. எங்கும் பதிவேற்றப்படுவதில்லை.',
+    onDeviceMore:
+      'உங்கள் வங்கிச் செய்திகளை Waves இந்த ஃபோனிலேயே படிக்கிறது. செய்திகள் இதிலேயே இருக்கும் — நீங்கள் ஒரு குழுவில் சேர்க்கும் செலவுகள் மட்டுமே பகிரப்படும்.',
+    tabExpenses: 'செலவு',
+    tabIncome: 'வரவு',
+    tabOther: 'இரண்டுமில்லை',
+    periodAll: 'எல்லா நாளும்',
+    searchPlaceholder: 'கடை, வங்கி அல்லது தொகையைத் தேடுங்கள்',
+    searchClear: 'தேடலை அழி',
+    last7: '7 நாள்',
+    last30: '30 நாள்',
+    last90: '90 நாள்',
+    allTime: 'எல்லாம்',
+    filterTitle: 'எந்த நாட்களைக் காட்ட?',
+    filterByMonth: 'மாதவாரியாக',
+    filterCustom: 'உங்கள் தேதிகளைத் தேர்ந்தெடுங்கள்',
+    filterOlder: 'முந்தைய மாதம்',
+    filterNewer: 'அடுத்த மாதம்',
+    filterApply: 'இவற்றைக் காட்டு',
+    filterClear: 'எல்லாவற்றையும் காட்டு',
+    scan: 'செய்திகளைப் படி',
+    scanAgain: 'மீண்டும் படி',
+    scanTitle: 'எவ்வளவு பின்னுக்கு?',
+    scanRecent: 'கடந்த 30 நாள்',
+    scanRecentNote: 'விரைவானது — சில வினாடிகள்.',
+    scanEverything: 'இந்த ஃபோனில் உள்ள அனைத்தும்',
+    scanEverythingNote: 'முழுமையானது. நிறைந்த இன்பாக்ஸில் ஒரு நிமிடம் ஆகலாம்.',
+    scanKeepsWhatYouDid: 'நீங்கள் ஏற்கெனவே சேர்த்தவை அல்லது ஒதுக்கியவை மாறாது.',
+    scanReading: 'உங்கள் செய்திகளைப் படிக்கிறது…',
+    scanSorting: '{total} இல் {done} வரிசைப்படுத்தப்பட்டது',
+    scanSaving: 'கிட்டத்தட்ட முடிந்தது…',
+    scanFound: { one: '{count} பணப்பரிமாற்றம் கிடைத்தது', other: '{count} பணப்பரிமாற்றங்கள் கிடைத்தன' },
+    scanNothingNew: 'கடந்த முறைக்குப் பிறகு புதிதாக ஒன்றுமில்லை.',
+    scanUnreadable: {
+      one: '{count} செய்தி பணப்பரிமாற்றம் போலத் தெரிந்தது, ஆனால் படிக்க முடியவில்லை.',
+      other: '{count} செய்திகள் பணப்பரிமாற்றம் போலத் தெரிந்தன, ஆனால் படிக்க முடியவில்லை.',
+    },
+    scanDrafted: {
+      one: '{count} தெளிவாக இருந்ததால் நேராக Review-க்குச் சென்றது.',
+      other: '{count} தெளிவாக இருந்ததால் நேராக Review-க்குச் சென்றன.',
+    },
+    batteryTitle: 'உங்கள் ஃபோன் ஒவ்வொரு மணிநேரச் சோதனையையும் நிறுத்தக்கூடும்',
+    batteryBody:
+      'பேட்டரியைச் சேமிக்க {maker} ஃபோன்கள் பின்னணி வேலையை அடிக்கடி நிறுத்தும். புதிய செய்திகளை Waves தானாகப் படித்துக்கொண்டே இருக்க, ஃபோன் அமைப்புகளில் பின்னணியில் இயங்க அனுமதியுங்கள்.',
+    batteryOpenSettings: 'அமைப்புகளைத் திற',
+    selected: { one: '{count} தேர்ந்தெடுக்கப்பட்டது', other: '{count} தேர்ந்தெடுக்கப்பட்டன' },
+    selectAll: 'எல்லாவற்றையும் தேர்வு',
+    selectNone: 'அழி',
+    addToGroup: { one: 'ஒரு குழுவில் சேர்', other: '{count} ஐ ஒரு குழுவில் சேர்' },
+    setAside: { one: 'ஒதுக்கி வை', other: '{count} ஐ ஒதுக்கி வை' },
+    setAsideDone: { one: 'ஒதுக்கப்பட்டது', other: '{count} ஒதுக்கப்பட்டன' },
+    placed: { one: '{name} இல் சேர்க்கப்பட்டது', other: '{name} இல் {count} சேர்க்கப்பட்டன' },
+    undo: 'மீட்டமை',
+    isNew: 'புதியது',
+    inReview: 'Review இல்',
+    dateGuessed: 'தேதி ஊகம்',
+    hardToRead: 'இதைச் சரிபாருங்கள்',
+    noShopNamed: 'கடைப் பெயர் இல்லை',
+    reasonCardBill: 'கார்டு பில்',
+    reasonWalletTopUp: 'வாலட் நிரப்பல்',
+    reasonInvestment: 'முதலீடு',
+    reasonSelfTransfer: 'உங்கள் சொந்தக் கணக்கு',
+    reasonCashWithdrawal: 'பணம் எடுத்தல்',
+    reasonRefund: 'திரும்பப் பெற்றது',
+    detailTitle: 'செய்தி',
+    fromTheMessage: 'செய்தியிலிருந்து',
+    onThisPhoneOnly: 'இந்த ஃபோனில் மட்டும்',
+    messageUnavailable: 'இந்த ஃபோனில் செய்தியைத் திறக்க முடியவில்லை.',
+    sentBy: '{sender} அனுப்பியது',
+    cardEnding: '{tail} இல் முடியும் கார்டு',
+    readOn: '{when} படிக்கப்பட்டது',
+    forget: 'Waves இலிருந்து நீக்கு',
+    forgetConfirm:
+      'இது Waves இலிருந்து மட்டும் நீக்கும். செய்தி உங்கள் Messages ஆப்பில் அப்படியே இருக்கும்.',
+    emptyNothingYet: 'இதுவரை எதுவும் படிக்கப்படவில்லை',
+    emptyNothingYetBody: 'செய்திகளைப் படியுங்கள் — அவற்றில் உள்ள பணப்பரிமாற்றங்களை Waves கண்டுபிடிக்கும்.',
+    emptyAllDone: 'எல்லாம் முடிந்தது',
+    emptyAllDoneBody: 'இங்குள்ள ஒவ்வொரு செய்தியும் கவனிக்கப்பட்டுவிட்டது.',
+    emptyNoMatch: 'எதுவும் பொருந்தவில்லை',
+    emptyNoMatchBody: 'குறைவான சொற்களை, அல்லது பரந்த தேதி வரம்பை முயற்சியுங்கள்.',
+    entryTitle: 'வங்கிச் செய்திகள்',
+    entryWaiting: { one: '{count} புதியது', other: '{count} புதியவை' },
+    entryNothing: 'காத்திருப்பது ஒன்றுமில்லை',
+  },
   itemize: {
     title: 'பொருள் வாரியாகப் பிரி',
     notAMember: 'நீங்கள் இந்தக் குழுவின் உறுப்பினர் அல்ல',
@@ -10905,6 +11179,91 @@ const hi: UiStrings = {
       nextScreen:
         'अगली स्क्रीन पर Android पूछेगा कि Waves आपके संदेश पढ़ सकता है या नहीं। आप मना कर सकते हैं — पेस्ट करना तब भी काम करता है।',
     },
+  },
+  smsInbox: {
+    title: 'बैंक संदेश',
+    onDevice: 'इसी फ़ोन पर पढ़े जाते हैं। कहीं अपलोड नहीं होते।',
+    onDeviceMore:
+      'Waves आपके बैंक संदेश इसी फ़ोन पर पढ़ता है। संदेश यहीं रहते हैं — सिर्फ़ वे ख़र्चे साझा होते हैं जो आप किसी ग्रुप में जोड़ते हैं।',
+    tabExpenses: 'ख़र्च',
+    tabIncome: 'आया',
+    tabOther: 'कोई नहीं',
+    periodAll: 'हर समय',
+    searchPlaceholder: 'दुकान, बैंक या रकम खोजें',
+    searchClear: 'खोज हटाएँ',
+    last7: '7 दिन',
+    last30: '30 दिन',
+    last90: '90 दिन',
+    allTime: 'सब',
+    filterTitle: 'कौन से दिन दिखाएँ',
+    filterByMonth: 'महीने के हिसाब से',
+    filterCustom: 'अपनी तारीख़ें चुनें',
+    filterOlder: 'पिछला महीना',
+    filterNewer: 'अगला महीना',
+    filterApply: 'ये दिखाएँ',
+    filterClear: 'सब दिखाएँ',
+    scan: 'संदेश पढ़ें',
+    scanAgain: 'दोबारा पढ़ें',
+    scanTitle: 'कितना पीछे तक?',
+    scanRecent: 'पिछले 30 दिन',
+    scanRecentNote: 'तेज़ — कुछ ही सेकंड।',
+    scanEverything: 'इस फ़ोन का सब कुछ',
+    scanEverythingNote: 'पूरा। भरे हुए इनबॉक्स में एक मिनट लग सकता है।',
+    scanKeepsWhatYouDid: 'आपने जो पहले जोड़ा या अलग रखा है, वह नहीं बदलेगा।',
+    scanReading: 'आपके संदेश पढ़े जा रहे हैं…',
+    scanSorting: '{total} में से {done} छाँटे गए',
+    scanSaving: 'बस हो ही गया…',
+    scanFound: { one: '{count} भुगतान मिला', other: '{count} भुगतान मिले' },
+    scanNothingNew: 'पिछली बार के बाद कुछ नया नहीं।',
+    scanUnreadable: {
+      one: '{count} संदेश भुगतान जैसा लगा, पर पढ़ा नहीं जा सका।',
+      other: '{count} संदेश भुगतान जैसे लगे, पर पढ़े नहीं जा सके।',
+    },
+    scanDrafted: {
+      one: '{count} इतना साफ़ था कि सीधे Review में चला गया।',
+      other: '{count} इतने साफ़ थे कि सीधे Review में चले गए।',
+    },
+    batteryTitle: 'आपका फ़ोन हर घंटे की जाँच रोक सकता है',
+    batteryBody:
+      'बैटरी बचाने के लिए {maker} फ़ोन अक्सर बैकग्राउंड का काम रोक देते हैं। Waves नए संदेश ख़ुद पढ़ता रहे, इसके लिए फ़ोन सेटिंग्स में इसे बैकग्राउंड में चलने दें।',
+    batteryOpenSettings: 'सेटिंग्स खोलें',
+    selected: { one: '{count} चुना गया', other: '{count} चुने गए' },
+    selectAll: 'सब चुनें',
+    selectNone: 'हटाएँ',
+    addToGroup: { one: 'ग्रुप में जोड़ें', other: '{count} को ग्रुप में जोड़ें' },
+    setAside: { one: 'अलग रखें', other: '{count} अलग रखें' },
+    setAsideDone: { one: 'अलग रखा गया', other: '{count} अलग रखे गए' },
+    placed: { one: '{name} में जोड़ा गया', other: '{name} में {count} जोड़े गए' },
+    undo: 'वापस लें',
+    isNew: 'नया',
+    inReview: 'Review में',
+    dateGuessed: 'तारीख़ अनुमानित',
+    hardToRead: 'इसे देख लें',
+    noShopNamed: 'दुकान का नाम नहीं',
+    reasonCardBill: 'कार्ड बिल',
+    reasonWalletTopUp: 'वॉलेट टॉप-अप',
+    reasonInvestment: 'निवेश',
+    reasonSelfTransfer: 'आपका अपना खाता',
+    reasonCashWithdrawal: 'नक़द निकासी',
+    reasonRefund: 'रिफ़ंड',
+    detailTitle: 'संदेश',
+    fromTheMessage: 'संदेश से',
+    onThisPhoneOnly: 'सिर्फ़ इस फ़ोन पर',
+    messageUnavailable: 'इस फ़ोन पर संदेश नहीं खोला जा सका।',
+    sentBy: '{sender} ने भेजा',
+    cardEnding: '{tail} पर ख़त्म होने वाला कार्ड',
+    readOn: '{when} पढ़ा गया',
+    forget: 'Waves से हटाएँ',
+    forgetConfirm: 'यह सिर्फ़ Waves से हटेगा। संदेश आपके Messages ऐप में बना रहेगा।',
+    emptyNothingYet: 'अभी कुछ नहीं पढ़ा गया',
+    emptyNothingYetBody: 'संदेश पढ़ें और Waves उनमें से भुगतान ढूँढ़ लेगा।',
+    emptyAllDone: 'सब निपट गया',
+    emptyAllDoneBody: 'यहाँ का हर संदेश देखा जा चुका है।',
+    emptyNoMatch: 'कुछ नहीं मिला',
+    emptyNoMatchBody: 'कम शब्द आज़माएँ, या तारीख़ों का दायरा बढ़ाएँ।',
+    entryTitle: 'बैंक संदेश',
+    entryWaiting: { one: '{count} नया', other: '{count} नए' },
+    entryNothing: 'कुछ बाक़ी नहीं',
   },
   itemize: {
     title: 'चीज़-वार बाँटें',
@@ -13882,6 +14241,148 @@ const ar: UiStrings = {
       nextScreen:
         'في الشاشة التالية سيسألك أندرويد إن كان يحقّ لـ Waves قراءة رسائلك. يمكنك الرفض — واللصق يظل يعمل.',
     },
+  },
+  smsInbox: {
+    title: 'رسائل البنك',
+    onDevice: 'تُقرأ على هذا الهاتف. ولا تُرفَع إلى أي مكان.',
+    onDeviceMore:
+      'يقرأ Waves رسائل بنكك هنا، على هذا الهاتف. تبقى الرسائل عليه — ولا يُشارَك سوى المصاريف التي تضيفها إلى مجموعة.',
+    tabExpenses: 'مصروف',
+    tabIncome: 'وارد',
+    tabOther: 'لا هذا ولا ذاك',
+    periodAll: 'كل الفترات',
+    searchPlaceholder: 'ابحث عن متجر أو بنك أو مبلغ',
+    searchClear: 'مسح البحث',
+    last7: '٧ أيام',
+    last30: '٣٠ يومًا',
+    last90: '٩٠ يومًا',
+    allTime: 'الكل',
+    filterTitle: 'أي الأيام تُعرض',
+    filterByMonth: 'حسب الشهر',
+    filterCustom: 'اختر تواريخك',
+    filterOlder: 'الشهر السابق',
+    filterNewer: 'الشهر التالي',
+    filterApply: 'اعرض هذه',
+    filterClear: 'اعرض الكل',
+    scan: 'اقرأ الرسائل',
+    scanAgain: 'اقرأ مرة أخرى',
+    scanTitle: 'إلى أي مدى في الماضي؟',
+    scanRecent: 'آخر ٣٠ يومًا',
+    scanRecentNote: 'سريع — بضع ثوانٍ.',
+    scanEverything: 'كل ما على هذا الهاتف',
+    scanEverythingNote: 'شامل. قد يستغرق دقيقة مع صندوق ممتلئ.',
+    scanKeepsWhatYouDid: 'لن يتغير شيء مما أضفته أو نحّيته من قبل.',
+    scanReading: 'تُقرأ رسائلك…',
+    scanSorting: 'تم فرز {done} من {total}',
+    scanSaving: 'أوشكنا على الانتهاء…',
+    scanFound: {
+      zero: 'لم يُعثر على أي دفعة',
+      one: 'عُثر على دفعة واحدة',
+      two: 'عُثر على دفعتين',
+      few: 'عُثر على {count} دفعات',
+      many: 'عُثر على {count} دفعة',
+      other: 'عُثر على {count} دفعة',
+    },
+    scanNothingNew: 'لا جديد منذ المرة الماضية.',
+    scanUnreadable: {
+      zero: 'لا رسائل تعذّرت قراءتها.',
+      one: 'رسالة واحدة بدت كدفعة وتعذّرت قراءتها.',
+      two: 'رسالتان بدتا كدفعتين وتعذّرت قراءتهما.',
+      few: '{count} رسائل بدت كدفعات وتعذّرت قراءتها.',
+      many: '{count} رسالة بدت كدفعات وتعذّرت قراءتها.',
+      other: '{count} رسالة بدت كدفعات وتعذّرت قراءتها.',
+    },
+    scanDrafted: {
+      zero: 'لم ينتقل أي منها مباشرة إلى Review.',
+      one: 'كانت واحدة واضحة بما يكفي لتنتقل مباشرة إلى Review.',
+      two: 'كانت اثنتان واضحتين بما يكفي لتنتقلا مباشرة إلى Review.',
+      few: 'كانت {count} واضحة بما يكفي لتنتقل مباشرة إلى Review.',
+      many: 'كانت {count} واضحة بما يكفي لتنتقل مباشرة إلى Review.',
+      other: 'كانت {count} واضحة بما يكفي لتنتقل مباشرة إلى Review.',
+    },
+    batteryTitle: 'قد يوقف هاتفك الفحص كل ساعة',
+    batteryBody:
+      'كثيرًا ما توقف هواتف {maker} العمل في الخلفية توفيرًا للبطارية. ولكي يواصل Waves قراءة الرسائل الجديدة وحده، اسمح له بالعمل في الخلفية من إعدادات الهاتف.',
+    batteryOpenSettings: 'افتح الإعدادات',
+    selected: {
+      zero: 'لم يُحدَّد شيء',
+      one: 'حُدِّد واحد',
+      two: 'حُدِّد اثنان',
+      few: 'حُدِّد {count}',
+      many: 'حُدِّد {count}',
+      other: 'حُدِّد {count}',
+    },
+    selectAll: 'حدد الكل',
+    selectNone: 'مسح',
+    addToGroup: {
+      zero: 'أضف إلى مجموعة',
+      one: 'أضف إلى مجموعة',
+      two: 'أضف اثنين إلى مجموعة',
+      few: 'أضف {count} إلى مجموعة',
+      many: 'أضف {count} إلى مجموعة',
+      other: 'أضف {count} إلى مجموعة',
+    },
+    setAside: {
+      zero: 'نحِّ جانبًا',
+      one: 'نحِّ جانبًا',
+      two: 'نحِّ اثنين جانبًا',
+      few: 'نحِّ {count} جانبًا',
+      many: 'نحِّ {count} جانبًا',
+      other: 'نحِّ {count} جانبًا',
+    },
+    setAsideDone: {
+      zero: 'لم يُنحَّ شيء',
+      one: 'نُحِّي جانبًا',
+      two: 'نُحِّي اثنان جانبًا',
+      few: 'نُحِّي {count} جانبًا',
+      many: 'نُحِّي {count} جانبًا',
+      other: 'نُحِّي {count} جانبًا',
+    },
+    placed: {
+      zero: 'لم يُضَف شيء إلى {name}',
+      one: 'أُضيف إلى {name}',
+      two: 'أُضيف اثنان إلى {name}',
+      few: 'أُضيف {count} إلى {name}',
+      many: 'أُضيف {count} إلى {name}',
+      other: 'أُضيف {count} إلى {name}',
+    },
+    undo: 'تراجع',
+    isNew: 'جديد',
+    inReview: 'في Review',
+    dateGuessed: 'التاريخ تقديري',
+    hardToRead: 'راجع هذه',
+    noShopNamed: 'لا اسم متجر',
+    reasonCardBill: 'فاتورة بطاقة',
+    reasonWalletTopUp: 'شحن محفظة',
+    reasonInvestment: 'استثمار',
+    reasonSelfTransfer: 'حسابك أنت',
+    reasonCashWithdrawal: 'سحب نقدي',
+    reasonRefund: 'استرداد',
+    detailTitle: 'الرسالة',
+    fromTheMessage: 'من الرسالة',
+    onThisPhoneOnly: 'على هذا الهاتف فقط',
+    messageUnavailable: 'تعذّر فتح الرسالة على هذا الهاتف.',
+    sentBy: 'من {sender}',
+    cardEnding: 'بطاقة تنتهي بـ {tail}',
+    readOn: 'قُرئت {when}',
+    forget: 'احذف من Waves',
+    forgetConfirm: 'يُحذف هذا من Waves وحده. تبقى الرسالة في تطبيق الرسائل لديك.',
+    emptyNothingYet: 'لم يُقرأ شيء بعد',
+    emptyNothingYetBody: 'اقرأ رسائلك وسيعثر Waves على الدفعات التي فيها.',
+    emptyAllDone: 'انتهى كل شيء',
+    emptyAllDoneBody: 'كل رسالة هنا جرى التعامل معها.',
+    emptyNoMatch: 'لا نتائج',
+    emptyNoMatchBody: 'جرّب كلمات أقل، أو نطاق تواريخ أوسع.',
+    entryTitle: 'رسائل البنك',
+    entryWaiting: {
+      zero: 'لا جديد',
+      one: 'جديد واحد',
+      two: 'جديدان',
+      few: '{count} جديدة',
+      many: '{count} جديدة',
+      other: '{count} جديدة',
+    },
+    entryNothing: 'لا شيء ينتظر',
   },
   itemize: {
     title: 'التقسيم حسب الصنف',
