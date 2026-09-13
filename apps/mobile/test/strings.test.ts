@@ -219,3 +219,81 @@ describe('plural rules', () => {
     }
   });
 });
+
+/**
+ * The placeholder a plural form is allowed to carry.
+ *
+ * `plural()` substitutes exactly one token — `{n}` — with the formatted count.
+ * Every other `{...}` in a string is a manual `.replace` the caller does by
+ * hand, which is a perfectly good convention and the reason this is easy to get
+ * wrong: `{count}` reads more naturally, it is used correctly in a dozen
+ * non-plural strings, and a plural form that carries it renders the braces
+ * *literally* on the screen. It shipped once, in four languages at once —
+ * "Found {count} payments" — and nothing typed, linted or tested caught it,
+ * because a string is a string.
+ */
+describe('plural forms interpolate the count', () => {
+  /** Walk every string in the table, remembering the path to each. */
+  function* strings(node: unknown, path: string): Generator<[string, string]> {
+    if (typeof node === 'string') {
+      yield [path, node];
+      return;
+    }
+    if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        yield* strings(value, path ? `${path}.${key}` : key);
+      }
+    }
+  }
+
+  /**
+   * A plural table: an object whose keys are all CLDR categories and that has
+   * an `other`. Recognised by shape rather than by a list of known keys, so a
+   * plural form added tomorrow is covered the day it is added.
+   */
+  const CATEGORIES = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
+  function* pluralForms(node: unknown, path: string): Generator<[string, Record<string, string>]> {
+    if (!node || typeof node !== 'object') return;
+    const entries = Object.entries(node as Record<string, unknown>);
+    const isPlural =
+      entries.length > 0 &&
+      entries.every(([key, value]) => CATEGORIES.has(key) && typeof value === 'string') &&
+      Object.prototype.hasOwnProperty.call(node, 'other');
+    if (isPlural) {
+      yield [path, node as Record<string, string>];
+      return;
+    }
+    for (const [key, value] of entries) {
+      yield* pluralForms(value, path ? `${path}.${key}` : key);
+    }
+  }
+
+  for (const language of LANGUAGES) {
+    it(`uses {n}, never {count}, in ${language}`, () => {
+      const offenders: string[] = [];
+      for (const [path, forms] of pluralForms(STRINGS_BY_LANGUAGE[language], '')) {
+        for (const [category, text] of Object.entries(forms)) {
+          if (text.includes('{count}')) offenders.push(`${path}.${category}`);
+        }
+      }
+      expect(offenders, `these plural forms would render "{count}" literally`).toEqual([]);
+    });
+  }
+
+  it('finds the plural tables it is meant to be checking', () => {
+    // A walker that silently matched nothing would make every assertion above
+    // pass for ever. This is the canary on it.
+    const found = [...pluralForms(STRINGS_BY_LANGUAGE.en, '')];
+    expect(found.length).toBeGreaterThan(20);
+    expect(found.map(([path]) => path)).toContain('smsInbox.scanFound');
+  });
+
+  it('leaves manual placeholders in ordinary strings alone', () => {
+    // `{count}` is correct in a string a caller replaces by hand — this is only
+    // ever about the forms `plural()` itself renders.
+    const manual = [...strings(STRINGS_BY_LANGUAGE.en, '')].filter(([, text]) =>
+      text.includes('{count}'),
+    );
+    expect(manual.length).toBeGreaterThan(0);
+  });
+});

@@ -367,6 +367,15 @@ export async function forgetEverything(): Promise<void> {
     const connection = await db();
     await connection.execAsync(`DROP TABLE IF EXISTS sms_messages;`);
     await connection.execAsync(SCHEMA);
+    // And the write-ahead log, which `secure_delete` does not reach.
+    //
+    // `secure_delete = ON` zeroes freed pages in the main database file. The
+    // WAL is a separate file holding page images written before the drop, and
+    // dropping a table does not touch it — so without this the bytes of
+    // somebody's bank messages outlive the wipe that was supposed to remove
+    // them, in a file sitting beside the one that was cleaned. TRUNCATE writes
+    // the log back and cuts it to zero length.
+    await connection.execAsync(`PRAGMA wal_checkpoint(TRUNCATE)`);
   });
   key = null;
 }
