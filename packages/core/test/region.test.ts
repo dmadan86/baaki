@@ -6,6 +6,8 @@ import {
   countryName,
   currencyForCountry,
   isCountryCode,
+  dialingCodeForCountry,
+  splitDialCode,
 } from '../src/money/region';
 import { isCurrencyCode, minorUnitExponent } from '../src/money/currency';
 
@@ -117,6 +119,59 @@ describe('the country list', () => {
   it('has a flag for every country it lists', () => {
     for (const entry of COUNTRIES) {
       expect(countryFlag(entry.code), entry.code).not.toBeNull();
+    }
+  });
+});
+
+describe('taking a typed number apart', () => {
+  it('splits a number into the country and the digits after it', () => {
+    expect(splitDialCode('+919876543210')).toEqual({
+      country: 'IN',
+      dialCode: '+91',
+      national: '9876543210',
+    });
+  });
+
+  it('ignores the spaces and brackets people type', () => {
+    expect(splitDialCode('+44 (0)20 7946 0958')?.national).toBe('02079460958');
+  });
+
+  it('settles a shared code the same way every time', () => {
+    // +1 is the United States and Canada both. Either answer is defensible;
+    // an answer that changed between identical inputs is not.
+    expect(splitDialCode('+14155550123')?.country).toBe('US');
+    expect(splitDialCode('+14155550123')?.country).toBe('US');
+  });
+
+  it('prefers the longest code, not the first one that matches', () => {
+    // +9 is nobody, but +91 and +971 both start with it, and +971 must not be
+    // read as India with a stray 1.
+    expect(splitDialCode('+971501234567')).toEqual({
+      country: 'AE',
+      dialCode: '+971',
+      national: '501234567',
+    });
+  });
+
+  it('has no opinion about a number it cannot place', () => {
+    // No plus at all: a bare national number, which the caller keeps as digits.
+    expect(splitDialCode('9876543210')).toBeNull();
+    // A real code, but for a country this app does not stock.
+    expect(splitDialCode('+2376912345')).toBeNull();
+    expect(splitDialCode('')).toBeNull();
+    expect(splitDialCode(null)).toBeNull();
+  });
+
+  it('round-trips every country it lists', () => {
+    for (const entry of COUNTRIES) {
+      const dialCode = dialingCodeForCountry(entry.code);
+      if (!dialCode) continue;
+      const split = splitDialCode(`${dialCode}5551234567`);
+      expect(split, entry.code).not.toBeNull();
+      // Not necessarily the same country — +1 is shared — but always the same
+      // code, which is the half that decides where the message is sent.
+      expect(split?.dialCode, entry.code).toBe(dialCode);
+      expect(split?.national, entry.code).toBe('5551234567');
     }
   });
 });

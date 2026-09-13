@@ -49,6 +49,7 @@ import { useStrings, type UiStrings } from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { friendlyError } from '@/lib/errors';
 import { router, useGoBack } from '@/lib/navigation';
+import { CodeRoute, codeRouteFor, looksLikePhone } from '@/lib/authCodeRoute';
 import { phoneSignInAvailable } from '@/lib/phoneAuth';
 
 export type AuthFlowKind = 'login' | 'signup';
@@ -58,12 +59,6 @@ export type AuthFlowKind = 'login' | 'signup';
 enum Stage {
   Form = 'form',
   Code = 'code',
-}
-
-/** A liberal check — enough to tell "this is an email, mail a code to it" from
- *  "this is a phone number or a username". The server is the real judge. */
-function looksLikeEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 const RESEND_SECONDS = 60;
@@ -77,6 +72,12 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
 
   const isSignup = flow === 'signup';
   const intent: 'sign_in' | 'sign_up' = isSignup ? 'sign_up' : 'sign_in';
+
+  // Whether a code can be sent to a number at all, from this build and on this
+  // door. The same two conditions the "Continue with phone" tile is drawn
+  // under, and deliberately the same expression: a link that promised a text
+  // where that tile is absent would lead exactly where the tile does not go.
+  const phoneCodeOffered = !isSignup && phoneSignInAvailable();
 
   const [stage, setStage] = useState<Stage>(Stage.Form);
   const [identifier, setIdentifier] = useState('');
@@ -133,19 +134,40 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
     }
   };
 
-  // Both passwordless links mail to the address in the field. If it is not an
-  // email, say so rather than mailing nowhere.
-  const mailCode = (): void => {
-    if (!looksLikeEmail(identifier)) {
-      setError(t.signIn.enterEmailFirst);
-      return;
+  /**
+   * Both passwordless links send a code to whatever is in the field — and the
+   * field takes either kind of thing, so this decides which "send a code" it
+   * meant.
+   *
+   * An email goes out from here: Supabase mails it and the card turns to its
+   * own code stage. A number cannot, because phone codes are Firebase's and
+   * land on a screen of their own (`app/phone.tsx`, and see `lib/phoneAuth`
+   * for why the two were never folded together) — so the number is carried
+   * there rather than refused. It used to be refused, on a field whose own
+   * placeholder invites a phone number, with the working door sitting below
+   * the fold under the keyboard. That is the bug this fixes.
+   *
+   * A build with no Firebase in it has no phone door at all, and there the old
+   * refusal is the honest answer again: better to say "an email, please" than
+   * to push a screen whose every tap is dead.
+   */
+  const sendCode = (): void => {
+    switch (codeRouteFor(identifier, phoneCodeOffered)) {
+      case CodeRoute.Email:
+        void run(async () => {
+          await sendEmailOtp(identifier, isSignup);
+          setCode('');
+          setStage(Stage.Code);
+          startResendTimer();
+        });
+        return;
+      case CodeRoute.Phone:
+        router.push({ pathname: '/phone', params: { number: identifier.trim() } });
+        return;
+      case CodeRoute.Nothing:
+        setError(phoneCodeOffered ? t.signIn.enterEmailOrPhoneFirst : t.signIn.enterEmailFirst);
+        return;
     }
-    void run(async () => {
-      await sendEmailOtp(identifier, isSignup);
-      setCode('');
-      setStage(Stage.Code);
-      startResendTimer();
-    });
   };
 
   const submitPassword = (): void => {
@@ -262,6 +284,8 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                     onChangeText={setIdentifier}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    // The field takes either kind of thing, and this keyboard
+                    // has the letters, the digits and the "@" all on it.
                     keyboardType="email-address"
                     autoComplete="username"
                     accessibilityLabel={t.signIn.identifier}
@@ -315,7 +339,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 >
                   {!isSignup ? (
                     <>
-                      <TextLink testID="auth-forgot" onPress={mailCode} disabled={busy}>
+                      <TextLink testID="auth-forgot" onPress={sendCode} disabled={busy}>
                         {t.signIn.forgotPassword}
                       </TextLink>
                       {/* Decorative only: a screen reader should hear the two
@@ -330,8 +354,14 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                       </Text>
                     </>
                   ) : null}
-                  <TextLink testID="auth-email-code" onPress={mailCode} disabled={busy}>
-                    {t.signIn.emailMeACode}
+                  <TextLink testID="auth-email-code" onPress={sendCode} disabled={busy}>
+                    {/* The label follows the field, because the link does: a
+                        number in the field sends a text, and a link that still
+                        said "Email me a code" would be describing the other
+                        branch. */}
+                    {phoneCodeOffered && looksLikePhone(identifier)
+                      ? t.signIn.textMeACode
+                      : t.signIn.emailMeACode}
                   </TextLink>
                 </Row>
               ) : null}
@@ -398,7 +428,7 @@ export function AuthFlow({ flow }: { flow: AuthFlowKind }) {
                 </TextLink>
                 <TextLink
                   testID="auth-resend"
-                  onPress={mailCode}
+                  onPress={sendCode}
                   disabled={busy || resendLeft > 0}
                   tone={resendLeft > 0 ? 'faint' : 'brand'}
                 >

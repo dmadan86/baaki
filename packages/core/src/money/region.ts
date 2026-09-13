@@ -209,3 +209,36 @@ export function countryFlag(countryCode: string | null | undefined): string | nu
   const base = 0x1f1e6; // 🇦 — regional indicator 'A'
   return String.fromCodePoint(base + code.charCodeAt(0) - 65, base + code.charCodeAt(1) - 65);
 }
+
+/**
+ * A typed number split into the two halves a phone field actually holds.
+ *
+ * The sign-in card takes one string; the phone screen holds a country and the
+ * local digits separately. Carrying a number between them means undoing that
+ * join, and the join is not reversible by arithmetic — `+1` is the United
+ * States and Canada both, and `+91` is a prefix of nothing but plenty of codes
+ * are prefixes of each other. So: longest match wins, and a tie is settled by
+ * `COUNTRIES` order, which is already sorted by how likely a Waves user is to
+ * be in each place. That makes `+1` resolve to the United States rather than
+ * flipping between two answers on identical input.
+ *
+ * Null for anything that is not a `+`-prefixed number in a country this app
+ * stocks — the caller keeps whatever country it had guessed and puts the digits
+ * in the field, which is a better answer than a confidently wrong flag.
+ */
+export function splitDialCode(
+  raw: string | null | undefined,
+): { country: string; dialCode: string; national: string } | null {
+  const cleaned = (raw ?? '').replace(/[^\d+]/g, '');
+  if (!cleaned.startsWith('+')) return null;
+  let best: { country: string; dialCode: string } | null = null;
+  for (const { code } of COUNTRIES) {
+    const dialCode = DIALING_CODE_BY_COUNTRY[code];
+    if (!dialCode || !cleaned.startsWith(dialCode)) continue;
+    // Strictly longer only, so the first country in `COUNTRIES` order keeps a
+    // tie rather than the last one overwriting it.
+    if (!best || dialCode.length > best.dialCode.length) best = { country: code, dialCode };
+  }
+  if (!best) return null;
+  return { ...best, national: cleaned.slice(best.dialCode.length) };
+}
