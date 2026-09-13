@@ -76,3 +76,31 @@ export function useFlagVariant(key: string): string | null {
 export function useFlagEnabled(key: string): boolean {
   return useFlagVariant(key) !== null;
 }
+
+/**
+ * The arm, *and* whether the table has actually been read.
+ *
+ * `useFlagVariant` collapses "not in this experiment" and "we have not managed
+ * to ask yet" into the same null, which is right for a screen — both mean draw
+ * the app as it was before the flag existed, and a button that flickers in when
+ * a query resolves is worse than one that never appears.
+ *
+ * It is wrong for anything that *tears something down* when the answer is no.
+ * Unregistering a scheduled background job because a phone happened to be in a
+ * tunnel at launch would switch a feature off for a reason that is not about
+ * the feature at all, and switch it back on a minute later, which is churn
+ * dressed up as caution. `settled` is what tells those two apart: true only
+ * when the flag table came back, so a caller can act on "off" and leave "we do
+ * not know yet" alone.
+ */
+export function useFlagVerdict(key: string): { variant: string | null; settled: boolean } {
+  const { profile } = useAuth();
+  const { data, isSuccess } = useFlags();
+  // No profile is a settled answer, not a pending one: the variant is a hash of
+  // the account id, so there is nothing to wait for until somebody signs in.
+  if (!profile?.id) return { variant: null, settled: true };
+  if (!isSuccess || !data) return { variant: null, settled: false };
+
+  const flag = data.find((candidate) => candidate.key === key);
+  return { variant: flag ? variantFor(flag, profile.id) : null, settled: true };
+}

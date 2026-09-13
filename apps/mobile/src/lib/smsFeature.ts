@@ -37,7 +37,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { useFlagVariant } from '@/lib/flags';
+import { useFlagVariant, useFlagVerdict } from '@/lib/flags';
 
 /** The flag row seeded in the baseline migration. */
 export const SMS_INBOX_READ_FLAG = 'sms_inbox_read';
@@ -74,4 +74,32 @@ export function smsReaderInBuild(): boolean {
 export function useSmsInboxReader(): boolean {
   const variant = useFlagVariant(SMS_INBOX_READ_FLAG);
   return Platform.OS === 'android' && smsReaderInBuild() && variant === TREATMENT;
+}
+
+/**
+ * The same two gates, for a caller that has to act on "no" as well as "yes".
+ *
+ * A screen only ever needs the boolean: it draws the button or it does not, and
+ * "we have not read the flag table yet" may as well be "no" for the second it
+ * lasts. The automatic reader cannot be so relaxed, because its "no" cancels a
+ * scheduled background job — and cancelling one because a phone was offline at
+ * launch, then rescheduling it when the fetch finally lands, is churn rather
+ * than caution. So this keeps the three answers apart:
+ *
+ *   - `'on'`    — Android, a build that declares the permission, treatment arm.
+ *   - `'off'`   — the flag table was read and this phone is not to read messages.
+ *                 Also every iPhone and every build without the permission, both
+ *                 of which are settled facts needing no network to establish.
+ *   - `'unknown'` — the flag table has not come back. Change nothing.
+ */
+export type SmsInboxReaderVerdict = 'on' | 'off' | 'unknown';
+
+export function useSmsInboxReaderVerdict(): SmsInboxReaderVerdict {
+  const { variant, settled } = useFlagVerdict(SMS_INBOX_READ_FLAG);
+  // Neither of these can change without a new binary, so they are answers now
+  // rather than answers pending, and they are checked first so a phone that can
+  // never read is never left waiting on a fetch to say so.
+  if (Platform.OS !== 'android' || !smsReaderInBuild()) return 'off';
+  if (!settled) return 'unknown';
+  return variant === TREATMENT ? 'on' : 'off';
 }

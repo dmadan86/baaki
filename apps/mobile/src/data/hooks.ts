@@ -1541,8 +1541,16 @@ export interface CaptureInput {
   location?: ExpenseLocation | null;
 }
 
-/** bigint → decimal string at the queue boundary, like `serialiseExpense`. */
-function serialiseCapture(input: CaptureInput, captureId: string): Record<string, unknown> {
+/**
+ * bigint → decimal string at the queue boundary, like `serialiseExpense`.
+ *
+ * Exported for the automatic SMS reader (`lib/smsAutoReadRun.ts`), which writes
+ * captures from a background worker where there is no React tree to hang
+ * `useCreateCapture` off. It builds the same payload through this one function
+ * rather than a second copy of the field list, so a capture written by the
+ * hourly pass and one written by a person are the same row by construction.
+ */
+export function serialiseCapture(input: CaptureInput, captureId: string): Record<string, unknown> {
   return {
     captureId,
     description: input.description.trim(),

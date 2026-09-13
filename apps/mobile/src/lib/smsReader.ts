@@ -41,6 +41,8 @@
 
 import type { SmsMessage } from '@waves/core';
 
+import { noteSmsPermissionGranted } from './smsAutoReadStore';
+
 export interface SmsWindow {
   /** Inclusive 'YYYY-MM-DD'. The trip's dates, usually. */
   readonly from: string;
@@ -244,18 +246,9 @@ export async function readSms(
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Platform, PermissionsAndroid } = require('react-native') as typeof import('react-native');
 
-  return readSmsInbox(window, {
+  const result = await readSmsInbox(window, {
     platformOS: Platform.OS,
-    loadModule: () => {
-      try {
-        const specifier = 'react-native-get-sms-android';
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const mod = require(specifier) as { default?: NativeSmsModule } & NativeSmsModule;
-        return (mod?.default ?? mod) as NativeSmsModule;
-      } catch {
-        return null;
-      }
-    },
+    loadModule: loadSmsModule,
     requestPermission: async () => {
       try {
         const status = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS, {
@@ -272,4 +265,88 @@ export async function readSms(
       }
     },
   });
+
+  // A read that happened is proof the dialog was answered "allow" — and that
+  // dialog is the one moment in the app's life at which the permission can turn
+  // on without the app ever leaving the foreground, so nothing else would
+  // notice. `smsAutoRead.ts` listens, and starts the ninety-day backfill on the
+  // spot rather than at the next cold start.
+  if (result.ok) noteSmsPermissionGranted();
+  return result;
+}
+
+/**
+ * Is `READ_SMS` already granted on this phone?
+ *
+ * A *check*, never a request: no dialog is raised, nothing is shown, and false
+ * is the answer everywhere the question does not apply — an iPhone, a build
+ * without the permission, a runtime with no `PermissionsAndroid`. The automatic
+ * reader is built entirely on this; it may act on a permission somebody already
+ * gave and must never ask for one itself, which is what would turn an
+ * hourly background job into a dialog nobody expected.
+ */
+export async function smsPermissionGranted(): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const rn = require('react-native') as typeof import('react-native');
+    const { Platform, PermissionsAndroid } = rn;
+    if (Platform.OS !== 'android') return false;
+    return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read the inbox on a permission already held, prompting for nothing.
+ *
+ * The automatic path's entry point, and the difference from {@link readSms} is
+ * the whole of it: where that one asks Android for the permission (behind the
+ * disclosure screen, in the app's own words), this one only *checks*, and
+ * reports `Denied` when the answer is no. A revoked permission therefore stops
+ * the reader dead and silently, which is exactly what revoking it means — the
+ * alternative, a system dialog raised by a background job an hour after
+ * somebody turned the feature off, is the behaviour that gets an app removed.
+ *
+ * It takes no rationale strings for the same reason: there is no dialog to put
+ * them in.
+ */
+export async function readSmsGranted(window: SmsWindow, maxCount?: number): Promise<SmsReadResult> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Platform } = require('react-native') as typeof import('react-native');
+
+  return readSmsInbox(window, {
+    platformOS: Platform.OS,
+    loadModule: loadSmsModule,
+    requestPermission: async () =>
+      (await smsPermissionGranted()) ? PermissionOutcome.Granted : PermissionOutcome.Denied,
+    maxCount,
+  });
+}
+
+/**
+ * The native module, or null.
+ *
+ * Reached through `require` inside a function, not at module load:
+ * `react-native-get-sms-android` is absent on iOS, in Expo Go and in any build
+ * that did not bundle it, and a top-level import would take the whole app down
+ * at launch on those. The specifier is held in a variable so the type checker
+ * treats a missing module as `any` rather than an error — this package is
+ * intentionally optional.
+ */
+function loadSmsModule(): NativeSmsModule | null {
+  try {
+    // Spelled out, not held in a variable. Metro resolves `require` at build
+    // time and does not fold a constant into it, so a computed specifier leaves
+    // the package out of the bundle altogether and the reader reports
+    // `Unavailable` on every phone — including the ones that have the module.
+    // The literal is what gets it bundled; the `try` is what keeps a build
+    // without it (iOS, Expo Go, an older binary an update reached) from dying.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('react-native-get-sms-android') as
+      ({ default?: NativeSmsModule } & NativeSmsModule) | undefined;
+    return mod?.default ?? mod ?? null;
+  } catch {
+    return null;
+  }
 }
