@@ -14,6 +14,17 @@
  * Everything downstream of that button — the found list, the ticking, the
  * writing — is this screen, unchanged.
  *
+ * TWO ROLES, AND THE SCREEN KNOWS WHICH IT IS IN. Where nothing reads the inbox
+ * on its own — every iPhone, and any Android build without the reader — this is
+ * the feature, the way a bank payment gets into Waves at all, and it opens on a
+ * paragraph and three steps because somebody is about to be asked to do work.
+ * Where the messages *are* already being read (`useSmsAutoRead`), Review opens
+ * on what was found and this screen is the other way in: it is titled "Add
+ * another way", and the instruction at the top gives way to a line saying what
+ * the reader is doing — the very paragraph Review stopped showing would be a
+ * strange thing to meet on the way out of it. The steps stay either way; they
+ * are about the paste, which is still the thing being done here.
+ *
  * WHO THIS IS FOR. Somebody who has never used an expense app, and may never
  * have deliberately copied text on a phone before. Everything on the screen is
  * measured against that: no codes, no jargon, no rule about blank lines to get
@@ -53,7 +64,7 @@
  * a ScrollView, which does not virtualise at all.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import * as Clipboard from 'expo-clipboard';
@@ -82,6 +93,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
+import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
 import { useCaptures, useCreateCapture } from '@/data/hooks';
 import { plural, useStrings, type UiStrings } from '@/i18n';
@@ -99,6 +111,7 @@ import {
   unreadableCount,
   type SmsDraftProvenance,
 } from '@/lib/smsDrafts';
+import { useSmsAutoRead } from '@/lib/smsAutoRead';
 import { useSmsInboxReader } from '@/lib/smsFeature';
 import { bankFromSender, bankFromText, merchantName } from '@/lib/smsPlain';
 import { takeReadMessages } from '@/lib/smsReadBridge';
@@ -332,6 +345,21 @@ export default function PasteMessagesScreen(): React.JSX.Element {
   // Both gates, asked once: Android, a build that declares the permission, and
   // the treatment arm. False everywhere else, including every iPhone.
   const readerOffered = useSmsInboxReader();
+  // Whether the inbox is being read *without being asked* — which decides what
+  // this screen is. With nothing reading it is the feature: the way a spend gets
+  // in, and it says how, step by step. With a reader running it is the other
+  // way: somebody came here because the automatic path missed something, and a
+  // paragraph telling them to go and copy a message would be the very
+  // instruction Review just stopped showing. Then the top of this screen says
+  // what the reader is doing instead, and the steps stay for the paste itself.
+  const auto = useSmsAutoRead();
+  // One slow clock, so the "2 min ago" does not need Date.now() in a render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!auto.enabled) return;
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [auto.enabled]);
 
   const [blob, setBlob] = useState('');
   // Messages read from the inbox, kept apart from the pasted ones so each keeps
@@ -563,15 +591,31 @@ export default function PasteMessagesScreen(): React.JSX.Element {
         <IconButton label={t.common.close} onPress={() => router.back()}>
           <Ionicons name="close" size={iconSize.xl} color={theme.color.text} />
         </IconButton>
-        {/* `marginStart`, not `marginLeft`: the title sits beside the close
-            button on both sides of the world. */}
+        {/* Named by the door you came through: "Add another way" when the
+            messages are already being read for you, and the feature's own name
+            when this is the whole of it. `marginStart`, not `marginLeft`: the
+            title sits beside the close button on both sides of the world. */}
         <Text variant="heading" style={{ marginStart: theme.spacing.md, flex: 1 }}>
-          {t.smsImport.title}
+          {auto.enabled ? t.captures.addAnotherWay : t.smsImport.title}
         </Text>
       </Row>
 
       <Card style={{ gap: theme.spacing.md }}>
-        <Text variant="body">{t.smsImport.howToDrafts}</Text>
+        {/* The instruction, or the state. Never both: with a reader running,
+            "open your messages app and copy one" is the sentence a person came
+            here having already been spared. */}
+        {auto.enabled ? (
+          <WatchingLine
+            checking={auto.checking}
+            lastCheckedAt={auto.lastCheckedAt}
+            now={now}
+            locale={locale}
+            t={t}
+            onRefresh={() => void auto.refresh()}
+          />
+        ) : (
+          <Text variant="body">{t.smsImport.howToDrafts}</Text>
+        )}
         {firstRun ? (
           <View style={{ gap: theme.spacing.sm }}>
             <Step index={1} text={t.smsImport.howToSteps.open} />
