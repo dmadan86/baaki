@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 
 import {
-  carRentalSplit,
   CategoryId,
   computeShares,
   currencySymbol,
@@ -27,11 +26,8 @@ import {
   MutationKind,
   PayerProblemCode,
   rebalancePayers,
-  ridersSplit,
   sanitiseMinorInput,
   serialisePayers,
-  splitByUnits,
-  treatSplit,
   validatePayers,
   type CategoryMeta,
   type CurrencyCode,
@@ -42,7 +38,6 @@ import {
   type SplitParams,
 } from '@waves/core';
 import {
-  AmountField,
   amountKeyboard,
   Avatar,
   Button,
@@ -287,9 +282,6 @@ function textEntries(
  * applied, which a strip that always has exactly one chip lit has no other way
  * to say. Nothing is stored under it and it is never an option to tap.
  */
-const PRESET_KINDS = ['nights', 'car', 'ride', 'treat'] as const;
-type PresetKind = (typeof PRESET_KINDS)[number];
-type PresetChoice = PresetKind | 'none';
 
 // A route param is not a trusted integer string; a throw here is a white screen.
 function safeBigInt(value: string | undefined): bigint {
@@ -473,29 +465,6 @@ export default function AddExpenseScreen() {
   // from the two weighted maps for the same reason those are kept apart from
   // each other — 1 is not one percent, and neither of them is ₹1.
   const [exacts, setExacts] = useState<SplitEntries>({});
-  // Travel split presets (trip groups). Each produces the canonical split params
-  // the ledger already understands, so nothing new is stored: nights → shares,
-  // this-ride → equal (both drive the normal fields), car rental → an
-  // `adjustment` held in `presetParams`, and "my treat" → an `exact` recomputed
-  // live from the amount via `treatHost`. Any manual edit clears the preset.
-  const [presetParams, setPresetParams] = useState<SplitParams | null>(null);
-  const [treatHost, setTreatHost] = useState<MemberId | null>(null);
-  // Which shortcut is currently applied, if any. It used to be held as the
-  // shortcut's translated label and compared string-to-string to decide which
-  // button looked pressed, which made the lit control depend on the locale
-  // rather than on what was chosen.
-  const [appliedPreset, setAppliedPreset] = useState<PresetKind | null>(null);
-  const [presetEditor, setPresetEditor] = useState<PresetKind | null>(null);
-  const [nightCounts, setNightCounts] = useState<Record<MemberId, string>>({});
-  const [riderPick, setRiderPick] = useState<MemberId[]>([]);
-  const [fuelAmounts, setFuelAmounts] = useState<Record<MemberId, bigint>>({});
-  const [exemptDriver, setExemptDriver] = useState<MemberId | null>(null);
-  const [treatHostPick, setTreatHostPick] = useState<MemberId | null>(null);
-  const clearPreset = (): void => {
-    setPresetParams(null);
-    setTreatHost(null);
-    setAppliedPreset(null);
-  };
   // Guessed from the description until somebody picks one themselves, at which
   // point the guess must stop moving it — see `categoryChosen`.
   // A built-in id or a custom tag's id; `categoryMeta` carries a custom tag's
@@ -829,7 +798,6 @@ export default function AddExpenseScreen() {
   const entries =
     splitKind === SplitKind.Shares ? weights : splitKind === SplitKind.Exact ? exacts : percents;
   const setEntry = (memberId: MemberId, text: string): void => {
-    clearPreset();
     const update = (current: SplitEntries): SplitEntries => ({ ...current, [memberId]: text });
     if (splitKind === SplitKind.Shares) setWeights(update);
     else if (splitKind === SplitKind.Exact) setExacts(update);
@@ -854,7 +822,6 @@ export default function AddExpenseScreen() {
   // nothing.
   const [detailsChoice, setDetailsChoice] = useState<boolean | null>(null);
 
-  const isTrip = group.data?.type === 'trip';
   const groupCurrency = group.data?.default_currency ?? 'INR';
   // The expense keeps the currency it was paid in; the group's is only the
   // default and what a converted total would be shown in (ADR-003).
@@ -1089,17 +1056,6 @@ export default function AddExpenseScreen() {
   }, [seededFor, editing, captureId, voice, location]);
 
   const splitParams: SplitParams = useMemo(() => {
-    // "My treat" owes the whole current amount to the host — recomputed live so
-    // changing the total keeps the exact split valid.
-    if (treatHost) {
-      try {
-        return treatSplit({ host: treatHost, participants, amountMinor: amount });
-      } catch {
-        // The host fell out of the participants; drop to the manual split below.
-      }
-    }
-    // A car-rental preset is a fixed adjustment, valid at any total.
-    if (presetParams) return presetParams;
     if (splitKind === SplitKind.Shares) {
       return { kind: 'shares', weights: entryValues('shares', weights, participants) };
     }
@@ -1113,17 +1069,7 @@ export default function AddExpenseScreen() {
       };
     }
     return { kind: 'equal' };
-  }, [
-    splitKind,
-    weights,
-    percents,
-    exacts,
-    currency,
-    participants,
-    treatHost,
-    presetParams,
-    amount,
-  ]);
+  }, [splitKind, weights, percents, exacts, currency, participants]);
 
   // Preview with the same engine the server uses; if they ever disagree the
   // server wins and tells us why (SHARE_MISMATCH).
@@ -1416,113 +1362,11 @@ export default function AddExpenseScreen() {
   };
 
   const toggleParticipant = (memberId: MemberId): void => {
-    clearPreset();
     setParticipants((current) =>
       current.includes(memberId)
         ? current.filter((item) => item !== memberId)
         : [...current, memberId],
     );
-  };
-
-  // Travel split presets — each seeds the split from a small sheet, then hands
-  // the ledger canonical params via the core builders. A SplitError from the
-  // builder (nobody stayed a night, host not a rider) surfaces as a friendly
-  // message rather than a crash, and nothing is applied.
-  const roster = members.data ?? [];
-
-  const openPreset = (kind: PresetKind): void => {
-    setError(null);
-    setRiderPick(participants.length > 0 ? participants : roster.map((member) => member.id));
-    setNightCounts({});
-    setFuelAmounts({});
-    setExemptDriver(null);
-    setTreatHostPick(payerIds[0] ?? myMemberId);
-    setPresetEditor(kind);
-  };
-
-  const toggleRider = (memberId: MemberId): void => {
-    setRiderPick((current) =>
-      current.includes(memberId)
-        ? current.filter((item) => item !== memberId)
-        : [...current, memberId],
-    );
-  };
-
-  const applyNights = (): void => {
-    try {
-      const units: Record<MemberId, number> = {};
-      for (const member of roster) {
-        const parsed = Number.parseInt(nightCounts[member.id] ?? '', 10);
-        units[member.id] = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-      }
-      splitByUnits(units); // throws unless someone stayed a night
-      const chosen = roster.filter((member) => (units[member.id] ?? 0) > 0).map((m) => m.id);
-      clearPreset();
-      setSplitKind(SplitKind.Shares);
-      setParticipants(chosen);
-      setWeights(Object.fromEntries(chosen.map((id) => [id, String(units[id])])));
-      setAppliedPreset('nights');
-      setPresetEditor(null);
-    } catch (caught) {
-      setError(friendlyError(caught, t.couldNotSave, 'preset.nights'));
-    }
-  };
-
-  const applyRide = (): void => {
-    try {
-      const result = ridersSplit(riderPick);
-      clearPreset();
-      setSplitKind(SplitKind.Equal);
-      setParticipants(result.participants);
-      setAppliedPreset('ride');
-      setPresetEditor(null);
-    } catch (caught) {
-      setError(friendlyError(caught, t.couldNotSave, 'preset.ride'));
-    }
-  };
-
-  const applyCar = (): void => {
-    try {
-      const extras: Record<MemberId, bigint> = {};
-      for (const id of riderPick) {
-        const fuel = fuelAmounts[id] ?? 0n;
-        if (fuel > 0n) extras[id] = fuel;
-      }
-      const result = carRentalSplit({
-        participants: riderPick,
-        extrasByMember: extras,
-        exemptDriver: exemptDriver ?? undefined,
-      });
-      clearPreset();
-      setSplitKind(SplitKind.Equal);
-      setParticipants(result.participants);
-      setPresetParams(result.params);
-      setAppliedPreset('car');
-      setPresetEditor(null);
-    } catch (caught) {
-      setError(friendlyError(caught, t.couldNotSave, 'preset.car'));
-    }
-  };
-
-  const applyTreat = (): void => {
-    const host = treatHostPick ?? myMemberId;
-    if (!host) {
-      setError(t.expense.chooseWhoPaid);
-      return;
-    }
-    try {
-      const parts = participants.includes(host) ? participants : [...participants, host];
-      treatSplit({ host, participants: parts, amountMinor: amount }); // validate
-      clearPreset();
-      setParticipants(parts);
-      // A treat is one person picking up the whole bill, by definition.
-      applyPayers([host], new Map([[host, amount]]), EMPTY_LOCKS, amount);
-      setTreatHost(host);
-      setAppliedPreset('treat');
-      setPresetEditor(null);
-    } catch (caught) {
-      setError(friendlyError(caught, t.couldNotSave, 'preset.treat'));
-    }
   };
 
   // Why Save is disabled, in one line, so a greyed-out button is never a dead
@@ -1899,40 +1743,6 @@ export default function AddExpenseScreen() {
               ) : null}
             </Row>
 
-            {/* The trip shortcuts, on one scrolling lane like every other strip
-              of choices here. Wrapped across two rows — which four buttons did
-              on a narrow phone in any of the four languages — they made the
-              block taller than the question it answers and left a ragged second
-              line under the first. Brand green rather than the modes' black:
-              these seed a split and then hand it over, so the row below is
-              still the thing that says how the bill is actually divided. */}
-            {isTrip && !editing ? (
-              <View style={{ gap: theme.spacing.xs }}>
-                <Text variant="micro" tone="muted">
-                  {t.expense.presets.title}
-                </Text>
-                <ChipRow<PresetChoice>
-                  value={appliedPreset ?? 'none'}
-                  onChange={(kind) => {
-                    // 'none' is never offered, so this only ever opens a sheet.
-                    if (kind !== 'none') openPreset(kind);
-                  }}
-                  variant="brand"
-                  options={PRESET_KINDS.map((kind) => ({
-                    value: kind,
-                    label:
-                      kind === 'nights'
-                        ? t.expense.presets.nights
-                        : kind === 'car'
-                          ? t.expense.presets.car
-                          : kind === 'ride'
-                            ? t.expense.presets.ride
-                            : t.expense.presets.treat,
-                  }))}
-                />
-              </View>
-            ) : null}
-
             {/* Word plus glyph, not four identical word-pills: the icon is what
               carries over to the expense screen, where the same split comes back
               as a marked row rather than a bare word. Four labelled modes do not
@@ -1945,7 +1755,6 @@ export default function AddExpenseScreen() {
             <ChipRow<SplitKind>
               value={splitKind}
               onChange={(next) => {
-                clearPreset();
                 setSplitKind(next);
               }}
               options={[SplitKind.Equal, SplitKind.Shares, SplitKind.Percent, SplitKind.Exact].map(
@@ -2369,196 +2178,6 @@ export default function AddExpenseScreen() {
       {/* Travel split presets, as a sheet over the form (trip groups). Each
           gathers just its inputs, then applies canonical split params through
           the core builders — nothing new is stored. */}
-      {presetEditor ? (
-        <SheetOverlay
-          title={
-            presetEditor === 'nights'
-              ? t.expense.presets.nightsTitle
-              : presetEditor === 'car'
-                ? t.expense.presets.carTitle
-                : presetEditor === 'ride'
-                  ? t.expense.presets.rideTitle
-                  : t.expense.presets.treatTitle
-          }
-          onClose={() => setPresetEditor(null)}
-        >
-          <View style={{ gap: theme.spacing.md }}>
-            <Text variant="caption" tone="muted">
-              {presetEditor === 'nights'
-                ? t.expense.presets.nightsHint
-                : presetEditor === 'car'
-                  ? t.expense.presets.carRiders
-                  : presetEditor === 'ride'
-                    ? t.expense.presets.rideHint
-                    : t.expense.presets.treatHint}
-            </Text>
-
-            {presetEditor === 'nights'
-              ? roster.map((member) => (
-                  <Row
-                    key={member.id}
-                    style={{
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: theme.spacing.md,
-                    }}
-                  >
-                    <Row
-                      style={{ gap: theme.spacing.sm, alignItems: 'center', flex: 1, minWidth: 0 }}
-                    >
-                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={32} />
-                      <Text variant="body" numberOfLines={1}>
-                        {displayName(member, viewerId)}
-                      </Text>
-                    </Row>
-                    <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-                      <TextInput
-                        value={nightCounts[member.id] ?? ''}
-                        onChangeText={(text) =>
-                          setNightCounts((current) => ({
-                            ...current,
-                            [member.id]: text.replace(/[^0-9]/g, ''),
-                          }))
-                        }
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        placeholderTextColor={theme.color.textFaint}
-                        accessibilityLabel={displayName(member, viewerId)}
-                        style={{
-                          width: 56,
-                          minHeight: 44,
-                          textAlign: 'right',
-                          fontSize: 16,
-                          fontWeight: '700',
-                          color: theme.color.text,
-                          backgroundColor: theme.color.bg,
-                          borderRadius: theme.radius.sm,
-                          paddingHorizontal: theme.spacing.sm,
-                        }}
-                      />
-                      <Text variant="micro" tone="muted">
-                        {t.expense.presets.nightUnit}
-                      </Text>
-                    </Row>
-                  </Row>
-                ))
-              : null}
-
-            {presetEditor === 'ride'
-              ? roster.map((member) => (
-                  <ChoiceRow
-                    key={member.id}
-                    label={displayName(member, viewerId)}
-                    selected={riderPick.includes(member.id)}
-                    onPress={() => toggleRider(member.id)}
-                    leading={
-                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={32} />
-                    }
-                  />
-                ))
-              : null}
-
-            {presetEditor === 'car'
-              ? roster.map((member) => {
-                  const isRider = riderPick.includes(member.id);
-                  const isDriver = exemptDriver === member.id;
-                  return (
-                    <View key={member.id} style={{ gap: theme.spacing.xs }}>
-                      <Row
-                        style={{
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: theme.spacing.md,
-                        }}
-                      >
-                        <Pressable
-                          onPress={() => toggleRider(member.id)}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: isRider }}
-                          accessibilityLabel={displayName(member, viewerId)}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: theme.spacing.sm,
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                        >
-                          <Ionicons
-                            name={isRider ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={iconSize.lg}
-                            color={isRider ? theme.color.brand : theme.color.textFaint}
-                          />
-                          <Text variant="body" numberOfLines={1}>
-                            {displayName(member, viewerId)}
-                          </Text>
-                        </Pressable>
-                        {isRider ? (
-                          <Pressable
-                            onPress={() =>
-                              setExemptDriver((current) => (isDriver ? null : member.id))
-                            }
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected: isDriver }}
-                            accessibilityLabel={t.expense.presets.carDriver}
-                            hitSlop={6}
-                          >
-                            <Text variant="micro" tone={isDriver ? 'brand' : 'faint'}>
-                              {t.expense.presets.carDriver}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                      </Row>
-                      {isRider && !isDriver ? (
-                        <AmountField
-                          currency={currency}
-                          value={fuelAmounts[member.id] ?? 0n}
-                          onChange={(value) =>
-                            setFuelAmounts((current) => ({ ...current, [member.id]: value }))
-                          }
-                        />
-                      ) : null}
-                    </View>
-                  );
-                })
-              : null}
-
-            {presetEditor === 'car' ? (
-              <Text variant="micro" tone="muted">
-                {t.expense.presets.carFuel}
-              </Text>
-            ) : null}
-
-            {presetEditor === 'treat'
-              ? roster.map((member) => (
-                  <ChoiceRow
-                    key={member.id}
-                    label={displayName(member, viewerId)}
-                    selected={(treatHostPick ?? myMemberId) === member.id}
-                    onPress={() => setTreatHostPick(member.id)}
-                    leading={
-                      <Avatar name={displayName(member)} ghost={isGhost(member)} size={32} />
-                    }
-                  />
-                ))
-              : null}
-
-            <Button
-              label={t.expense.presets.apply}
-              onPress={() =>
-                presetEditor === 'nights'
-                  ? applyNights()
-                  : presetEditor === 'car'
-                    ? applyCar()
-                    : presetEditor === 'ride'
-                      ? applyRide()
-                      : applyTreat()
-              }
-            />
-          </View>
-        </SheetOverlay>
-      ) : null}
-
       {/* Currency picker, as a sheet over the form — the same shortlist and the
           same sheet the capture screen uses, so a person meets the same
           currencies in both places. Picking a foreign one reveals the rate card
