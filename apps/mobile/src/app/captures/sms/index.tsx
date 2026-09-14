@@ -759,6 +759,16 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
                 variant="caption"
               />
             ) : null}
+            {/* The same disclosure the band above carries, and for the same
+                reason — more so here, because this figure sits directly beside
+                the button that acts on the rows. A bar reading "6 selected"
+                over the sum of five would be wrong exactly where somebody is
+                about to commit. */}
+            {chosenTotal.uncounted > 0 ? (
+              <Text variant="micro" tone="muted">
+                {plural(locale, chosenTotal.uncounted, t.smsInbox.notCounted)}
+              </Text>
+            ) : null}
           </Row>
           <Row style={{ gap: theme.spacing.sm }}>
             <Button
