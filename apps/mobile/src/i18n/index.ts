@@ -1590,11 +1590,14 @@ export interface UiStrings {
     /**
      * The two errands Review sorts: what the app found, and what you added.
      *
-     * `tabFound` is the honest name where the app cannot read messages itself
-     * — every iPhone — because there the pile is whatever was pasted in.
-     * `tabSms` is what the same tab is called on a phone whose bank messages
-     * the app really is reading: naming the source is more use than naming the
-     * favour, and it tells a person at a glance which half is the automatic one.
+     * `tabSms` is what that first tab is called on every phone: everything in
+     * it was made from a bank message — read off the inbox on an Android that
+     * may, pasted in on an iPhone, which cannot at any tier — so the source is
+     * a true name on both, and a more useful one than naming the favour. It
+     * says at a glance which half of Review fills itself.
+     *
+     * `tabFound` is kept as the spoken, longer form of the same idea, for the
+     * places that describe the pile in a sentence rather than label it.
      */
     tabFound: string;
     tabSms: string;

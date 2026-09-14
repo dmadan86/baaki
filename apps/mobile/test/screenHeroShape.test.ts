@@ -71,6 +71,34 @@ describe('every hero is the same hero', () => {
   });
 });
 
+describe("Review's list cells reserve their own spacing", () => {
+  // FlashList measures a cell without its outer margins. A `marginTop` on the
+  // root of a cell is therefore height the list does not know about, and it
+  // draws the next cell over the top of it — which is what clipped the "READY
+  // 134" heading in half, under the band above it. Padding is inside the
+  // measured box and cannot do this.
+  //
+  // Cheap to state, and the trap is invisible in review: the code looks right,
+  // and the bug only appears on a device with enough rows to scroll.
+  const captures = source('app/(tabs)/captures.tsx');
+
+  it('spaces every rendered item with padding, never margin', () => {
+    const render = captures.match(/const renderItem = useCallback\([\s\S]*?\n {4}\[/);
+    expect(render, 'captures should define renderItem').not.toBeNull();
+    expect(render![0]).not.toMatch(/margin[A-Za-z]*:/);
+  });
+
+  it('spaces the pile heading with padding too', () => {
+    // Bounded by the next declaration rather than by a closing brace: the
+    // destructured parameter list closes at column nought too, so `\n}` ends
+    // the match before the body it was meant to read.
+    const heading = captures.match(/function SectionHeading\([\s\S]*?function DestinationChip/);
+    expect(heading, 'captures should define SectionHeading').not.toBeNull();
+    expect(heading![0]).not.toMatch(/margin[A-Za-z]*:/);
+    expect(heading![0]).toMatch(/paddingTop:/);
+  });
+});
+
 describe('review can answer "not an expense" about a whole pile', () => {
   const captures = source('app/(tabs)/captures.tsx');
 
