@@ -51,6 +51,7 @@ import {
   MERCHANT_NOISE,
   MERCHANT_PREPOSITIONS,
   MERCHANT_STOP_WORDS,
+  UPI_SEGMENT_CODES,
   MONTHS,
   NOT_A_TRANSACTION,
   REFERENCE,
@@ -583,11 +584,92 @@ function plausibleMerchant(name: string): boolean {
   return detectDate(trimmed, {}) === null;
 }
 
+/**
+ * A UPI reference, and the name hiding in the middle of it.
+ *
+ * India's banks do not put the payee in the sentence. They put it inside a
+ * slash-separated reference — `UPI/P2M/526012345678/ZOMATO LTD` — and write the
+ * sentence around the account number instead. So a parser that reads only the
+ * prose finds a preposition, follows it to "A/c no. XX9811", rejects that as
+ * implausible, and correctly returns nothing. Every UPI payment on the phone
+ * then reads "No shop named", which is most of them.
+ *
+ * The reference is a better source than the prose, not a worse one: it is
+ * written by the payment rails rather than composed by a bank's copywriter, so
+ * it has the same shape across every bank in the country.
+ *
+ * Segments are taken in order and the first that could be a name wins. Three
+ * kinds are skipped, each for its own reason:
+ *
+ *   * **The codes.** `P2M`, `P2A`, `CR` — these sit exactly where a name could,
+ *     so a reader taking the first lettered segment files a payment under "P2M".
+ *   * **The reference number.** A long digit run is the RRN, never a shop.
+ *   * **A bare VPA.** `rahul@okaxis` is kept, but as its handle — the bank
+ *     after the `@` is not who was paid.
+ *
+ * Deliberately not anchored to the word "UPI" alone: `IMPS`, `NEFT` and `FT`
+ * references are built the same way and carry the counterparty in the same place.
+ */
+// The space matters: a payee segment is "RAHUL SHARMA", not "RAHUL". Without it
+// the class stops at the first word and the reference yields half a name, which
+// looks like a parse rather than a truncation.
+const UPI_REFERENCE = /\b(?:UPI|IMPS|NEFT|RTGS|FT)[/-][\p{L}\p{N}@._/ -]{4,120}/giu;
+
+function readUpiCounterparty(raw: string): string | null {
+  UPI_REFERENCE.lastIndex = 0;
+  for (const match of raw.matchAll(UPI_REFERENCE)) {
+    // Allowing spaces means the match can run past the reference into the
+    // sentence after it ("… /RAHUL SHARMA. Avl Bal- INR 15000"). A full stop
+    // followed by a space ends it, exactly as it does for the prose reader.
+    const reference = (match[0].split(/\.\s/)[0] ?? '').replace(/[.,;:]+$/, '');
+    for (const segment of reference.split(/[/-]/)) {
+      const piece = segment.trim();
+      if (!piece) continue;
+      const folded = foldToken(piece);
+      if (!folded || UPI_SEGMENT_CODES.has(folded)) continue;
+      // The reference number, and anything else with no letters in it.
+      if (!/\p{L}/u.test(piece)) continue;
+      // A VPA is the handle, not the bank behind the "@" — the same rule the
+      // prose reader applies, for the same reason.
+      const handle = piece.includes('@') ? (piece.split('@')[0] ?? piece) : piece;
+      // The same four-word ceiling the prose reader keeps. A segment longer
+      // than that is the bank's sentence, not somebody's name.
+      const name = handle.split(/\s+/).slice(0, 4).join(' ');
+      if (plausibleMerchant(name)) return name;
+    }
+  }
+  return null;
+}
+
+/**
+ * A card spend, where the shop sits between the timestamp and the limit.
+ *
+ * `Spent Card no. XX1234 INR 225 13-09-26 12:30:00 SWIGGY Avl Lmt INR 50000` —
+ * there is no preposition anywhere near the name, so the prose reader has
+ * nothing to follow. What there is instead is position: the shop is what stands
+ * between the time and the bank's closing balance line, and both edges are
+ * unambiguous enough to read between.
+ */
+const CARD_SPEND_MERCHANT =
+  /\d{1,2}:\d{2}(?::\d{2})?\s+(?:at\s+)?([\p{L}\p{N}][\p{L}\p{N}&.'*_ -]{1,40}?)\s+(?:avl|available|avbl)\b/iu;
+
+function readCardSpend(raw: string): string | null {
+  const match = CARD_SPEND_MERCHANT.exec(raw);
+  const name = match?.[1]?.replace(/[.,;:\s]+$/, '').trim();
+  if (!name) return null;
+  return plausibleMerchant(name) && !MERCHANT_STOP_WORDS.has(foldToken(name)) ? name : null;
+}
+
 function detectMerchant(
   raw: string,
   folded: string,
   direction: TransactionDirection,
 ): string | null {
+  // The reference first. Where a message carries one it is the most reliable
+  // thing in it, and the prose around it is written about the account.
+  const viaReference = readUpiCounterparty(raw);
+  if (viaReference) return viaReference;
+
   PREPOSITION.lastIndex = 0;
   for (const match of folded.matchAll(PREPOSITION)) {
     if (match.index === undefined) continue;
@@ -607,7 +689,7 @@ function detectMerchant(
     }
   }
 
-  return null;
+  return readCardSpend(raw);
 }
 
 /* ------------------------------------------------------------------ *

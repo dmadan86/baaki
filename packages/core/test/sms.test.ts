@@ -847,3 +847,96 @@ describe('never guess silently', () => {
     expect(parseSms(`Rs ${'1'.repeat(5000)} debited at CAFE`)).not.toBeUndefined();
   });
 });
+
+describe('the payee is inside the reference, not in the sentence', () => {
+  // India's banks do not name the shop in the prose. They write the sentence
+  // around the account number and put the counterparty in a slash-separated
+  // reference, so a parser reading only the prose finds "A/c no. XX9811",
+  // rejects it, and returns nothing — correctly, and uselessly. Every UPI
+  // payment on the phone then read "No shop named", which is most of them.
+
+  it('reads a person out of an Axis UPI debit', () => {
+    const parsed = parseSms(
+      'INR 2000.00 debited from A/c no. XX9811 on 13-09-26 11:04:18 IST. Info- UPI/P2A/526012345678/RAHUL SHARMA. Avl Bal- INR 15000.00.',
+    );
+    expect(parsed?.merchant).toBe('RAHUL SHARMA');
+    expect(parsed?.amount?.minor).toBe(200000n);
+  });
+
+  it('reads a shop out of a P2M reference', () => {
+    const parsed = parseSms(
+      'Amt Debited INR 125.00 A/c XX9811 13-09-26. Info- UPI/P2M/987654321/ZOMATO LTD. Avl Bal INR 900.00',
+    );
+    expect(parsed?.merchant).toBe('ZOMATO LTD');
+  });
+
+  it('keeps the whole name, not its first word', () => {
+    // The character class has to admit a space or "RAHUL SHARMA" arrives as
+    // "RAHUL", which looks like a reading rather than a truncation.
+    const parsed = parseSms(
+      'Debit INR 105.00 A/c no XX897 13-09-26 UPI/P2M/123456789/CONSTRUCTION HOUSE',
+    );
+    expect(parsed?.merchant).toBe('CONSTRUCTION HOUSE');
+  });
+
+  it('never mistakes a segment code for the payee', () => {
+    // P2M, P2A and CR sit exactly where a name could. Taking the first lettered
+    // segment would file every payment under "P2M".
+    const parsed = parseSms('INR 300.00 debited A/c XX1111 13-09-26 UPI/P2M/555555555/BLUE TOKAI');
+    expect(parsed?.merchant).toBe('BLUE TOKAI');
+  });
+
+  it('takes the handle out of a VPA, never the bank behind it', () => {
+    const parsed = parseSms('INR 80.00 debited A/c XX2222 13-09-26 UPI/P2M/444444/swiggy@okicici');
+    expect(parsed?.merchant).toBe('swiggy');
+  });
+
+  it('stops at the end of the reference, not the end of the message', () => {
+    // Admitting spaces means the match can run on into the bank's next
+    // sentence; a full stop and a space end it.
+    const parsed = parseSms(
+      'INR 50.00 debited A/c XX3333 13-09-26 UPI/P2A/111111/ASHA K. Avl Bal- INR 2000.00 Call 18004195959',
+    );
+    expect(parsed?.merchant).toBe('ASHA K');
+  });
+});
+
+describe('the bank telling you how to complain is not a shop', () => {
+  it('does not file a payment under "dispute"', () => {
+    // Reported from a device: a real ₹400 debit filed under the shop name
+    // "dispute", at full confidence. "To dispute, call 1800..." ends nearly
+    // every Indian debit alert, and "to" is a merchant preposition — so the
+    // sentence written to protect somebody became the name of what they bought.
+    // Worse than no name at all: nothing about it looks wrong.
+    const parsed = parseSms(
+      'INR 400.00 debited from your A/c XX4006 on 13-09-26. To dispute, call 18001030 or SMS BLOCK to 919951860002',
+    );
+    expect(parsed?.merchant).toBeNull();
+    // The money is still read. Only the name was ever wrong.
+    expect(parsed?.amount?.minor).toBe(40000n);
+  });
+
+  it('does not file one under "report" or "block" either', () => {
+    const parsed = parseSms(
+      'INR 900.00 debited A/c XX5555 on 13-09-26. To report fraud, SMS BLOCK to 9999999999',
+    );
+    expect(parsed?.merchant).toBeNull();
+  });
+});
+
+describe('a card spend names the shop by where it stands', () => {
+  it('reads the shop between the time and the limit', () => {
+    // "Spent Card no. XX1234 INR 225 13-09-26 12:30:00 SWIGGY Avl Lmt INR 50000"
+    // has no preposition anywhere near the name. What it has is position.
+    const parsed = parseSms(
+      'Spent Card no. XX1234 INR 225 13-09-26 12:30:00 SWIGGY Avl Lmt INR 50000',
+    );
+    expect(parsed?.merchant).toBe('SWIGGY');
+    expect(parsed?.amount?.minor).toBe(22500n);
+  });
+
+  it('does not read the balance line as the shop', () => {
+    const parsed = parseSms('Spent Card no. XX1234 INR 225 13-09-26 12:30:00 Avl Lmt INR 50000');
+    expect(parsed?.merchant).toBeNull();
+  });
+});

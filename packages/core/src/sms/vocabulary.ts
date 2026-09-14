@@ -553,6 +553,23 @@ export const MERCHANT_NOISE: ReadonlySet<string> = new Set([
   'is',
   'was',
   'has',
+  // The bank's closing instructions. Every Indian bank ends a debit alert with
+  // one — "To dispute, call 1800…", "To report fraud, SMS BLOCK to…" — and "to"
+  // is a merchant preposition, so without these the sentence meant to protect
+  // somebody becomes the name of the shop they paid. Axis produced exactly
+  // that: a ₹400 payment filed under "dispute", at full confidence, which is
+  // worse than no name at all because nothing about it looks wrong.
+  'dispute',
+  'report',
+  'block',
+  'call',
+  'sms',
+  'query',
+  'queries',
+  'complaint',
+  'complain',
+  'unauthorised',
+  'unauthorized',
   // "with a card ending…" in the languages that say it after the shop's name.
   'con',
   'com',
@@ -670,6 +687,15 @@ export const MERCHANT_STOP_WORDS: ReadonlySet<string> = new Set([
   'solde',
   'balance',
   'bal',
+  // Same reasoning as the noise list above: whatever the grammar says, the
+  // sentence telling somebody how to complain is not a payee.
+  'dispute',
+  'report',
+  'block',
+  'call',
+  'sms',
+  'helpline',
+  'customer care',
 ]);
 
 /* ------------------------------------------------------------------ *
@@ -904,3 +930,36 @@ export const REFUND = new RegExp(
   ].join('|'),
   'iu',
 );
+
+/* ------------------------------------------------------------------ *
+ * UPI reference strings
+ * ------------------------------------------------------------------ */
+
+/**
+ * The segment codes an Indian UPI reference carries, which are never the payee.
+ *
+ * A UPI alert names who was paid inside a slash-separated reference rather than
+ * in the sentence: `UPI/P2M/526012345678/ZOMATO LTD`. `P2A` is person-to-account,
+ * `P2M` person-to-merchant, `P2P` person-to-person; `CR`/`DR` say which way the
+ * money went. All of them sit exactly where a name could, so a reader that took
+ * the first lettered segment would file a payment under "P2M".
+ */
+export const UPI_SEGMENT_CODES: ReadonlySet<string> = new Set([
+  'upi',
+  'p2a',
+  'p2m',
+  'p2p',
+  'cr',
+  'dr',
+  'ft',
+  'imps',
+  'neft',
+  'rtgs',
+  'ach',
+  'mandate',
+  'collect',
+  'pay',
+  'payment',
+  'refund',
+  'reversal',
+]);
