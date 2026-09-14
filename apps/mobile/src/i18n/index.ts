@@ -1627,6 +1627,8 @@ export interface UiStrings {
     decideLater: string;
     groupPickerTitle: string;
     groupPickerBody: string;
+    /** Warned before the choice: the private ledger keeps amounts, not images. */
+    justMeDropsPhoto: string;
     groupSectionCurrentTrip: string;
     groupSectionRecent: string;
     groupSectionAll: string;
@@ -4561,6 +4563,7 @@ const en: UiStrings = {
     groupPickerTitle: 'Add to a group',
     groupPickerBody:
       "Picking a group takes you there to say who paid and how it's split. Decide later leaves it just like this.",
+    justMeDropsPhoto: 'Just me keeps the amount, not the bill photo.',
     groupSectionCurrentTrip: 'Current trip',
     groupSectionRecent: 'Recently used',
     groupSectionAll: 'All groups',
@@ -7382,6 +7385,7 @@ const ta: UiStrings = {
     groupPickerTitle: 'ஒரு குழுவில் சேர்க்கவும்',
     groupPickerBody:
       'ஒரு குழுவைத் தேர்ந்தெடுத்தால், யார் கொடுத்தார், எப்படி பங்கிடுவது என்பதைச் சொல்ல அங்கே அழைத்துச் செல்லும். பிறகு முடிவு செய்யலாம் எனில் இது இப்படியே இருக்கும்.',
+    justMeDropsPhoto: '"நானே மட்டும்" தொகையை வைத்துக்கொள்ளும், ரசீது படத்தை அல்ல.',
     groupSectionCurrentTrip: 'நடப்புப் பயணம்',
     groupSectionRecent: 'சமீபத்தில் பயன்படுத்தியவை',
     groupSectionAll: 'அனைத்துக் குழுக்களும்',
@@ -10268,6 +10272,7 @@ const hi: UiStrings = {
     groupPickerTitle: 'किसी समूह में जोड़ें',
     groupPickerBody:
       'कोई समूह चुनने पर आप वहाँ पहुँच जाएँगे, जहाँ बताया जाता है किसने भुगतान किया और कैसे बाँटा जाए। बाद में तय करें चुनने पर यह ऐसे ही रहेगा।',
+    justMeDropsPhoto: '"सिर्फ़ मैं" रकम रखता है, बिल की तस्वीर नहीं.',
     groupSectionCurrentTrip: 'चल रही यात्रा',
     groupSectionRecent: 'हाल में इस्तेमाल किए',
     groupSectionAll: 'सभी समूह',
@@ -13165,6 +13170,7 @@ const ar: UiStrings = {
     groupPickerTitle: 'أضِف إلى مجموعة',
     groupPickerBody:
       'عند اختيار مجموعة، ستُنقَل إليها لتحديد من دفع وكيفية التقسيم. قرّر لاحقًا يُبقيها كما هي.',
+    justMeDropsPhoto: '"أنا فقط" يحتفظ بالمبلغ، لا بصورة الفاتورة.',
     groupSectionCurrentTrip: 'الرحلة الحالية',
     groupSectionRecent: 'المستخدمة مؤخرًا',
     groupSectionAll: 'كل المجموعات',

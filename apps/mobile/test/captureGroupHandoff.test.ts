@@ -11,10 +11,16 @@
  * Source-reading, like `captureFactsCard.test.ts`: the screen pulls in
  * Reanimated and gesture-handler by way of `SheetOverlay`, which this
  * node-environment suite cannot mount, but the shape worth protecting — that
- * only "decide later" ever stays on this screen, and any real group leaves it
- * for add-expense — is legible in the text without any of that. The exact
- * fields the hand-off carries are covered at the unit level in
- * `captureAssign.test.ts` (`captureDraftFields` + `assignCaptureHref`).
+ * a real group always leaves this screen for add-expense — is legible in the
+ * text without any of that. The exact fields the hand-off carries are covered
+ * at the unit level in `captureAssign.test.ts` (`captureDraftFields` +
+ * `assignCaptureHref`).
+ *
+ * Two answers now stay here rather than one. "Just me" joined "decide later"
+ * on the near side of that line, and it belongs there: a spend split with
+ * nobody has no payer to name and no split to describe, so there is nothing
+ * for add-expense to ask. It is not an exception to the rule above — it is the
+ * rule, which is about *sharing*, meeting a spend that is not shared.
  */
 
 import { readFileSync } from 'node:fs';
@@ -48,14 +54,16 @@ describe('capture never asks who paid or how it is split itself', () => {
   });
 
   it('hands off to add-expense, not to itself, the moment a real group is picked', () => {
-    // GroupPicker's onPick: null (Decide later) is the only branch that stays
-    // on this screen and merely records the choice; anything else pushes to
-    // the group's own add-expense form via the exact builder the inbox's
-    // assign already uses, so the two hand-offs cannot drift apart.
-    const onPick = capture.match(/onPick=\{\(id\) => \{[\s\S]*?\n {12}\}\}/);
+    // GroupPicker's onPick has three branches. Two record a choice and stay
+    // here — "decide later", and "just me", which has no payer to name and no
+    // split to describe. The third pushes to the group's own add-expense form
+    // via the exact builder the inbox's assign already uses, so the two
+    // hand-offs cannot drift apart.
+    const onPick = capture.match(/onPick=\{\(choice\) => \{[\s\S]*?\n {12}\}\}/);
     expect(onPick, 'capture should wire GroupPicker.onPick').not.toBeNull();
     const body = onPick![0]!;
-    expect(body).toMatch(/if \(id === null\) \{\s*setTargetGroupId\(null\);\s*return;\s*\}/);
+    expect(body).toMatch(/choice\.kind === 'later'/);
+    expect(body).toMatch(/choice\.kind === 'me'/);
     expect(body).toMatch(/router\.push\(\s*assignCaptureHref\(\s*captureDraftFields\(/);
   });
 
@@ -77,5 +85,37 @@ describe('capture never asks who paid or how it is split itself', () => {
     ]) {
       expect(call![0]).toMatch(new RegExp(`\\b${field}\\b`));
     }
+  });
+
+  it('writes "just me" through the shared planner, not a private copy', () => {
+    // The same function Review and Bank messages file through, so a lunch kept
+    // for oneself is the same ledger row whichever door it came in by —
+    // including taking the capture's own id, which is what makes a retry
+    // rewrite rather than duplicate.
+    expect(capture).toMatch(/import \{ planPersonalPlacement \} from '@\/lib\/personalPlacement';/);
+    expect(capture).toMatch(/planPersonalPlacement\(\{/);
+  });
+
+  it('closes the draft only after the record is queued, and only on an edit', () => {
+    // Order is the whole guarantee: a draft closed before its record exists is
+    // a spend that quietly disappeared. And there is nothing to close on a
+    // fresh capture — it was never a row.
+    const branch = capture.match(/if \(justMe\) \{[\s\S]*?\n {6}\}/);
+    expect(branch, 'capture should have a just-me branch').not.toBeNull();
+    const body = branch![0]!;
+    expect(body.indexOf('upsertPersonal.mutateAsync')).toBeGreaterThan(-1);
+    expect(body.indexOf('deleteCapture.mutateAsync')).toBeGreaterThan(
+      body.indexOf('upsertPersonal.mutateAsync'),
+    );
+    expect(body).toMatch(/if \(isEditing\) await deleteCapture\.mutateAsync/);
+  });
+
+  it('never uploads a bill photo it cannot keep, and says so first', () => {
+    // The personal ledger keeps amounts, not images. Uploading here would
+    // spend somebody's storage on a file nothing could ever show them, and
+    // finding that out after saving is finding out too late.
+    const branch = capture.match(/if \(justMe\) \{[\s\S]*?\n {6}\}/);
+    expect(branch![0]).not.toMatch(/uploadCapturePhoto/);
+    expect(capture).toMatch(/justMeDropsPhoto/);
   });
 });
