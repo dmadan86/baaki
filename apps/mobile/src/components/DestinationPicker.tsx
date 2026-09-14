@@ -27,6 +27,7 @@ import { Button, Card, Divider, iconSize, Row, SegmentedTabs, Text, useTheme } f
 
 import { groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { matchesAssignGroupQuery } from '@/lib/captureAssign';
+import { usePersonalOffered } from '@/lib/guestGuard';
 import {
   initialDestinationTab,
   initialPickedPeople,
@@ -115,6 +116,7 @@ export function DestinationPicker({
   onResolvePeople: (names: string[]) => void;
 }) {
   const theme = useTheme();
+  const personalOffered = usePersonalOffered();
   // Open on whichever tab the current destination lives in, so the choice reads
   // back: the People tab for a people destination, and also for an existing group
   // that is really a 1:1 contact (its id is one the People tab represents);
@@ -167,7 +169,10 @@ export function DestinationPicker({
       onPress: () => onChoose({ kind: 'unassigned' }),
     });
   }
-  if (pinned.includes('me')) {
+  // "Just me" writes to the private ledger, which a guest account may not hold
+  // (`lib/guestGuard.usePersonalOffered`). Dropped here rather than at each
+  // call site, so no screen can offer a destination the write would refuse.
+  if (pinned.includes('me') && personalOffered) {
     pinnedRows.push({
       key: 'me',
       label: t.voice.justMe,

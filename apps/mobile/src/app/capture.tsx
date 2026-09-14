@@ -62,6 +62,7 @@ import {
 } from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
+import { usePersonalOffered } from '@/lib/guestGuard';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { assignCaptureHref, captureDraftFields } from '@/lib/captureAssign';
 import { planPersonalPlacement } from '@/lib/personalPlacement';
@@ -1083,6 +1084,7 @@ function GroupPicker({
   onPick: (choice: CaptureDestination) => void;
 }): React.JSX.Element {
   const theme = useTheme();
+  const personalOffered = usePersonalOffered();
 
   const currentTrips = groups.filter(isCurrentTrip);
   const currentTripIds = new Set(currentTrips.map((group) => group.id));
@@ -1129,13 +1131,16 @@ function GroupPicker({
       {/* Above the groups, beside "Decide later", because it answers the same
           question they do: not "which group" but "who is this with". It is the
           one answer that ends the errand here — a spend split with nobody is
-          complete the moment it is saved. */}
-      <ChoiceRow
-        leading={<Text variant="subheading">🧍</Text>}
-        label={t.voice.justMe}
-        selected={justMe}
-        onPress={() => onPick({ kind: 'me' })}
-      />
+          complete the moment it is saved. Offered only where the private ledger
+          is: a guest account may not hold one. */}
+      {personalOffered ? (
+        <ChoiceRow
+          leading={<Text variant="subheading">🧍</Text>}
+          label={t.voice.justMe}
+          selected={justMe}
+          onPress={() => onPick({ kind: 'me' })}
+        />
+      ) : null}
       {/* Said before the choice, not after it. The personal ledger keeps
           amounts, not images, so a bill attached here has nowhere to go — and
           somebody who finds that out after saving has already lost it. */}

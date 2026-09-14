@@ -73,6 +73,7 @@ import {
 } from '@/components/DestinationPicker';
 import { ScreenHero, useHeroStatusBar } from '@/components/ScreenHero';
 import { filterLabel, SmsFilterSheet } from '@/components/SmsFilterSheet';
+import { SignInWall } from '@/components/SignInWall';
 import { SmsMessageRow } from '@/components/SmsMessageRow';
 import { SmsScanSheet } from '@/components/SmsScanSheet';
 import {
@@ -126,7 +127,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   useHeroStatusBar();
   const { t, locale } = useStrings();
   const clearance = useBottomClearance();
-  const { session } = useAuth();
+  const { session, isGuest } = useAuth();
   const ownerId = session?.user?.id ?? '';
   const reader = useSmsInboxReader();
 
@@ -532,6 +533,11 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
     ),
     [locale, now, selected, t],
   );
+
+  // A guest is turned away with a reason rather than a blank screen. It comes
+  // before the reader check because `useSmsInboxReader` is false for them as
+  // well, and "nothing here" answers none of the question they would have.
+  if (isGuest) return <SignInWall area="sms" />;
 
   // Asked again here rather than trusted from the screen that pushed: a deep
   // link, a stale back stack, or the flag switching off while this was open

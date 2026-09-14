@@ -126,7 +126,7 @@ import { useAuth } from '@/lib/auth';
 import { assignCaptureHref } from '@/lib/captureAssign';
 import { planCaptureAssign, stillWaiting, type AssignMember } from '@/lib/captureBulkAssign';
 import { friendlyError } from '@/lib/errors';
-import { useGuestGuard } from '@/lib/guestGuard';
+import { useGuestGuard, usePersonalOffered } from '@/lib/guestGuard';
 import { destinationFor, type RowDestination } from '@/lib/merchantDestination';
 import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
@@ -700,6 +700,7 @@ export default function CapturesScreen() {
   // "Just me" on the destination sheet: the shared path to the private ledger,
   // the same one the voice review files through.
   const placeInPersonal = usePlaceInPersonal();
+  const personalOffered = usePersonalOffered();
   const { confirm, notify } = useDialog();
   // A guest past their trial may read but not write. The single-draft form path
   // is stopped by the same guard inside add-expense; a swipe or batch write never
@@ -1976,23 +1977,28 @@ export default function CapturesScreen() {
             />
           </Row>
           <Row style={{ gap: theme.spacing.sm }}>
-            <Button
-              label={t.voice.justMe}
-              variant="ghost"
-              style={{ flex: 1 }}
-              onPress={() => {
-                const items = chosenRows;
-                // Same rule as the sheet's own "Just me": untick what landed,
-                // leave what refused where a person can see and retry it.
-                void placeInPersonal({ lockKey: items[0]!.id, items }).then((done) =>
-                  setSelected((current) => {
-                    const next = new Set(current);
-                    for (const id of done) next.delete(id);
-                    return next;
-                  }),
-                );
-              }}
-            />
+            {/* Only where the private ledger is a place these can go: a guest
+                account may not hold one, and a button whose write would be
+                refused is worse than no button. */}
+            {personalOffered ? (
+              <Button
+                label={t.voice.justMe}
+                variant="ghost"
+                style={{ flex: 1 }}
+                onPress={() => {
+                  const items = chosenRows;
+                  // Same rule as the sheet's own "Just me": untick what landed,
+                  // leave what refused where a person can see and retry it.
+                  void placeInPersonal({ lockKey: items[0]!.id, items }).then((done) =>
+                    setSelected((current) => {
+                      const next = new Set(current);
+                      for (const id of done) next.delete(id);
+                      return next;
+                    }),
+                  );
+                }}
+              />
+            ) : null}
             <Button
               label={plural(locale, chosenRows.length, t.smsInbox.addToGroup)}
               style={{ flex: 1.4 }}

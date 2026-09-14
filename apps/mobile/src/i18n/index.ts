@@ -774,6 +774,19 @@ export interface UiStrings {
     /** Shown instead, once a check has been refused or cancelled. */
     personalLockedRefused: string;
   };
+  /** The wall in front of the two things a guest account cannot hold: the
+   *  private ledger and the bank-message reader. Both keep their data on this
+   *  phone under an identity a guest has no way back into, so the honest answer
+   *  is to ask for one before either is opened, not after. */
+  signInWall: {
+    title: string;
+    /** Why the private ledger asks. */
+    personalBody: string;
+    /** Why bank messages ask. Says plainly that the messages stay here. */
+    smsBody: string;
+    /** The way out: linking an email or a phone to this guest account. */
+    cta: string;
+  };
   /** The sheet behind Sign out: what leaves the phone with the account, and
    *  the two things you can do about it before you go. */
   signOutSheet: {
@@ -3935,6 +3948,14 @@ const en: UiStrings = {
     personalLockedBody: 'Unlock with the same face or fingerprint that opens this phone.',
     personalLockedRefused: 'That did not unlock it. Try again, or go back.',
   },
+  signInWall: {
+    title: 'Add an account first',
+    personalBody:
+      'Your own ledger is kept under your account, and a guest account has no way back in — lose this phone and it is gone. Add an email or a phone number and it is yours to keep.',
+    smsBody:
+      'Reading your bank messages needs an account. The messages themselves never leave this phone, whoever you are — this is about the expenses they become being yours tomorrow.',
+    cta: 'Add an email or phone',
+  },
   signOutSheet: {
     guestTitle: 'This account cannot be signed back into',
     signedInAs: 'Signed in as {email}',
@@ -6735,6 +6756,14 @@ const ta: UiStrings = {
     personalLockedTitle: 'உங்கள் தனிப்பட்ட கணக்கு பூட்டப்பட்டுள்ளது',
     personalLockedBody: 'இந்த ஃபோனைத் திறக்கும் அதே முகம் அல்லது கைரேகையால் திறக்கவும்.',
     personalLockedRefused: 'அது திறக்கவில்லை. மீண்டும் முயலுங்கள், அல்லது திரும்பிச் செல்லுங்கள்.',
+  },
+  signInWall: {
+    title: 'முதலில் ஒரு கணக்கைச் சேருங்கள்',
+    personalBody:
+      'உங்கள் சொந்தக் கணக்குப் பதிவு உங்கள் கணக்கின் கீழ் வைக்கப்படுகிறது; விருந்தினர் கணக்கிற்குள் மீண்டும் நுழைய வழியில்லை — இந்த ஃபோன் தொலைந்தால் அதுவும் போய்விடும். ஒரு மின்னஞ்சலையோ ஃபோன் எண்ணையோ சேர்த்தால் அது உங்களுடையதாகவே இருக்கும்.',
+    smsBody:
+      'வங்கிச் செய்திகளைப் படிக்க ஒரு கணக்கு தேவை. நீங்கள் யாராக இருந்தாலும் செய்திகள் இந்த ஃபோனை விட்டு வெளியே செல்வதில்லை — அவற்றிலிருந்து உருவாகும் செலவுகள் நாளையும் உங்களுடையதாக இருக்க வேண்டும் என்பதற்காகவே இது.',
+    cta: 'மின்னஞ்சல் அல்லது ஃபோன் சேர்க்க',
   },
   signOutSheet: {
     guestTitle: 'இந்தக் கணக்கில் மீண்டும் உள்நுழைய முடியாது',
@@ -9654,6 +9683,14 @@ const hi: UiStrings = {
     personalLockedBody: 'उसी चेहरे या फ़िंगरप्रिंट से खोलें जिससे यह फ़ोन खुलता है।',
     personalLockedRefused: 'इससे लॉक नहीं खुला। फिर से कोशिश करें, या वापस जाएँ।',
   },
+  signInWall: {
+    title: 'पहले एक खाता जोड़ें',
+    personalBody:
+      'आपका निजी हिसाब आपके खाते के नीचे रखा जाता है, और मेहमान खाते में दोबारा लौटने का कोई रास्ता नहीं होता — यह फ़ोन खोया, तो हिसाब भी गया। एक ईमेल या फ़ोन नंबर जोड़ दीजिए, फिर वह हमेशा आपका रहेगा।',
+    smsBody:
+      'बैंक संदेश पढ़ने के लिए एक खाता चाहिए। संदेश तो आप कोई भी हों, इस फ़ोन से बाहर नहीं जाते — बात इतनी है कि उनसे बने खर्च कल भी आपके ही रहें।',
+    cta: 'ईमेल या फ़ोन जोड़ें',
+  },
   signOutSheet: {
     guestTitle: 'इस खाते में दोबारा साइन इन नहीं किया जा सकता',
     signedInAs: '{email} के रूप में साइन इन हैं',
@@ -12490,6 +12527,14 @@ const ar: UiStrings = {
     personalLockedTitle: 'دفترك الشخصي مقفل',
     personalLockedBody: 'افتحه بالوجه أو البصمة نفسها التي تفتح هذا الهاتف.',
     personalLockedRefused: 'لم يُفتح القفل. حاول مرة أخرى، أو ارجع.',
+  },
+  signInWall: {
+    title: 'أضف حسابًا أولًا',
+    personalBody:
+      'دفترك الخاص محفوظ تحت حسابك، وحساب الضيف لا سبيل للعودة إليه — إن فقدت هذا الهاتف فقدته معه. أضف بريدًا إلكترونيًا أو رقم هاتف ليبقى لك.',
+    smsBody:
+      'قراءة رسائل البنك تحتاج حسابًا. الرسائل نفسها لا تغادر هذا الهاتف مهما كنت — الأمر يخص المصاريف التي تنشأ عنها، لتظل لك غدًا.',
+    cta: 'أضف بريدًا أو رقم هاتف',
   },
   signOutSheet: {
     guestTitle: 'لا يمكن تسجيل الدخول إلى هذا الحساب مرة أخرى',
