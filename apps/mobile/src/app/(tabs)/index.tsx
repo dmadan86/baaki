@@ -393,16 +393,15 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
             <SyncStatusIcon onBrand />
-            {/* Start a group — moved up here from the action row, so it sits
-                  just before the menu. Still the tour's "add a group" anchor. */}
-            <TourTarget id="addGroup">
-              <HeroIconButton
-                icon="group-add"
-                family="material"
-                label={t.newGroup}
-                onPress={openNewGroup}
-              />
-            </TourTarget>
+            {/* Activity sits up here with the other glyphs that lead somewhere
+                  and change nothing: sync, the menu, the face. It is a shortcut
+                  to a feed you read — the row below is for the two things that
+                  create something, and this was the odd one out among them. */}
+            <HeroIconButton
+              icon="pulse-outline"
+              label={t.activity}
+              onPress={() => router.navigate('/activity')}
+            />
             <HeroIconButton
               icon="ellipsis-vertical"
               label={t.account.faceSettings}
@@ -436,13 +435,12 @@ export default function HomeScreen() {
             />
           )}
 
-          {/* The add actions: one white "add expense" pill and, since Review
-                took the drafts inbox onto the bar (a real tab now, always one
-                tap away with its own badge — see `AppTabBar`), a circle for
-                Activity instead. It carries no badge of its own: the feed has
-                no unread concept today, so a badge here would have nothing
-                honest to count — this circle is a shortcut, not a counter.
-                Starting a group moved up to the header cluster. */}
+          {/* The add actions, and only actions that add: the white "add
+                expense" pill and a circle for starting a group. Activity used to
+                be the circle here and has swapped up into the header cluster —
+                it leads to a feed you read rather than making anything, which
+                put it out of place in a row about creating. Neither carries a
+                badge: Review owns the count of what is waiting, on the bar. */}
           {/* Buttons and the pager travel together as one block, so the pager
                 sits just under the buttons rather than a full hero-gap away. */}
           <View style={{ gap: theme.spacing.md }}>
@@ -457,11 +455,13 @@ export default function HomeScreen() {
                 />
               </TourTarget>
               <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
-                <HeroCircle
-                  icon="pulse-outline"
-                  label={t.activity}
-                  onPress={() => router.navigate('/activity')}
-                />
+                {/* Starting a group belongs beside adding an expense: both make
+                    something new, and the circle beside the pill is where a
+                    person looks for the second one. Still the tour's "add a
+                    group" anchor. */}
+                <TourTarget id="addGroup">
+                  <HeroCircle icon="people-outline" label={t.newGroup} onPress={openNewGroup} />
+                </TourTarget>
               </Row>
             </Row>
 
