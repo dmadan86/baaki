@@ -102,6 +102,23 @@ export async function pendingNudge(): Promise<PendingNudge | null> {
   return { fireAt, count, locale };
 }
 
+/**
+ * Clear the app badge written by this reminder.
+ *
+ * Scheduled requests can be cancelled, but a reminder that already fired is no
+ * longer in the scheduled list. Its badge is still on the app until somebody
+ * explicitly takes it down, so cancellation and zero-waiting passes both do.
+ */
+export async function clearNudgeBadge(): Promise<void> {
+  if (!pushSupported) return;
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch {
+    // Badges are advisory. A device that refuses the reset must not make the
+    // foreground sync fail; the next successful pass will try again.
+  }
+}
+
 /** Drop every reminder of ours. Used by the planner, and by sign-out. */
 export async function cancelNudges(): Promise<void> {
   for (const request of await ourRequests()) {
@@ -112,6 +129,7 @@ export async function cancelNudges(): Promise<void> {
       // do about it, and stopping here would leave the others standing too.
     }
   }
+  await clearNudgeBadge();
 }
 
 /** What the reminder says. Rendered by the caller, which is where the strings live. */

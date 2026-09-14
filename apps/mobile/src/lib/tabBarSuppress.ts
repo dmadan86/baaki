@@ -58,11 +58,16 @@ export function suppressTabBar(): () => void {
   };
 }
 
+/** The current suppression state, split out so the counter can be tested without React. */
+export function tabBarSuppressedSnapshot(): boolean {
+  return claims > 0;
+}
+
 /** Whether anything is currently asking the bar to stand down. */
 export function useTabBarSuppressed(): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => claims > 0,
+    tabBarSuppressedSnapshot,
     // The server snapshot: nothing has claimed anything before the first render.
     () => false,
   );

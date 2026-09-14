@@ -18,7 +18,13 @@
 import { localNotificationsAllowed } from '@/lib/push';
 
 import { NudgeAction, planCaptureNudge, type NudgePlan } from './plan';
-import { cancelNudges, pendingNudge, scheduleNudge, type NudgeText } from './schedule';
+import {
+  cancelNudges,
+  clearNudgeBadge,
+  pendingNudge,
+  scheduleNudge,
+  type NudgeText,
+} from './schedule';
 import { loadCaptureNudgeEnabled, loadPlannedNudge, savePlannedNudge } from './settings';
 
 export interface NudgeRunInput {
@@ -54,6 +60,13 @@ export async function syncCaptureNudge(input: NudgeRunInput): Promise<NudgePlan>
     pending,
     locale: input.locale,
   });
+
+  if (
+    plan.action !== NudgeAction.Cancel &&
+    (input.waitingCount <= 0 || input.oldestWaitingAt === null)
+  ) {
+    await clearNudgeBadge();
+  }
 
   if (plan.action === NudgeAction.Cancel) {
     await cancelNudges();
