@@ -18,6 +18,29 @@
  * empty — so a screen with one section looks like a screen with one section,
  * rather than a tab bar with a dead half.
  *
+ * ## The other cut, which *is* two tabs
+ *
+ * Confidence is not the only thing that separates these rows, and the second
+ * thing does earn a tab where confidence did not:
+ *
+ *   * **Found for you** — read out of the phone's bank messages. Nobody asked
+ *     for these; the app went and got them, and a person arrives wanting to
+ *     know what it found while they were not looking.
+ *   * **Added by you** — typed, spoken or photographed. Every one of these is
+ *     something a person did on purpose and already knows about; they are here
+ *     only because they have not been told which group they belong to yet.
+ *
+ * Those are two errands, not two degrees of one. "What did it find?" and
+ * "where do mine go?" are asked at different moments and answered by different
+ * gestures, and mixing them meant a morning's bank messages buried the three
+ * lunches somebody typed on purpose. Both halves are worth visiting twice,
+ * which is the test a tab has to pass and "worth a look" failed.
+ *
+ * The confidence split lives *inside* each tab, unchanged. Only found rows can
+ * ever be doubted — a spend a person typed is never second-guessed — so in
+ * practice the second tab shows one section and the first shows two, which is
+ * exactly what each deserves.
+ *
  * Everything here is pure so the arithmetic of "which pile, how many, in what
  * order" can be pinned by a test with no device (mobile's vitest renders
  * nothing; see vitest.config.ts).
@@ -70,6 +93,55 @@ export function doubtsAbout(capture: { parsed?: unknown }): ReviewDoubt[] {
 /** Which pile one draft falls in. */
 export function sectionFor(capture: { parsed?: unknown }): ReviewSectionId {
   return doubtsAbout(capture).length > 0 ? 'look' : 'ready';
+}
+
+/** Which tab a draft belongs to: what the app found, or what its user added. */
+export type ReviewTabId = 'found' | 'added';
+
+/**
+ * Where a draft came from.
+ *
+ * The one fact that decides it is the provenance an SMS draft carries
+ * (`lib/smsDrafts.ts`), which is written by the only path that reads messages.
+ * Everything else — typed, spoken, photographed — is something a person did,
+ * and the absence of that mark is a reliable way to say so: no other source
+ * writes it, and a draft with no `parsed` blob at all is a typed one.
+ */
+export function tabFor(capture: { parsed?: unknown }): ReviewTabId {
+  const parsed = capture.parsed;
+  if (!parsed || typeof parsed !== 'object') return 'added';
+  return (parsed as { source?: unknown }).source === 'sms' ? 'found' : 'added';
+}
+
+/**
+ * The drafts of each tab, in the order they arrived.
+ *
+ * Counted here rather than by the feed builder, because a tab's label has to
+ * say how many are behind it *before* anyone opens it — a tab whose count only
+ * appears once you visit is a tab you have to visit to know you can skip.
+ *
+ * These are raw counts, not folded ones: a spoken batch shows as one card in
+ * the list but is several drafts, and the number on a tab answers "how much is
+ * waiting", which is the unfolded question.
+ */
+export function splitByTab(rows: readonly CaptureRow[]): Record<ReviewTabId, CaptureRow[]> {
+  const split: Record<ReviewTabId, CaptureRow[]> = { found: [], added: [] };
+  for (const row of rows) split[tabFor(row)].push(row);
+  return split;
+}
+
+/**
+ * Which tab to open on.
+ *
+ * Whichever has something in it, preferring what the app found — that is the
+ * half a person cannot have seen yet. Decided once, from the first load that
+ * carries rows, and never re-decided: a tab that moves under somebody between
+ * renders is worse than one that opened on the emptier half.
+ */
+export function openingTab(rows: readonly CaptureRow[]): ReviewTabId {
+  const split = splitByTab(rows);
+  if (split.found.length > 0) return 'found';
+  return split.added.length > 0 ? 'added' : 'found';
 }
 
 /** How many drafts are in each pile, folded so one spoken batch counts once. */
