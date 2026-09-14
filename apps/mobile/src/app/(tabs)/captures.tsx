@@ -1259,6 +1259,8 @@ export default function CapturesScreen() {
       // The group and its people exist only on the queue so far, so the mirror
       // cannot list its members yet. Their ids were minted here, so the batch
       // names them itself rather than waiting for a read that has not happened.
+      setSelecting(false);
+      setSelected(new Set());
       void placeInGroup({
         lockKey: target.items[0]!.id,
         items: target.items,
@@ -1822,6 +1824,10 @@ export default function CapturesScreen() {
                 chooseExistingGroup(target, choice.groupId);
               } else if (choice.kind === 'me') {
                 closeAssign();
+                if (target.kind === 'batch') {
+                  setSelecting(false);
+                  setSelected(new Set());
+                }
                 void placeInPersonal({
                   lockKey: target.kind === 'capture' ? target.capture.id : target.items[0]!.id,
                   items: target.kind === 'capture' ? [target.capture] : target.items,
