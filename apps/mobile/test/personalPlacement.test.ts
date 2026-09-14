@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { planPersonalPlacement } from '@/lib/personalPlacement';
+import { planPersonalPlacement, runPersonalPlacement } from '@/lib/personalPlacement';
 import type { CaptureRow } from '@/data/types';
 
 function draft(over: Partial<CaptureRow> = {}): CaptureRow {
@@ -107,5 +107,102 @@ describe('a pile of them', () => {
     const plan = planPersonalPlacement({ captures: [], fallbackDescription: 'Unassigned' });
     expect(plan.writes).toEqual([]);
     expect(plan.unusable).toEqual([]);
+  });
+});
+
+describe('carrying the plan out', () => {
+  /** Records the order effects actually happened in, across all drafts. */
+  function recorder() {
+    const order: string[] = [];
+    return {
+      order,
+      upsert: (write: { captureId: string }) => {
+        order.push(`upsert:${write.captureId}`);
+        return Promise.resolve();
+      },
+      close: (captureId: string) => {
+        order.push(`close:${captureId}`);
+        return Promise.resolve();
+      },
+    };
+  }
+
+  it('queues the record before it closes the draft', async () => {
+    // The rule the whole module exists to hold. A draft closed against a record
+    // that does not exist is a spend that quietly disappeared.
+    const plan = planPersonalPlacement({
+      captures: [draft({ id: 'a' })],
+      fallbackDescription: 'Unassigned',
+    });
+    const effects = recorder();
+    await runPersonalPlacement({ plan, upsert: effects.upsert, close: effects.close });
+    expect(effects.order).toEqual(['upsert:a', 'close:a']);
+  });
+
+  it('keeps the draft when its record could not be written', async () => {
+    const plan = planPersonalPlacement({
+      captures: [draft({ id: 'a' }), draft({ id: 'b' }), draft({ id: 'c' })],
+      fallbackDescription: 'Unassigned',
+    });
+    const closed: string[] = [];
+    const outcome = await runPersonalPlacement({
+      plan,
+      upsert: (write) =>
+        write.captureId === 'b' ? Promise.reject(new Error('offline')) : Promise.resolve(),
+      close: (captureId) => {
+        closed.push(captureId);
+        return Promise.resolve();
+      },
+    });
+    // 'b' is never closed — it is still there to try again.
+    expect(closed).toEqual(['a', 'c']);
+    expect(outcome.done).toEqual(['a', 'c']);
+    expect(outcome.failed).toBe(1);
+  });
+
+  it('does not let one refusal take the rest down', async () => {
+    // The draft after the failure still gets written; the loop carries on.
+    const plan = planPersonalPlacement({
+      captures: [draft({ id: 'a' }), draft({ id: 'b' })],
+      fallbackDescription: 'Unassigned',
+    });
+    const outcome = await runPersonalPlacement({
+      plan,
+      upsert: (write) =>
+        write.captureId === 'a' ? Promise.reject(new Error('offline')) : Promise.resolve(),
+      close: () => Promise.resolve(),
+    });
+    expect(outcome.done).toEqual(['b']);
+  });
+
+  it('counts a draft whose record landed but whose close refused', async () => {
+    // Reported rather than claimed: the record exists, so the count of things
+    // that "went" must not include a draft still sitting in the list.
+    const plan = planPersonalPlacement({
+      captures: [draft({ id: 'a' })],
+      fallbackDescription: 'Unassigned',
+    });
+    const outcome = await runPersonalPlacement({
+      plan,
+      upsert: () => Promise.resolve(),
+      close: () => Promise.reject(new Error('offline')),
+    });
+    expect(outcome.done).toEqual([]);
+    expect(outcome.failed).toBe(1);
+  });
+
+  it('carries the unusable ones into the failure count', async () => {
+    // They never had a write to try, and they must still be reported.
+    const plan = planPersonalPlacement({
+      captures: [draft({ id: 'good' }), draft({ id: 'bad', amount: 'x' })],
+      fallbackDescription: 'Unassigned',
+    });
+    const outcome = await runPersonalPlacement({
+      plan,
+      upsert: () => Promise.resolve(),
+      close: () => Promise.resolve(),
+    });
+    expect(outcome.done).toEqual(['good']);
+    expect(outcome.failed).toBe(1);
   });
 });

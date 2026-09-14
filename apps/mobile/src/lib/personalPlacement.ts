@@ -108,3 +108,43 @@ export function planPersonalPlacement(input: {
 
   return { writes, unusable };
 }
+
+/**
+ * Carry out a plan, one draft at a time — the ordering rule, on its own.
+ *
+ * The effects are handed in rather than reached for, so the one guarantee that
+ * makes this safe can actually be tested: **the record is queued first, and the
+ * draft is closed only once that has succeeded.** A draft closed against a
+ * record that does not exist is a spend that quietly disappeared, and no amount
+ * of care at the call sites enforces that — only this loop does.
+ *
+ * Each draft is its own attempt. One that refuses does not take the others
+ * down, and it is left exactly where it was rather than vanishing into a
+ * success message that would be a lie. That is also why a failure is counted
+ * rather than thrown: the caller needs to say how many landed *and* how many
+ * did not, and a throw would lose the first half.
+ */
+export async function runPersonalPlacement(input: {
+  readonly plan: PersonalPlan;
+  /** Queue the record. Rejecting means the draft is kept. */
+  readonly upsert: (write: PersonalWrite) => Promise<unknown>;
+  /** Close the draft. Only ever called after `upsert` has resolved. */
+  readonly close: (captureId: string) => Promise<unknown>;
+}): Promise<{ done: string[]; failed: number }> {
+  const done: string[] = [];
+  // A draft whose amount the ledger cannot take never had a write to try, so it
+  // starts out already counted as a failure rather than being skipped silently.
+  let failed = input.plan.unusable.length;
+
+  for (const write of input.plan.writes) {
+    try {
+      await input.upsert(write);
+      await input.close(write.captureId);
+      done.push(write.captureId);
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { done, failed };
+}

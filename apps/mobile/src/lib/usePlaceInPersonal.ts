@@ -30,7 +30,7 @@ import { plural, useStrings } from '@/i18n';
 import { useDialog } from '@/lib/dialog';
 import { friendlyError } from '@/lib/errors';
 import { useGuestGuard } from '@/lib/guestGuard';
-import { planPersonalPlacement } from '@/lib/personalPlacement';
+import { planPersonalPlacement, runPersonalPlacement } from '@/lib/personalPlacement';
 import { useToast } from '@/lib/toast';
 
 /**
@@ -71,25 +71,23 @@ export function usePlaceInPersonal(): (input: {
           fallbackDescription: t.captures.unassigned,
         });
 
-        // A draft whose amount the ledger cannot take never had a write to try.
-        let failed = plan.unusable.length;
-        for (const write of plan.writes) {
-          try {
-            await upsertPersonal.mutateAsync({
+        // The ordering rule lives in `runPersonalPlacement`, where it can be
+        // tested: the record is queued first, and the draft is closed only once
+        // that has succeeded. Closing it by deletion rather than
+        // `capture.assign` is deliberate — that mutation records a group and an
+        // expense id, and a personal expense has neither.
+        const outcome = await runPersonalPlacement({
+          plan,
+          upsert: (write) =>
+            upsertPersonal.mutateAsync({
               recordId: write.recordId,
               recordKind: 'txn',
               data: write.data,
-            });
-            // Only once the record is on the queue. The draft is closed by
-            // deletion rather than `capture.assign`, which records a group and
-            // an expense id — a personal expense has neither, and writing a
-            // group id that names no group would be a lie in the mirror.
-            await deleteCapture.mutateAsync(write.captureId);
-            done.push(write.captureId);
-          } catch {
-            failed += 1;
-          }
-        }
+            }),
+          close: (captureId) => deleteCapture.mutateAsync(captureId),
+        });
+        done.push(...outcome.done);
+        const failed = outcome.failed;
 
         const placed = done.length;
         if (failed === 0) {
