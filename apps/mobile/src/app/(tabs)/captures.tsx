@@ -902,7 +902,7 @@ export default function CapturesScreen() {
   // live before the first load carries rows is the tab seeding will choose.
   const activeTab: ReviewTabId = tab ?? 'added';
   const tabRows = byTab[activeTab];
-  const { items: feedItems, counts } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
+  const { items: feedItems } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
 
   // Ticking several drafts and placing them together. Held as ids rather than
   // rows so a refresh that replaces the row objects does not silently drop a
@@ -1088,15 +1088,23 @@ export default function CapturesScreen() {
       setSelecting(false);
       setSelected(new Set());
       let failed = 0;
+      let firstError: unknown = undefined;
       for (const item of items) {
         try {
           await deleteCapture.mutateAsync(item.id);
-        } catch {
+        } catch (caught) {
           failed += 1;
+          if (firstError === undefined) firstError = caught;
         }
       }
       if (failed === 0) toast.show(t.captures.notAnExpenseDone);
-      else toast.show(t.captures.couldNotSave, 'negative');
+      // The reason, not a guess at it — and reported, so a failure here is
+      // something that can be looked at rather than only described.
+      else
+        toast.show(
+          friendlyError(firstError, t.captures.couldNotSave, 'captures.dismissMany'),
+          'negative',
+        );
     },
     [
       confirm,
@@ -1164,6 +1172,10 @@ export default function CapturesScreen() {
         let placed = 0;
         // A draft whose amount the ledger cannot take never had a write to try.
         let failed = plan.unusable.length;
+        // Kept rather than dropped. A bare `catch {}` here counted the refusal
+        // and threw away the only thing that could explain it, so every failure
+        // read alike and none of them reached Sentry.
+        let firstError: unknown = undefined;
         for (const write of plan.writes) {
           try {
             await mutate(MutationKind.ExpenseCreate, input.groupId, write.payload);
@@ -1175,8 +1187,9 @@ export default function CapturesScreen() {
               expenseId: write.expenseId,
             });
             placed += 1;
-          } catch {
+          } catch (caught) {
             failed += 1;
+            if (firstError === undefined) firstError = caught;
           }
         }
 
@@ -1198,6 +1211,12 @@ export default function CapturesScreen() {
           );
         }
         lines.push(plural(locale, failed, t.captures.assignBatchSomeFailed));
+        // And why, in words a person can act on. "Try again in a moment" is a
+        // guess, and a wrong one whenever the cause is not going to pass on its
+        // own; `friendlyError` reports the exception as it renders it.
+        if (firstError !== undefined) {
+          lines.push(friendlyError(firstError, t.captures.couldNotSave, 'captures.assignBatch'));
+        }
         await notify({ title: t.captures.title, body: lines.join('\n\n') });
       } catch (caught) {
         // The callers fire this without awaiting it, so anything the planning

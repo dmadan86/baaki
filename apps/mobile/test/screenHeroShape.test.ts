@@ -136,11 +136,22 @@ describe('review can answer "not an expense" about a whole pile', () => {
     expect(bulkButton![0]).not.toMatch(/setSelecting\(false\)|setSelected\(new Set\(\)\)/);
   });
 
-  it('lets one refusal fail alone', () => {
+  it('lets one refusal fail alone, and keeps its reason', () => {
     // Every other batch on this screen works this way: a draft the queue
     // refuses stays on the list rather than vanishing into a success message
     // that would be a lie.
+    //
+    // And the reason is kept. A bare `catch {}` counts the refusal and discards
+    // the only thing that could explain it — which is how a failure on this
+    // path reached a person as "try again in a moment" (a guess, and a wrong
+    // one whenever the cause is permanent) and reached Sentry as nothing at
+    // all. `catch {` with no binding is the shape that does that, so it is what
+    // this forbids.
     const body = captures.match(/const dismissMany = useCallback\([\s\S]*?\n {4}\[/);
-    expect(body![0]).toMatch(/for \(const item of items\) \{[\s\S]*?catch \{[\s\S]*?failed \+= 1;/);
+    expect(body![0]).toMatch(
+      /for \(const item of items\) \{[\s\S]*?catch \(caught\) \{[\s\S]*?failed \+= 1;/,
+    );
+    expect(body![0]).toMatch(/firstError === undefined\) firstError = caught/);
+    expect(body![0]).toMatch(/friendlyError\(firstError,/);
   });
 });
