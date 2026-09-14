@@ -90,16 +90,17 @@ describe('the action bar holds actions, and the destructive one is set apart', (
     ['Bank messages', 'app/captures/sms/index.tsx', 't.smsInbox.setAside'],
   ] as const) {
     it(`${name} gives both placements the same build`, () => {
-      const below = actionBar(source(path));
-      const escaped = secondary.replace(/\./g, '\\.');
+      const bar = actionBar(source(path));
+      // Found by index rather than by a regex built from the label: a pattern
+      // assembled out of a string needs every metacharacter in it escaped, and
+      // an escape that handles `.` but not `\` is the kind of half-right that
+      // passes its own test and fails somebody else's input.
+      const at = bar.indexOf(secondary);
+      expect(at, `${name} should still offer ${secondary}`).toBeGreaterThan(-1);
       // A bare text link beside a filled pill reads as a footnote. Both of
       // these are places a draft can go, and neither is a footnote.
-      const button = new RegExp(
-        `label=\\{[^}]*${escaped}[^}]*\\}[\\s\\S]{0,200}?variant="([a-zA-Z]+)"`,
-      );
-      const match = below.match(button);
-      expect(match, `${name} should still offer ${secondary}`).not.toBeNull();
-      expect(match?.[1]).toBe('secondary');
+      const variant = bar.slice(at, at + 200).match(/variant="([a-zA-Z]+)"/);
+      expect(variant?.[1]).toBe('secondary');
     });
   }
 });
