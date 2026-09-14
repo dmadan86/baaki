@@ -99,13 +99,22 @@ describe("Review's list cells reserve their own spacing", () => {
 describe('Review is ticked, not swiped', () => {
   const captures = source('app/(tabs)/captures.tsx');
 
-  it('draws a tick box on every row, with nothing to switch on first', () => {
-    // The list runs a hundred deep on a phone whose messages the app reads.
-    // Behind a "Select" button the tick boxes were a gesture most people never
-    // found; in front of them they are the gesture the screen is for. With no
-    // `selecting` state there is also no state to get stuck in.
-    expect(captures).not.toMatch(/\bselecting\b/);
+  it('ticks by tab, with no mode to switch on first', () => {
+    // The SMS pile runs a hundred deep on a phone whose messages the app reads,
+    // and is answered in handfuls; the drafts somebody added themselves are a
+    // handful to begin with and each wants its own destination. So the tick
+    // boxes belong to one tab, derived from which tab is open — never a mode
+    // somebody has to find, and never a mode they can get stuck in.
+    expect(captures).toMatch(/const ticking = activeTab === 'found';/);
     expect(captures).not.toMatch(/setSelecting\(/);
+  });
+
+  it('gives the action bar the bottom of the phone to itself', () => {
+    // The bar is an in-tree view and the navigation is drawn at the root over
+    // the whole stack, so without this they stack up and the raised mic lands
+    // on the button somebody is reaching for.
+    expect(captures).toMatch(/suppressTabBar\(\)/);
+    expect(captures).toMatch(/const bottomBarStandsDown = ticking && chosenRows\.length > 0;/);
   });
 
   it('has no swipe left to disagree with the tick', () => {
