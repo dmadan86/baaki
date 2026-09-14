@@ -174,3 +174,27 @@ export function reviewItemKey(item: ReviewFeedItem): string {
       return item.capture.id;
   }
 }
+
+/**
+ * Where a draft sits in its run of neighbours — the two facts a row needs to
+ * draw itself as part of one card rather than as a card of its own.
+ *
+ * The list used to be a stack of little white cards with a gap between each,
+ * and at seven rows a screen most of what the eye landed on was the gap. A run
+ * of plain rows divided by a hairline, inside one rounded surface, is the same
+ * information in about two thirds of the height — it is what the Friends tab
+ * already does, and what a list of like things is supposed to look like.
+ *
+ * A **run** is a maximal stretch of single drafts. A day heading ends one, for
+ * the obvious reason. So does a spoken batch: that is a card in its own right,
+ * with its own expanding contents, and swallowing it into a divided run would
+ * make one card look like two things at once.
+ */
+export function blockEdges(
+  items: readonly ReviewFeedItem[],
+  index: number,
+): { first: boolean; last: boolean } {
+  const runs = (item: ReviewFeedItem | undefined): boolean => item?.kind === 'single';
+  if (!runs(items[index])) return { first: true, last: true };
+  return { first: !runs(items[index - 1]), last: !runs(items[index + 1]) };
+}

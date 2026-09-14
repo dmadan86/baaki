@@ -132,6 +132,7 @@ import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
 import { suppressTabBar } from '@/lib/tabBarSuppress';
 import {
+  blockEdges,
   buildReviewFeed,
   openingTab,
   splitByTab,
@@ -168,7 +169,15 @@ type CaptureMenu =
  * which is the whole point of asking once for several.
  */
 type AssignTarget =
-  { kind: 'capture'; capture: CaptureRow } | { kind: 'batch'; items: CaptureRow[] };
+  | { kind: 'capture'; capture: CaptureRow }
+  /**
+   * `viaBar` — opened from the selection bar, which offers "Just me" itself.
+   * The picker then leaves that row out rather than putting the same answer in
+   * front of somebody twice in two taps: a sheet headed "Add to a group" whose
+   * first row is "Just me" contradicts its own title, and it is the row they
+   * chose *not* to press a moment ago.
+   */
+  | { kind: 'batch'; items: CaptureRow[]; viaBar?: boolean };
 
 /** How often the "· 2 min ago" on the status line is allowed to go stale. */
 const CLOCK_TICK = 60_000;
@@ -270,6 +279,7 @@ function CaptureListRow({
   selected = false,
   onToggleSelected,
   bare = false,
+  divider = false,
 }: {
   capture: CaptureRow;
   locale: string;
@@ -298,6 +308,9 @@ function CaptureListRow({
   onToggleSelected?: () => void;
   /** A row nested in a batch card: no card frame of its own, and no chip. */
   bare?: boolean;
+  /** A hairline above the row — every row of a run but its first, so a day's
+      drafts read as one divided list rather than a stack of loose cards. */
+  divider?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   // The note names the spend; with none, its category does; with neither, it is
@@ -353,16 +366,20 @@ function CaptureListRow({
           ? { opacity: pressed ? 0.6 : 1 }
           : {
               opacity: pressed ? 0.85 : 1,
-              backgroundColor: theme.color.surface,
-              borderRadius: theme.radius.lg,
-              borderWidth: 1,
-              borderColor: theme.color.border,
-              paddingHorizontal: theme.spacing.md,
+              // No card, no border, no radius of its own. The run this row
+              // belongs to is the card (see `blockEdges`); a row draws only the
+              // hairline that separates it from the one above.
+              paddingHorizontal: theme.spacing.sm,
+              borderTopWidth: divider ? 1 : 0,
+              borderTopColor: theme.color.border,
             }
       }
     >
       <Row
-        style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
+        // `sm`, not `md`. Seven rows of a hundred-and-forty-row list fitted on
+        // a screen, and the thing filling it was padding: the row's own, plus
+        // the gap between cards, plus the chip sitting on a line of its own.
+        style={{ gap: theme.spacing.sm, alignItems: 'center', paddingVertical: theme.spacing.sm }}
       >
         {/* Always drawn — except inside an opened batch. Ticking is Review's
             main verb now: the list is a hundred rows deep on a phone whose
@@ -386,37 +403,46 @@ function CaptureListRow({
           category={capture.category}
           meta={capture.category_meta}
           description={capture.description}
-          size={46}
+          size={40}
         />
 
-        <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-          <Text variant="subheading" numberOfLines={1}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text variant="body" numberOfLines={1} style={{ fontWeight: '600' }}>
             {title}
           </Text>
-          {/* Line two is the answer this screen wants: where it goes. A row
-              inside a batch keeps it clear — the batch is answered whole. */}
-          {bare ? null : <DestinationChip name={destinationName} t={t} />}
-          {/* An icon as well as the words, so the uncertainty is not carried by
-              colour (#191) — and the words themselves, so "check this" names
-              something a person can actually go and check. */}
-          {doubts.map((doubt) => (
-            <Row key={doubt} gap={theme.spacing.xs} style={{ alignItems: 'flex-start' }}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={iconSize.sm}
-                color={theme.color.warning}
-                style={{ marginTop: 2 }}
-              />
-              <Text variant="micro" tone="muted" style={{ flex: 1 }}>
-                {doubt === 'date-inferred' ? t.smsImport.dateNotInMessage : t.smsImport.hardToRead}
-              </Text>
-            </Row>
-          ))}
-          {capture.pending ? (
-            <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-              <PendingMark />
-            </Row>
-          ) : null}
+          {/* Line two, and there is only one of it now. Where the draft goes,
+              what the parser was unsure of, and whether the write is still in
+              the queue used to take a line each — three lines under a title on
+              a row that is one of a hundred and forty. They wrap onto a second
+              line only when they genuinely do not fit. */}
+          <Row
+            style={{
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              rowGap: 2,
+            }}
+          >
+            {bare ? null : <DestinationChip name={destinationName} t={t} />}
+            {/* An icon as well as the words, so the uncertainty is not carried
+                by colour (#191) — and the words themselves, so "check this"
+                names something a person can actually go and check. */}
+            {doubts.map((doubt) => (
+              <Row key={doubt} gap={3} style={{ alignItems: 'center', flexShrink: 1 }}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={iconSize.xs}
+                  color={theme.color.warning}
+                />
+                <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {doubt === 'date-inferred'
+                    ? t.smsImport.dateNotInMessage
+                    : t.smsImport.hardToRead}
+                </Text>
+              </Row>
+            ))}
+            {capture.pending ? <PendingMark /> : null}
+          </Row>
         </View>
 
         {/* The amount and the ⋯ never shrink (RN's flexShrink is 0 by default),
@@ -959,8 +985,8 @@ export default function CapturesScreen() {
 
   // The batch card's ⋯ → "Add these to a group": the same picker, opened on the
   // whole cluster instead of one row of it.
-  const openAssignBatch = useCallback((items: CaptureRow[]): void => {
-    setAssigning({ kind: 'batch', items });
+  const openAssignBatch = useCallback((items: CaptureRow[], viaBar = false): void => {
+    setAssigning({ kind: 'batch', items, viaBar });
   }, []);
 
   // Open the draft in the capture form to fix its fields — the same screen that
@@ -1412,7 +1438,7 @@ export default function CapturesScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: ReviewFeedItem }) => {
+    ({ item, index }: { item: ReviewFeedItem; index: number }) => {
       switch (item.kind) {
         case 'day':
           return (
@@ -1449,6 +1475,9 @@ export default function CapturesScreen() {
           const capture = item.capture;
           const destination = destinations.get(capture.id) ?? null;
           const destinationName = destination ? nameOfGroup(destination.groupId) : null;
+          // Where this row sits in its run of neighbours: the run is the card,
+          // and the row draws the corners only at its ends.
+          const edges = blockEdges(feedItems, index);
           // "File it where the chip says" is offered only when the chip
           // actually names somewhere, so it can never do something the row did
           // not first state. That condition used to ride on the swipe's leading
@@ -1466,16 +1495,34 @@ export default function CapturesScreen() {
               ticking={ticking}
               selected={selected.has(capture.id)}
               onToggleSelected={() => toggleSelected(capture.id)}
+              divider={!edges.first}
             />
           );
           return (
-            /* No swipe. A drag that both ticks a row and files it somewhere is
+            /* The surface is here rather than on the row, so a run of drafts is
+               one card with a hairline every few rows — the Friends tab's list,
+               and about two thirds of the height the old stack of separate
+               cards took for the same rows.
+
+               No swipe. A drag that both ticks a row and files it somewhere is
                two answers to one gesture, and the one it would win is whichever
                way the finger moved further — so with the tick boxes always out,
                the swipe had to go. Both of its answers survive as plain rows in
                the ⋯ sheet, and "not an expense" now also answers a whole ticked
                pile at once, which is what the gesture was really for. */
-            <View style={{ paddingVertical: theme.spacing.xs }}>{row}</View>
+            <View style={{ paddingBottom: edges.last ? theme.spacing.sm : 0 }}>
+              <View
+                style={{
+                  backgroundColor: theme.color.surface,
+                  borderTopLeftRadius: edges.first ? theme.radius.lg : 0,
+                  borderTopRightRadius: edges.first ? theme.radius.lg : 0,
+                  borderBottomLeftRadius: edges.last ? theme.radius.lg : 0,
+                  borderBottomRightRadius: edges.last ? theme.radius.lg : 0,
+                }}
+              >
+                {row}
+              </View>
+            </View>
           );
         }
       }
@@ -1493,8 +1540,12 @@ export default function CapturesScreen() {
       ticking,
       toggleSelected,
       openCaptureMenu,
+      feedItems,
       t,
+      theme.color.surface,
+      theme.radius.lg,
       theme.spacing.md,
+      theme.spacing.sm,
       theme.spacing.xs,
       toggleBatch,
     ],
@@ -1758,9 +1809,10 @@ export default function CapturesScreen() {
           paddingHorizontal: theme.spacing.xl,
           // Room for whatever is at the foot. With nothing ticked that is the
           // navigation; with something ticked the navigation has stood down and
-          // the action bar is there instead, which is two lines taller than the
-          // bar it replaced — so the reserve grows rather than swapping.
-          paddingBottom: bottomBarStandsDown ? insets.bottom + 176 : clearance,
+          // the action bar is there instead — one row of buttons now that the
+          // count and "select all" have moved onto the panel, so the reserve is
+          // the bar's own height and not the two-row bar's.
+          paddingBottom: bottomBarStandsDown ? insets.bottom + 96 : clearance,
         }}
         refreshControl={
           <RefreshControl
@@ -1913,7 +1965,7 @@ export default function CapturesScreen() {
             // the row would point at where it already sits. "Just me" is — it
             // files the draft as a private personal expense (A48), through the
             // same path the voice review uses (`usePlaceInPersonal`).
-            pinned={['me']}
+            pinned={assigning?.kind === 'batch' && assigning.viaBar ? [] : ['me']}
             createRow={assigning?.kind === 'batch' ? null : { label: t.captures.assignNew }}
             emptyGroups={t.captures.noGroups}
             labelFor={(group) => groupLabel(group, summary.membersFor(group.id), viewerId)}
@@ -2038,10 +2090,15 @@ export default function CapturesScreen() {
                 }}
               />
             ) : null}
+            {/* "Add to a group", not "Add 3 to a group". The count is on the
+                panel now, and repeating it here cost the button its line: at
+                three digits of nothing-new the label wrapped to two lines and
+                took the bar's alignment with it. It is also the sheet's own
+                title, so the button and the thing it opens say one sentence. */}
             <Button
-              label={plural(locale, chosenRows.length, t.smsInbox.addToGroup)}
+              label={t.captures.assignTitle}
               style={{ flex: 1.4 }}
-              onPress={() => openAssignBatch(chosenRows)}
+              onPress={() => openAssignBatch(chosenRows, true)}
             />
           </Row>
         </View>

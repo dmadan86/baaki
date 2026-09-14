@@ -13,12 +13,14 @@ import { describe, expect, it } from 'vitest';
 
 import { CaptureStatus, type CaptureRow } from '../src/data/types';
 import {
+  blockEdges,
   buildReviewFeed,
   doubtsAbout,
   openingTab,
   reviewItemKey,
   splitByTab,
   tabFor,
+  type ReviewFeedItem,
 } from '../src/lib/reviewFeed';
 
 function capture(
@@ -188,5 +190,52 @@ describe('which tab to open on', () => {
 
   it('has a stable answer for an empty list', () => {
     expect(openingTab([])).toBe('added');
+  });
+});
+
+describe('a run of drafts is one card', () => {
+  const day = (key: string): ReviewFeedItem => ({
+    kind: 'day',
+    key,
+    createdAt: '2026-09-10T10:00:00Z',
+  });
+  const single = (id: string): ReviewFeedItem => ({
+    kind: 'single',
+    capture: capture(id, '2026-09-10T10:00:00Z'),
+  });
+  const batch = (id: string): ReviewFeedItem => ({
+    kind: 'batch',
+    id,
+    items: [capture(`${id}-a`, '2026-09-10T10:00:00Z')],
+  });
+
+  it('rounds the first and last of a run, and neither in between', () => {
+    const feed = [single('a'), single('b'), single('c')];
+    expect(feed.map((_, i) => blockEdges(feed, i))).toEqual([
+      { first: true, last: false },
+      { first: false, last: false },
+      { first: false, last: true },
+    ]);
+  });
+
+  it('a lone draft is both ends of its own run', () => {
+    const feed = [single('only')];
+    expect(blockEdges(feed, 0)).toEqual({ first: true, last: true });
+  });
+
+  it('a day heading starts a new card', () => {
+    const feed = [single('a'), day('d2'), single('b'), single('c')];
+    expect(blockEdges(feed, 0)).toEqual({ first: true, last: true });
+    expect(blockEdges(feed, 2)).toEqual({ first: true, last: false });
+    expect(blockEdges(feed, 3)).toEqual({ first: false, last: true });
+  });
+
+  it('a spoken batch keeps its own card and breaks the run around it', () => {
+    // The batch card expands into its own contents; folding it into a divided
+    // run would make one card look like two different things at once.
+    const feed = [single('a'), batch('v1'), single('b')];
+    expect(blockEdges(feed, 0)).toEqual({ first: true, last: true });
+    expect(blockEdges(feed, 1)).toEqual({ first: true, last: true });
+    expect(blockEdges(feed, 2)).toEqual({ first: true, last: true });
   });
 });
