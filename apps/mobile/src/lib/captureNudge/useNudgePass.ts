@@ -85,7 +85,9 @@ export function useCaptureNudgePass(inputs: NudgePassInputs): () => void {
       // baked into the OS alarm at schedule time. `planCaptureNudge` reschedules
       // on a language change for exactly that reason.
       text: (count) => ({
-        title: plural(locale, count, t.captures.nudgeTitle),
+        // The title never counts — the badge does, and the body says what the
+        // badge is counting. See `captures.nudgeTitle` for why.
+        title: t.captures.nudgeTitle,
         body: plural(locale, count, t.captures.nudgeBody),
       }),
     }).catch((error: unknown) => reportHandled(error, 'captureNudge.sync'));
