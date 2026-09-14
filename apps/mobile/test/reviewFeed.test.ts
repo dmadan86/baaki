@@ -193,20 +193,24 @@ describe('which tab a draft belongs to', () => {
 });
 
 describe('which tab to open on', () => {
-  it('opens on what the app found, because that is what you cannot have seen', () => {
+  it('opens on your own drafts, because that is the half that can reach zero', () => {
+    // The found pile refills on its own for as long as the app can read bank
+    // messages. Opening there makes Review a permanent backlog; opening on the
+    // finite half is what lets the screen ever look finished.
     const rows = [
       capture('m1', '2026-09-14T09:00:00.000Z', sure),
       capture('t1', '2026-09-14T09:01:00.000Z', null),
     ];
-    expect(openingTab(rows)).toBe('found');
+    expect(openingTab(rows)).toBe('added');
   });
 
-  it('opens on your own drafts when it found nothing', () => {
-    // Otherwise somebody with no bank reading lands on an empty tab every time.
-    expect(openingTab([capture('t1', '2026-09-14T09:00:00.000Z', null)])).toBe('added');
+  it('opens on what it found when you have added nothing', () => {
+    // Otherwise somebody whose drafts all come from bank messages lands on an
+    // empty tab every time.
+    expect(openingTab([capture('m1', '2026-09-14T09:00:00.000Z', sure)])).toBe('found');
   });
 
   it('has a stable answer for an empty list', () => {
-    expect(openingTab([])).toBe('found');
+    expect(openingTab([])).toBe('added');
   });
 });

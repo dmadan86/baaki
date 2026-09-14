@@ -34,6 +34,7 @@ export function WatchingLine({
   locale,
   t,
   onRefresh,
+  onBrand = false,
 }: {
   checking: boolean;
   lastCheckedAt: string | null;
@@ -41,6 +42,14 @@ export function WatchingLine({
   locale: string;
   t: UiStrings;
   onRefresh: () => void;
+  /**
+   * Drawn on a gradient hero rather than the white body, so the words go white
+   * and the dot with them. The state still lives in the words — the dot only
+   * agrees — but a positive green pin-prick on indigo reads as a stray pixel,
+   * and on a dark wash the one honest "everything is fine" colour is the same
+   * white everything else on the panel is wearing.
+   */
+  onBrand?: boolean;
 }): React.JSX.Element {
   const theme = useTheme();
   // The screen's clock ticks once a minute; a read writes its timestamp the
@@ -70,18 +79,27 @@ export function WatchingLine({
     >
       <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
         {checking ? (
-          <Ionicons name="sync-outline" size={iconSize.xs} color={theme.color.warning} />
+          <Ionicons
+            name="sync-outline"
+            size={iconSize.xs}
+            color={onBrand ? theme.color.onBrand : theme.color.warning}
+          />
         ) : (
           <View
             style={{
               width: 7,
               height: 7,
               borderRadius: 4,
-              backgroundColor: theme.color.positive,
+              backgroundColor: onBrand ? theme.color.onBrand : theme.color.positive,
             }}
           />
         )}
-        <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+        <Text
+          variant="micro"
+          tone={onBrand ? 'onBrand' : 'muted'}
+          numberOfLines={1}
+          style={{ flexShrink: 1, opacity: onBrand ? 0.85 : 1 }}
+        >
           {words}
         </Text>
       </Row>

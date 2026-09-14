@@ -1587,9 +1587,22 @@ export interface UiStrings {
      * The `…Count` forms are the spoken name of each heading, count and all.
      */
     sectionReady: string;
-    /** The two errands Review sorts: what the app found, and what you added. */
+    /**
+     * The two errands Review sorts: what the app found, and what you added.
+     *
+     * `tabFound` is the honest name where the app cannot read messages itself
+     * — every iPhone — because there the pile is whatever was pasted in.
+     * `tabSms` is what the same tab is called on a phone whose bank messages
+     * the app really is reading: naming the source is more use than naming the
+     * favour, and it tells a person at a glance which half is the automatic one.
+     */
     tabFound: string;
+    tabSms: string;
     tabAdded: string;
+    /** The hero's line over the count of drafts still waiting to be filed. */
+    heroWaiting: string;
+    /** One question for a whole ticked pile, rather than one question each. */
+    dismissManyConfirm: PluralForms;
     /** Turns the tick boxes on, so several drafts can be placed at once. */
     select: string;
     sectionLook: string;
@@ -4540,7 +4553,13 @@ const en: UiStrings = {
     checkNow: 'Check now',
     sectionReady: 'Ready',
     tabFound: 'Found for you',
+    tabSms: 'SMS',
     tabAdded: 'Added by you',
+    heroWaiting: 'Waiting on you',
+    dismissManyConfirm: {
+      one: 'Take this off your list?',
+      other: 'Take all {n} off your list?',
+    },
     select: 'Select',
     sectionLook: 'Worth a look',
     readyCount: { one: '{n} ready', other: '{n} ready' },
@@ -7364,7 +7383,13 @@ const ta: UiStrings = {
     checkNow: 'இப்போது பார்',
     sectionReady: 'தயார்',
     tabFound: 'கண்டறியப்பட்டவை',
+    tabSms: 'எஸ்எம்எஸ்',
     tabAdded: 'நீங்கள் சேர்த்தவை',
+    heroWaiting: 'உங்கள் கவனத்திற்கு',
+    dismissManyConfirm: {
+      one: 'இதைப் பட்டியலிலிருந்து நீக்கவா?',
+      other: '{n} ஐயும் பட்டியலிலிருந்து நீக்கவா?',
+    },
     select: 'தேர்ந்தெடு',
     sectionLook: 'ஒரு பார்வை தேவை',
     readyCount: { one: '{n} தயார்', other: '{n} தயார்' },
@@ -10255,7 +10280,13 @@ const hi: UiStrings = {
     checkNow: 'अभी देखें',
     sectionReady: 'तैयार',
     tabFound: 'आपके लिए मिले',
+    tabSms: 'एसएमएस',
     tabAdded: 'आपने जोड़े',
+    heroWaiting: 'आपके इंतज़ार में',
+    dismissManyConfirm: {
+      one: 'इसे सूची से हटाएँ?',
+      other: 'सभी {n} को सूची से हटाएँ?',
+    },
     select: 'चुनें',
     sectionLook: 'एक नज़र डालें',
     readyCount: { one: '{n} तैयार', other: '{n} तैयार' },
@@ -13138,7 +13169,13 @@ const ar: UiStrings = {
     checkNow: 'تحقّق الآن',
     sectionReady: 'جاهزة',
     tabFound: 'وجدناها لك',
+    tabSms: 'الرسائل',
     tabAdded: 'أضفتها أنت',
+    heroWaiting: 'بانتظارك',
+    dismissManyConfirm: {
+      one: 'إزالة هذه من قائمتك؟',
+      other: 'إزالة كل الـ {n} من قائمتك؟',
+    },
     select: 'تحديد',
     sectionLook: 'تستحق نظرة',
     readyCount: {

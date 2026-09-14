@@ -48,6 +48,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
+import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { MutationKind, peopleSignatureKey, SmsKind } from '@waves/core';
@@ -56,7 +57,6 @@ import {
   ChipRow,
   Divider,
   EmptyState,
-  IconButton,
   iconSize,
   MoneyText,
   Row,
@@ -72,6 +72,7 @@ import {
   type DestinationSelection,
   type PersonChoice,
 } from '@/components/DestinationPicker';
+import { ScreenHero } from '@/components/ScreenHero';
 import { filterLabel, SmsFilterSheet } from '@/components/SmsFilterSheet';
 import { SmsMessageRow } from '@/components/SmsMessageRow';
 import { SmsScanSheet } from '@/components/SmsScanSheet';
@@ -520,78 +521,119 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
 
   const everythingTicked = allSelected(visible, selected);
 
-  return (
-    <Screen edges={['top']}>
-      <Row
-        style={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingTop: theme.spacing.md,
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <IconButton label={t.common.back} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={iconSize.md} color={theme.color.text} />
-        </IconButton>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            {/* The SMS glyph, because this screen is about messages and a
-                generic tray icon said nothing about which ones. */}
-            <Ionicons name="chatbubbles" size={iconSize.md} color={theme.color.brand} />
-            <Text variant="title" numberOfLines={1}>
-              {t.smsInbox.title}
-            </Text>
-          </Row>
-          {/* The promise, where it cannot be missed. Not a settings page, not a
-              paragraph — one line, under the name of the thing it is about. */}
-          <Text variant="micro" tone="muted" numberOfLines={1}>
-            {t.smsInbox.onDevice}
-          </Text>
-        </View>
-        <IconButton label={t.smsInbox.filterTitle} onPress={() => setFilterOpen(true)}>
-          <Ionicons name="options-outline" size={iconSize.md} color={theme.color.text} />
-        </IconButton>
-        <IconButton label={t.smsInbox.scan} onPress={() => setScanOpen(true)}>
-          <Ionicons name="refresh" size={iconSize.md} color={theme.color.text} />
-        </IconButton>
-      </Row>
+  // What the hero's number is *of*, in the same words the tab below it wears —
+  // the figure changes when you switch pile, so it has to say which pile.
+  const kindLabel =
+    kind === SmsKind.Expense
+      ? t.smsInbox.tabExpenses
+      : kind === SmsKind.Income
+        ? t.smsInbox.tabIncome
+        : t.smsInbox.tabOther;
 
-      {/* Search. A plain field rather than an icon that expands into one: this
-          screen is a list people come to *look through*, and a search hidden
-          behind a tap on a list like that is a search most people never use. */}
-      <Row
-        style={{
-          marginHorizontal: theme.spacing.xl,
-          marginTop: theme.spacing.md,
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          paddingHorizontal: theme.spacing.lg,
-          height: 44,
-          borderRadius: theme.radius.pill,
-          backgroundColor: theme.color.surfaceMuted,
-        }}
+  return (
+    <Screen edges={[]}>
+      {/* The hero runs dark under the status bar; force light icons for it. */}
+      <StatusBar style="light" />
+      {/* Bank messages opens on the same panel a group does. It is not a
+          sub-page of Review — it is a screen people come to and work, and it
+          used to announce itself with the small-glyph-and-title row of a
+          settings page. Same shell as the group hero (`ScreenHero`), so the
+          two cannot drift.
+
+          The panel carries three things: what this is and the promise about
+          where the messages stay, the figure for the pile currently shown, and
+          the search. Search belongs up here rather than in a band of its own —
+          it is how this screen is used, and on the panel it costs no vertical
+          room at all. */}
+      <ScreenHero
+        icon="chatbubbles"
+        title={t.smsInbox.title}
+        // The promise, where it cannot be missed. Not a settings page, not a
+        // paragraph — one line, under the name of the thing it is about.
+        subtitle={t.smsInbox.onDevice}
+        back={{ label: t.common.back, onPress: () => router.back() }}
+        actions={[
+          {
+            icon: 'options-outline',
+            label: t.smsInbox.filterTitle,
+            onPress: () => setFilterOpen(true),
+          },
+          { icon: 'refresh', label: t.smsInbox.scan, onPress: () => setScanOpen(true) },
+        ]}
       >
-        <Ionicons name="search" size={iconSize.sm} color={theme.color.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t.smsInbox.searchPlaceholder}
-          placeholderTextColor={theme.color.textMuted}
-          accessibilityLabel={t.smsInbox.searchPlaceholder}
-          autoCorrect={false}
-          style={{ flex: 1, color: theme.color.text, fontSize: 15, paddingVertical: 0 }}
-        />
-        {query !== '' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.smsInbox.searchClear}
-            hitSlop={8}
-            onPress={() => setQuery('')}
+        <View style={{ gap: theme.spacing.md }}>
+          {/* The figure that justified the old band under the tabs: a filtered
+              list with no total makes a person add the rows up themselves. No
+              money for the third pile, deliberately — those are the rows that
+              must not be summed as spending — so it shows how many there are
+              instead. */}
+          {period.count > 0 ? (
+            <View>
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }} numberOfLines={1}>
+                {kindLabel}
+              </Text>
+              {period.total !== null && kind !== SmsKind.Other ? (
+                <MoneyText
+                  amount={period.total}
+                  currency={period.currency}
+                  locale={locale}
+                  variant="title"
+                  tone="default"
+                  style={{ color: theme.color.onBrand }}
+                />
+              ) : (
+                <Text variant="title" tone="onBrand">
+                  {plural(locale, period.count, t.smsImport.messageCount)}
+                </Text>
+              )}
+              {/* Said out loud rather than left to be noticed: a total that
+                  quietly skipped rows is a number with nothing to question. */}
+              {period.uncounted > 0 && kind !== SmsKind.Other ? (
+                <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+                  {plural(locale, period.uncounted, t.smsInbox.notCounted)}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Search. A plain field rather than an icon that expands into one:
+              this screen is a list people come to *look through*, and a search
+              hidden behind a tap on a list like that is a search most people
+              never use. On the panel it wears the dim white of every other
+              on-hero control rather than the body's muted grey. */}
+          <Row
+            style={{
+              alignItems: 'center',
+              gap: theme.spacing.sm,
+              paddingHorizontal: theme.spacing.lg,
+              height: 44,
+              borderRadius: theme.radius.pill,
+              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+            }}
           >
-            <Ionicons name="close-circle" size={iconSize.sm} color={theme.color.textMuted} />
-          </Pressable>
-        ) : null}
-      </Row>
+            <Ionicons name="search" size={iconSize.sm} color={theme.color.onBrand} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t.smsInbox.searchPlaceholder}
+              placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              accessibilityLabel={t.smsInbox.searchPlaceholder}
+              autoCorrect={false}
+              style={{ flex: 1, color: theme.color.onBrand, fontSize: 15, paddingVertical: 0 }}
+            />
+            {query !== '' ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.smsInbox.searchClear}
+                hitSlop={8}
+                onPress={() => setQuery('')}
+              >
+                <Ionicons name="close-circle" size={iconSize.sm} color={theme.color.onBrand} />
+              </Pressable>
+            ) : null}
+          </Row>
+        </View>
+      </ScreenHero>
 
       <View style={{ paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md }}>
         <ChipRow
@@ -617,64 +659,57 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
       <SegmentedTabs
         value={kind}
         onChange={setKind}
+        // A glyph on each, the same convention the group ledger's three tabs
+        // wear. Direction is the whole distinction between the first two, so
+        // the marks carry it: money leaving, money arriving, and a pile that is
+        // neither and must never be summed as either.
         tabs={[
           {
             value: SmsKind.Expense,
             label: countLabel(t.smsInbox.tabExpenses, counts[SmsKind.Expense]),
+            icon: (color) => (
+              <Ionicons name="arrow-up-circle-outline" size={iconSize.md} color={color} />
+            ),
           },
           {
             value: SmsKind.Income,
             label: countLabel(t.smsInbox.tabIncome, counts[SmsKind.Income]),
+            icon: (color) => (
+              <Ionicons name="arrow-down-circle-outline" size={iconSize.md} color={color} />
+            ),
           },
-          { value: SmsKind.Other, label: countLabel(t.smsInbox.tabOther, counts[SmsKind.Other]) },
+          {
+            value: SmsKind.Other,
+            label: countLabel(t.smsInbox.tabOther, counts[SmsKind.Other]),
+            icon: (color) => (
+              <Ionicons name="help-circle-outline" size={iconSize.md} color={color} />
+            ),
+          },
         ]}
       />
 
-      {/* What this view comes to, and the one gesture that acts on all of it.
-          These were two bands: a date label that repeated the chip already
-          selected above it, and "Select all" alone on a row of its own. Between
-          them they pushed the first message most of the way down the screen to
-          say one thing the reader could already see and offer one button.
-          Folded into a single line, the left half now carries the figure that
-          justified the band in the first place — a filtered list with no total
-          makes a person add the rows up themselves — and the right half carries
-          the action. No total for the third pile, deliberately: those are the
-          rows that must not be summed as spending. */}
-      {period.count > 0 ? (
+      {/* One gesture, on one line. The total and the "not counted" disclosure
+          that used to share this band have moved up onto the hero, where the
+          figure sits at the size a screen's headline number should be and
+          costs no band at all — which leaves this row carrying the single
+          thing it is for. "Select all" means the rows on screen, never the
+          ones a search is hiding: the one mistake here that would cost real
+          money. */}
+      {visible.length > 0 ? (
         <Row
           style={{
             paddingHorizontal: theme.spacing.xl,
             paddingVertical: theme.spacing.xs,
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: theme.spacing.md,
+            justifyContent: 'flex-end',
           }}
         >
-          <Row style={{ alignItems: 'baseline', gap: theme.spacing.xs, flexShrink: 1 }}>
-            {period.total !== null && kind !== SmsKind.Other ? (
-              <MoneyText
-                amount={period.total}
-                currency={period.currency}
-                locale={locale}
-                variant="subheading"
-              />
-            ) : null}
-            {/* Said out loud rather than left to be noticed: a total that
-                quietly skipped rows is a number with nothing to question. */}
-            {period.uncounted > 0 && kind !== SmsKind.Other ? (
-              <Text variant="micro" tone="muted">
-                {plural(locale, period.uncounted, t.smsInbox.notCounted)}
-              </Text>
-            ) : null}
-          </Row>
-          {visible.length > 0 ? (
-            <Button
-              label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
-              variant="ghost"
-              size="sm"
-              onPress={() => setSelected((current) => toggleAll(visible, current))}
-            />
-          ) : null}
+          <Button
+            label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+            variant="ghost"
+            size="sm"
+            onPress={() => setSelected((current) => toggleAll(visible, current))}
+          />
         </Row>
       ) : null}
 

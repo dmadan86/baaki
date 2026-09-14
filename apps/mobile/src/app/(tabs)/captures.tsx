@@ -21,16 +21,21 @@
  *    a dot and "Watching your bank messages · 2 min ago", read in two seconds,
  *    tappable to look again. It is shown only while something really is
  *    watching (`useSmsAutoRead`), because a line claiming to watch when nothing
- *    does would be worse than no line at all. Where nothing watches — every
- *    iPhone, and any Android build without the reader — the line is the count
- *    of what is waiting, exactly as before.
+ *    does would be worse than no line at all. It now rides on the same gradient
+ *    hero a group opens with (`components/ScreenHero`) — one of the three
+ *    screens in the bottom bar should not announce itself with the small-glyph
+ *    row of a settings page — over the count of what is still waiting and the
+ *    button that adds to it.
  *
- * 2. **Two sections, not two tabs.** One list cut into **Ready** and **Worth a
- *    look** — a split by what the app is *sure of*, which is the only
- *    distinction a person feels. `lib/reviewFeed.ts` carries the rule and the
- *    reasoning. Sections need no navigation, carry their own counts, and
- *    disappear when empty, so a screen with one section looks like a screen
- *    with one section rather than a tab bar with a dead half.
+ * 2. **Two errands in tabs, two confidences in sections.** The tabs are *where
+ *    a draft came from*: what the app found in the phone's bank messages
+ *    (labelled "SMS" where it really is reading them), and what this person
+ *    added on purpose. Inside whichever tab is open, the list is cut again into
+ *    **Ready** and **Worth a look** — a split by what the parser is *sure of*.
+ *    Two questions, asked at different moments, and `lib/reviewFeed.ts` carries
+ *    both rules and the reasoning; the sections stay sections because they need
+ *    no navigation, carry their own counts, and disappear when empty. The
+ *    screen opens on the tab that can reach zero, which is the added one.
  *
  * 3. **One gesture, not one screen.** Most rows should need a single swipe.
  *    Toward the leading edge files the draft where that shop's money went last
@@ -41,6 +46,10 @@
  *    inbox you can only add from fills with noise and gets abandoned. Tapping
  *    still opens the full editor, and both gestures are also plain rows in the
  *    ⋯ sheet — a swipe is never the only way through (`components/SwipeRow`).
+ *    And "Select" turns on tick boxes so that second answer can be given once
+ *    about many: a morning's bank messages is thirty rows and most of them are
+ *    a card bill or a transfer to yourself, so saying "not an expense" thirty
+ *    times is not answering, it is data entry.
  *
  * 4. **The zero state is the point.** Review is trying to reach zero: it is the
  *    app's list of questions, and a good week is one where it has none. So the
@@ -90,6 +99,7 @@ import {
   type PersonChoice,
 } from '@/components/DestinationPicker';
 import { PendingMark } from '@/components/PendingMark';
+import { HeroActionCircle, HeroPillButton, ScreenHero } from '@/components/ScreenHero';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { SwipeRow, type SwipeAction } from '@/components/SwipeRow';
 import { WatchingLine } from '@/components/WatchingLine';
@@ -875,7 +885,9 @@ export default function CapturesScreen() {
     setSeeded(true);
     setTab(openingTab(rows));
   }
-  const activeTab: ReviewTabId = tab ?? 'found';
+  // Matches `openingTab`'s own answer for an empty list, so the tab that is
+  // live before the first load carries rows is the tab seeding will choose.
+  const activeTab: ReviewTabId = tab ?? 'added';
   const tabRows = byTab[activeTab];
   const { items: feedItems, counts } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
 
@@ -1023,6 +1035,65 @@ export default function CapturesScreen() {
       t.captures.delete,
       t.captures.deleteBatch,
       t.captures.deleteBatchConfirm,
+    ],
+  );
+
+  /**
+   * Take a whole ticked pile off the list at once.
+   *
+   * The reason this exists is the complaint that produced it: a morning's bank
+   * messages is thirty rows, most of them a credit-card bill or a transfer to
+   * oneself, and answering "not an expense" thirty times is not answering — it
+   * is data entry. One swipe was already the cheapest single gesture the screen
+   * could offer; the missing thing was a way to say it once about many.
+   *
+   * It follows `dismiss`'s rule rather than inventing a second one. Drafts the
+   * app *found* go without a question: nobody typed a word of them and the
+   * messages are still in the phone's own Messages app, so there is nothing to
+   * lose and a dialog in front of a loss-free action is a dialog people learn
+   * to dismiss unread. The moment one draft in the pile was made by a person —
+   * their words, possibly a photograph of the bill — the confirm comes back,
+   * for the whole pile, once.
+   *
+   * Each draft is its own attempt, like every other batch on this screen: one
+   * that refuses does not take the others down, and it stays on the list rather
+   * than vanishing into a success message that would be a lie.
+   */
+  const dismissMany = useCallback(
+    async (items: readonly CaptureRow[]): Promise<void> => {
+      if (items.length === 0) return;
+      if (guard.blockWrite()) return;
+      const allFound = items.every(wasFound);
+      if (!allFound) {
+        const ok = await confirm({
+          title: t.captures.delete,
+          body: plural(locale, items.length, t.captures.dismissManyConfirm),
+          confirmLabel: t.captures.delete,
+          tone: 'danger',
+        });
+        if (!ok) return;
+      }
+      let failed = 0;
+      for (const item of items) {
+        try {
+          await deleteCapture.mutateAsync(item.id);
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed === 0) toast.show(t.captures.notAnExpenseDone);
+      else toast.show(t.captures.couldNotSave, 'negative');
+    },
+    [
+      confirm,
+      deleteCapture,
+      guard,
+      locale,
+      t.captures.couldNotSave,
+      t.captures.delete,
+      t.captures.dismissManyConfirm,
+      t.captures.notAnExpenseDone,
+      toast,
     ],
   );
 
@@ -1499,30 +1570,31 @@ export default function CapturesScreen() {
   );
 
   return (
-    <Screen edges={['top']}>
-      {/* Review is a bar destination, so it wears no back chevron: there is
-          nowhere "back" from a tab. `edges` drops `'bottom'` — the FlashList's
-          `paddingBottom: clearance` already reserves the room the tab bar
-          needs. */}
-      <Row
-        style={{
-          paddingHorizontal: theme.spacing.xl,
-          paddingTop: theme.spacing.md,
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <Ionicons name="file-tray-full-outline" size={iconSize.xl} color={theme.color.brand} />
-        <View style={{ flex: 1 }}>
-          <Text variant="title" numberOfLines={1}>
-            {t.captures.title}
-          </Text>
-          {/* The line under the title is a *state*, not an instruction. With
-              something reading, it says so and when it last looked. With nothing
-              reading, it falls back to how many are waiting — and says nothing
-              at all at zero, where the empty state already speaks. */}
-          {auto.enabled ? (
+    <Screen edges={[]}>
+      {/* Review opens on the same panel a group does — the gradient running up
+          under the status bar, the name of the thing, one number that is the
+          point of the screen, and the action that number invites. It used to
+          open on a white row with a small glyph, which is the layout of a
+          settings page; on one of the three screens in the bottom bar that read
+          as somewhere you had wandered into rather than somewhere you meant to
+          go. `ScreenHero` is the group hero's own shell, so the two cannot
+          drift.
+
+          No back chevron: this is a bar destination and there is nowhere "back"
+          from a tab. `edges={[]}` lets the panel run under the status bar the
+          way the dashboard's does; the FlashList's `paddingBottom: clearance`
+          still reserves the room the tab bar needs at the other end. */}
+      <ScreenHero
+        icon="file-tray-full-outline"
+        title={t.captures.title}
+        // The line under the name is a *state*, not an instruction: with
+        // something reading, it says so and when it last looked. With nothing
+        // reading there is no state to report, and the hero's own count below
+        // already says how much is waiting.
+        subtitle={
+          auto.enabled ? (
             <WatchingLine
+              onBrand
               checking={auto.checking}
               lastCheckedAt={auto.lastCheckedAt}
               now={now}
@@ -1530,26 +1602,64 @@ export default function CapturesScreen() {
               t={t}
               onRefresh={() => void auto.refresh()}
             />
-          ) : waitingCount > 0 ? (
-            <Text variant="micro" tone="muted" numberOfLines={1}>
-              {plural(locale, waitingCount, t.captures.unassignedBody)}
+          ) : undefined
+        }
+        // With nothing reading, the message path keeps its glyph up here: it is
+        // the main way a spend arrives on an iPhone and must not be buried.
+        // With a reader running, pasting lives at the foot of the list under
+        // "Add another way", and the glyph would be a second door to it.
+        actions={
+          auto.enabled
+            ? []
+            : [
+                {
+                  icon: 'chatbubble-ellipses-outline',
+                  label: t.captures.fromMessage,
+                  onPress: () => router.push('/captures/paste'),
+                },
+              ]
+        }
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          {waitingCount > 0 ? (
+            <>
+              <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                {t.captures.heroWaiting}
+              </Text>
+              <Text variant="title" tone="onBrand">
+                {plural(locale, waitingCount, t.captures.unassignedBody)}
+              </Text>
+            </>
+          ) : (
+            /* Review is trying to reach this, so the hero says it plainly
+               rather than showing a nought. */
+            <Text variant="heading" tone="onBrand">
+              {t.captures.nothingNeedsYou}
             </Text>
-          ) : null}
-        </View>
-        {/* With nothing reading, the message path keeps its glyph in the header:
-            it is the main way a spend arrives on an iPhone and must not be
-            buried. With a reader running, the header holds nothing — pasting has
-            moved to "Add another way" at the foot of the list. */}
-        {auto.enabled ? null : (
-          <IconButton label={t.captures.fromMessage} onPress={() => router.push('/captures/paste')}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={iconSize.md}
-              color={theme.color.text}
+          )}
+          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <HeroPillButton
+              label={t.captures.captureCta}
+              icon="add"
+              gradient={theme.gradient.brand}
+              onPress={() => router.push('/capture')}
             />
-          </IconButton>
-        )}
-      </Row>
+            {/* Bank messages is a whole screen of its own, and reaching it from
+                the hero rather than only from a row in the list says so. The
+                row stays: it carries the count of what is waiting there, which
+                a circle has nowhere to put. */}
+            {smsReader ? (
+              <Row style={{ marginLeft: 'auto' }}>
+                <HeroActionCircle
+                  icon="chatbubbles"
+                  label={t.smsInbox.entryTitle}
+                  onPress={() => router.push('/captures/sms')}
+                />
+              </Row>
+            ) : null}
+          </Row>
+        </View>
+      </ScreenHero>
 
       {/* The two errands, pinned between the header and the list exactly as the
           group ledger pins its three — fixed here rather than riding in
@@ -1578,12 +1688,29 @@ export default function CapturesScreen() {
             }}
             tabs={[
               {
-                value: 'found' as ReviewTabId,
-                label: countLabel(t.captures.tabFound, byTab.found.length),
-              },
-              {
+                // First, because it is the one this screen opens on: the finite
+                // half, the spends this person caught on purpose.
                 value: 'added' as ReviewTabId,
                 label: countLabel(t.captures.tabAdded, byTab.added.length),
+                icon: (color) => (
+                  <Ionicons name="create-outline" size={iconSize.md} color={color} />
+                ),
+              },
+              {
+                value: 'found' as ReviewTabId,
+                // Named for where it comes from where that is a real answer. On
+                // a phone whose bank messages the app reads, "SMS" says at a
+                // glance which half fills itself. On an iPhone nothing reads
+                // anything — the pile is whatever was pasted in — so the name
+                // stays the favour rather than claiming a source the app never
+                // had access to.
+                label: countLabel(
+                  smsReader ? t.captures.tabSms : t.captures.tabFound,
+                  byTab.found.length,
+                ),
+                icon: (color) => (
+                  <Ionicons name="chatbubbles-outline" size={iconSize.md} color={color} />
+                ),
               },
             ]}
           />
@@ -1605,10 +1732,12 @@ export default function CapturesScreen() {
             gap: theme.spacing.md,
           }}
         >
+          {/* Always what is in this tab, never what is ticked: the action bar
+              that appears the moment anything is ticked carries that count
+              directly above the buttons it applies to, and the same number in
+              two bands is one of them saying nothing. */}
           <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-            {selecting
-              ? plural(locale, selected.size, t.smsInbox.selected)
-              : plural(locale, counts.ready + counts.look, t.captures.unassignedBody)}
+            {plural(locale, counts.ready + counts.look, t.captures.unassignedBody)}
           </Text>
           <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
             {selecting ? (
@@ -1653,8 +1782,9 @@ export default function CapturesScreen() {
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           // Room for the selection bar when it is up, so the last row is not
-          // sitting under it.
-          paddingBottom: clearance + (selecting && chosenRows.length > 0 ? 80 : 0),
+          // sitting under it. Two lines now — the count and the dismissal above
+          // the two placements — so the reserve grew with it.
+          paddingBottom: clearance + (selecting && chosenRows.length > 0 ? 128 : 0),
         }}
         refreshControl={
           <RefreshControl
@@ -1869,6 +1999,28 @@ export default function CapturesScreen() {
             borderTopColor: theme.color.border,
           }}
         >
+          {/* The count, and the answer that is not a destination. Most of what
+              the app finds is not an expense at all — a card bill, a transfer
+              to yourself, rent nobody splits — and until now that answer could
+              only be given one row at a time. It sits on its own line, away
+              from the two placements, because it is the one button here that
+              takes drafts off the list rather than filing them. */}
+          <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text variant="caption" tone="muted">
+              {plural(locale, chosenRows.length, t.smsInbox.selected)}
+            </Text>
+            <Button
+              label={chosenRows.every(wasFound) ? t.captures.notAnExpense : t.captures.delete}
+              variant="ghostDanger"
+              size="sm"
+              onPress={() => {
+                const items = chosenRows;
+                setSelecting(false);
+                setSelected(new Set());
+                void dismissMany(items);
+              }}
+            />
+          </Row>
           <Row style={{ gap: theme.spacing.sm }}>
             <Button
               label={t.voice.justMe}
