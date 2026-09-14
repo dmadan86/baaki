@@ -940,3 +940,40 @@ describe('a card spend names the shop by where it stands', () => {
     expect(parsed?.merchant).toBeNull();
   });
 });
+
+describe('a reference that is not closed by a full stop', () => {
+  it('stops where the bank starts talking, not four words in', () => {
+    // CodeRabbit: a reference is often followed straight on by the balance
+    // line with no sentence break. Cutting only at four words would have put
+    // "ZOMATO LTD Avl Bal" in somebody's ledger.
+    const parsed = parseSms(
+      'Amt Debited INR 125.00 A/c XX9811 13-09-26 UPI/P2M/987654321/ZOMATO LTD Avl Bal INR 900.00',
+    );
+    expect(parsed?.merchant).toBe('ZOMATO LTD');
+  });
+
+  it('stops before a helpline that follows with no break', () => {
+    const parsed = parseSms(
+      'INR 60.00 debited A/c XX7777 13-09-26 UPI/P2M/222222/CHAI POINT Call 18001030',
+    );
+    expect(parsed?.merchant).toBe('CHAI POINT');
+  });
+});
+
+describe('position is the weakest evidence, so it is fenced', () => {
+  it('does not read words between a clock and a balance on a non-card message', () => {
+    // CodeRabbit: without a card in the message, any debit carrying a time and
+    // a balance would hand whatever fell between them to the ledger as a shop.
+    const parsed = parseSms(
+      'INR 700.00 debited from A/c XX8888 on 13-09-26 at 18:45:00 towards monthly rent Avl Bal INR 200.00',
+    );
+    expect(parsed?.merchant).not.toBe('towards monthly rent');
+  });
+
+  it('still reads a real card spend', () => {
+    const parsed = parseSms(
+      'Spent Card no. XX1234 INR 225 13-09-26 12:30:00 SWIGGY Avl Lmt INR 50000',
+    );
+    expect(parsed?.merchant).toBe('SWIGGY');
+  });
+});
