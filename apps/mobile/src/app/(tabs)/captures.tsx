@@ -885,10 +885,21 @@ export default function CapturesScreen() {
   // never act on a draft the person can no longer see.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const selectableIds = useMemo(() => tabRows.map((row) => row.id), [tabRows]);
+  // Exactly the rows that draw a tick box — which is not every draft in the
+  // tab. A spoken batch folds several into one card with no box of its own and
+  // its own "place the lot" gesture, so taking its ids here would make "select
+  // all" tick rows nobody can see ticked and leave the toggle unable to reach
+  // "all". Read off the built feed rather than the raw rows, so the two can
+  // never drift: what is selectable is, by construction, what is rendered
+  // selectable.
+  const selectableIds = useMemo(
+    () => feedItems.filter((item) => item.kind === 'single').map((item) => item.capture.id),
+    [feedItems],
+  );
+  const selectableSet = useMemo(() => new Set(selectableIds), [selectableIds]);
   const chosenRows = useMemo(
-    () => tabRows.filter((row) => selected.has(row.id)),
-    [tabRows, selected],
+    () => tabRows.filter((row) => selected.has(row.id) && selectableSet.has(row.id)),
+    [tabRows, selected, selectableSet],
   );
   const everythingTicked = selectableIds.length > 0 && chosenRows.length === selectableIds.length;
   const toggleSelected = useCallback((id: string): void => {
@@ -1166,11 +1177,16 @@ export default function CapturesScreen() {
   const chooseExistingGroup = useCallback(
     (target: AssignTarget, groupId: string): void => {
       closeAssign();
-      // Something is about to be placed, so the ticks have done their job.
-      // Cancelling the sheet does not come through here, which is right: a
-      // selection somebody backed out of is a selection they still have.
-      setSelecting(false);
-      setSelected(new Set());
+      // Only a batch ends the selection, because only a batch can *be* the
+      // selection. Filing one row from its own ⋯ while several are ticked is a
+      // different errand, and wiping the ticks would punish somebody for using
+      // the sheet mid-selection. Cancelling never comes through here at all,
+      // which is right: a selection somebody backed out of is one they still
+      // have.
+      if (target.kind === 'batch') {
+        setSelecting(false);
+        setSelected(new Set());
+      }
       if (target.kind === 'capture') {
         router.push(assignCaptureHref(target.capture, groupId));
         return;
