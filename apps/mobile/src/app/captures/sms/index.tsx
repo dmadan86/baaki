@@ -590,7 +590,25 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
               money for the third pile, deliberately — those are the rows that
               must not be summed as spending — so it shows how many there are
               instead. */}
-          {period.count > 0 ? (
+          {chosen.length > 0 ? (
+            /* Ticked rows take the panel over, exactly as they do on Review:
+                the count is a state and states are reported up here, which
+                leaves the bar at the bottom holding nothing but actions. The
+                period's total is not lost — the bar shows the total of what
+                is *selected*, which while choosing is the more useful of the
+                two figures anyway. */
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <Text variant="title" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
+                {plural(locale, chosen.length, t.smsInbox.selected)}
+              </Text>
+              <Button
+                label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+                variant="onBrandOutline"
+                size="sm"
+                onPress={() => setSelected((current) => toggleAll(visible, current))}
+              />
+            </Row>
+          ) : period.count > 0 ? (
             <View>
               <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }} numberOfLines={1}>
                 {kindLabel}
@@ -711,14 +729,14 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         ]}
       />
 
-      {/* One gesture, on one line. The total and the "not counted" disclosure
-          that used to share this band have moved up onto the hero, where the
-          figure sits at the size a screen's headline number should be and
-          costs no band at all — which leaves this row carrying the single
-          thing it is for. "Select all" means the rows on screen, never the
-          ones a search is hiding: the one mistake here that would cost real
-          money. */}
-      {visible.length > 0 ? (
+      {/* One gesture, on one line, and only while nothing is ticked — once
+          something is, the same control is on the panel beside the count,
+          which is where a scope control belongs and is a shorter reach from
+          the row that was just tapped. Two homes, never both at once.
+
+          "Select all" means the rows on screen, never the ones a search is
+          hiding: the one mistake here that would cost real money. */}
+      {visible.length > 0 && chosen.length === 0 ? (
         <Row
           style={{
             paddingHorizontal: theme.spacing.xl,
@@ -809,33 +827,39 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
             borderTopColor: theme.color.border,
           }}
         >
-          <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text variant="caption" tone="muted">
-              {plural(locale, chosen.length, t.smsInbox.selected)}
-            </Text>
-            {chosenTotal.total !== null ? (
-              <MoneyText
-                amount={chosenTotal.total}
-                currency={chosenTotal.currency}
-                locale={locale}
-                variant="caption"
-              />
-            ) : null}
-            {/* The same disclosure the band above carries, and for the same
-                reason — more so here, because this figure sits directly beside
-                the button that acts on the rows. A bar reading "6 selected"
-                over the sum of five would be wrong exactly where somebody is
-                about to commit. */}
-            {chosenTotal.uncounted > 0 ? (
-              <Text variant="micro" tone="muted">
-                {plural(locale, chosenTotal.uncounted, t.smsInbox.notCounted)}
-              </Text>
-            ) : null}
-          </Row>
+          {/* What the selection *costs*, and nothing else — the count that
+              used to lead this line is on the panel now. This figure stays
+              down here on purpose: it is the one number that has to be read
+              in the same glance as the button that commits it. */}
+          {chosenTotal.total !== null || chosenTotal.uncounted > 0 ? (
+            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+              {chosenTotal.total !== null ? (
+                <MoneyText
+                  amount={chosenTotal.total}
+                  currency={chosenTotal.currency}
+                  locale={locale}
+                  variant="caption"
+                />
+              ) : null}
+              {/* The same disclosure the band above carries, and for the same
+                  reason — more so here, because this figure sits directly
+                  beside the button that acts on the rows. A total that quietly
+                  skipped rows would be wrong exactly where somebody is about
+                  to commit. */}
+              {chosenTotal.uncounted > 0 ? (
+                <Text variant="micro" tone="muted">
+                  {plural(locale, chosenTotal.uncounted, t.smsInbox.notCounted)}
+                </Text>
+              ) : null}
+            </Row>
+          ) : null}
           <Row style={{ gap: theme.spacing.sm }}>
+            {/* Both placements are buttons of the same build — a bare text
+                link beside a filled pill reads as a footnote, and "set aside"
+                is not a footnote, it is half of what this bar is for. */}
             <Button
               label={plural(locale, chosen.length, t.smsInbox.setAside)}
-              variant="ghost"
+              variant="secondary"
               style={{ flex: 1 }}
               // No confirm. Setting aside is reversible — the row comes back
               // from the detail screen — and a dialog in front of a reversible
