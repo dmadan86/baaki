@@ -17,6 +17,16 @@ import { describe, expect, it } from 'vitest';
 const SCREEN = readFileSync(join(process.cwd(), 'src/app/(tabs)/captures.tsx'), 'utf8');
 
 describe('Review selection source contracts', () => {
+  it('opens the picker on the group the suggestion chip already named', () => {
+    const pickerSelection = SCREEN.slice(
+      SCREEN.indexOf('const pickerSelection: DestinationSelection = useMemo(() => {'),
+      SCREEN.indexOf('const openAssign = useCallback('),
+    );
+
+    expect(pickerSelection).toContain('destinations.get(assigningCapture.id)?.groupId');
+    expect(pickerSelection).toContain("{ kind: 'existing', groupId: suggestedId }");
+  });
+
   it('selects only visible single rows, not hidden members folded into a batch', () => {
     expect(SCREEN).toContain("feedItems.filter((item) => item.kind === 'single')");
     expect(SCREEN).toContain('selected.has(row.id) && selectableSet.has(row.id)');

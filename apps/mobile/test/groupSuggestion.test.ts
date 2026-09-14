@@ -200,6 +200,28 @@ describe('where this shop has been filed before', () => {
     ).toBeNull();
   });
 
+  it('does not learn user, rider, traveller or financer as merchants', () => {
+    const index = buildSuggestionIndex([
+      filed(FLAT, 'User'),
+      filed(FLAT, 'Rider'),
+      filed(FLAT, 'Traveller'),
+      filed(FLAT, 'Traveler'),
+      filed(FLAT, 'Financer'),
+    ]);
+
+    expect(index.merchants.size).toBe(0);
+    for (const description of ['USER', 'RIDER', 'TRAVELLER', 'TRAVELER', 'FINANCER']) {
+      expect(
+        suggestGroup({
+          capture: draft({ description }),
+          index,
+          trips: [],
+          assignable: everywhere,
+        }),
+      ).toBeNull();
+    }
+  });
+
   it('drops a merchant whose only home is a group the viewer has left', () => {
     const index = buildSuggestionIndex([
       filed('group-gone', 'Swiggy'),

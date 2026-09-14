@@ -85,6 +85,16 @@ export const SUGGESTION_MARGIN = 0.15;
  */
 const MIN_CATEGORY_FILINGS = 2;
 
+/** Generic labels that describe people in a split, not merchants somebody paid. */
+const NON_MERCHANT_NAMES = new Set(['user', 'rider', 'traveller', 'traveler', 'financer']);
+
+function merchantKey(description: string | null | undefined): string | null {
+  const name = normaliseMerchantName(description ?? '');
+  if (name.length < SHORTEST_USABLE_NAME) return null;
+  if (NON_MERCHANT_NAMES.has(name)) return null;
+  return name;
+}
+
 /** Why a row points where it points. The chip and the sheet can say it. */
 export type SuggestionReason = 'tagged' | 'trip' | 'merchant' | 'category';
 
@@ -141,8 +151,8 @@ export function buildSuggestionIndex(expenses: readonly FiledExpense[]): Suggest
   const categories: Tally = new Map();
 
   for (const expense of expenses) {
-    const name = normaliseMerchantName(expense.description ?? '');
-    if (name.length >= SHORTEST_USABLE_NAME) bump(merchants, name, expense.groupId);
+    const name = merchantKey(expense.description);
+    if (name) bump(merchants, name, expense.groupId);
     if (expense.category) bump(categories, expense.category, expense.groupId);
   }
 
@@ -245,10 +255,9 @@ export function suggestGroup(input: SuggestionInput): GroupSuggestion | null {
     if (assignable.has(groupId)) add(groupId, WEIGHT.trip.base, 'trip');
   }
 
-  const merchantKey = normaliseMerchantName(capture.description ?? '');
   const merchantScores = scoresFrom(
     index.merchants,
-    merchantKey.length >= SHORTEST_USABLE_NAME ? merchantKey : null,
+    merchantKey(capture.description),
     WEIGHT.merchant,
     1,
     assignable,
