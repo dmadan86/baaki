@@ -345,12 +345,55 @@ export function DestinationPicker({
         </Text>
       ) : null}
 
-      {/* The defaults, pinned above the tabs — one grouped card, the same control
-          shape the rest of the picker uses. */}
+      {/* The defaults, pinned above the tabs — as chips, not as list rows.
+          They were rows in a card of their own, which gave one shortcut the
+          same weight and nearly the same height as the entire list of groups
+          below it: a 36pt disc, a full row's padding, a card, and a large gap
+          on each side, for a single word. A chip says the same thing in a
+          third of the room and reads as what it is — a shortcut past the list,
+          rather than the first entry in it. The 44pt floor is kept, so the
+          smaller drawing costs nothing in reach. */}
       {pinnedRows.length > 0 ? (
-        <Card padded={false} flat style={{ overflow: 'hidden' }}>
-          {pinnedRows.map((row, index) => renderRow(row, index < pinnedRows.length - 1))}
-        </Card>
+        <Row style={{ gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+          {pinnedRows.map((row) => (
+            <Pressable
+              key={row.key}
+              onPress={row.onPress}
+              accessibilityRole="button"
+              accessibilityState={{ selected: row.selected }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: theme.spacing.xs,
+                minHeight: 44,
+                paddingHorizontal: theme.spacing.md,
+                borderRadius: theme.radius.pill,
+                borderWidth: 1,
+                borderColor: row.selected ? theme.color.brand : theme.color.border,
+                backgroundColor: row.selected ? theme.color.brandSoft : 'transparent',
+                opacity: pressed ? 0.6 : 1,
+              })}
+            >
+              {/* The tick replaces the glyph when chosen rather than joining it:
+                  a chip has room for one mark, and which one it is *is* the
+                  state (#191 — never colour alone). */}
+              <Ionicons
+                name={row.selected ? 'checkmark-circle' : row.icon}
+                size={iconSize.md}
+                color={row.selected ? theme.color.brand : theme.color.textMuted}
+              />
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: row.selected ? theme.color.brand : theme.color.text,
+                  fontWeight: row.selected ? '600' : '500',
+                }}
+              >
+                {row.label}
+              </Text>
+            </Pressable>
+          ))}
+        </Row>
       ) : null}
 
       {/* Groups and People are their own tab: a flat list of every group then

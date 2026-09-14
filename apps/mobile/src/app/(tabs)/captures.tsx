@@ -9,9 +9,12 @@
  * already granted permission to read those messages, sending somebody to
  * Messages to select, copy, come back and paste is the app refusing to do its
  * job — so the paste box is no longer the shape of this screen. It is the
- * fallback it always was, reachable through a quiet "Add another way", and the
- * primary path only where there is no other: iPhone, where no reading API
- * exists at any tier.
+ * fallback it always was, reachable from the header glyph on a phone that
+ * cannot read, and from the zero state — and the primary path only where there
+ * is no other: iPhone, where no reading API exists at any tier. It has no
+ * footer under the list: a button sitting below a hundred and forty drafts is
+ * one nobody scrolls to, and on a phone that *does* read, an alternative way in
+ * is not something to advertise at all.
  *
  * FOUR THINGS CHANGED, AND EACH ANSWERS A COMPLAINT.
  *
@@ -99,14 +102,8 @@ import {
   type PersonChoice,
 } from '@/components/DestinationPicker';
 import { PendingMark } from '@/components/PendingMark';
-import {
-  HeroActionCircle,
-  HeroPillButton,
-  ScreenHero,
-  useHeroStatusBar,
-} from '@/components/ScreenHero';
+import { HeroActionCircle, ScreenHero, useHeroStatusBar } from '@/components/ScreenHero';
 import { InboxSkeleton } from '@/components/Skeletons';
-import { SwipeRow, type SwipeAction } from '@/components/SwipeRow';
 import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
 import { useFiledThisWeek, useMerchantDestinations } from '@/data/reviewSources';
@@ -140,7 +137,6 @@ import {
   doubtsAbout,
   reviewItemKey,
   type ReviewFeedItem,
-  type ReviewSectionId,
 } from '@/lib/reviewFeed';
 import { useSmsAutoRead } from '@/lib/smsAutoRead';
 import { useSmsInboxReader } from '@/lib/smsFeature';
@@ -194,71 +190,6 @@ function wasFound(capture: CaptureRow): boolean {
   const parsed = capture.parsed;
   return (
     !!parsed && typeof parsed === 'object' && (parsed as { source?: unknown }).source === 'sms'
-  );
-}
-
-/**
- * A pile's heading: what it is, and how many are in it.
- *
- * The count rides in a pill beside the words rather than in them, so the two
- * headings line up whatever the language does to their length. "Worth a look"
- * wears the warning hue; the words are the difference, the colour only agrees
- * with them.
- */
-function SectionHeading({
-  section,
-  count,
-  locale,
-  t,
-}: {
-  section: ReviewSectionId;
-  count: number;
-  locale: string;
-  t: UiStrings;
-}): React.JSX.Element {
-  const theme = useTheme();
-  const warn = section === 'look';
-  const label = warn ? t.captures.sectionLook : t.captures.sectionReady;
-  const spoken = plural(locale, count, warn ? t.captures.lookCount : t.captures.readyCount);
-  return (
-    <Row
-      accessibilityRole="header"
-      accessibilityLabel={spoken}
-      style={{
-        gap: theme.spacing.sm,
-        alignItems: 'center',
-        // Padding, never margin. This Row is the root of a FlashList cell, and
-        // FlashList measures a cell without its outer margins — so a margin
-        // here is height the list does not know about, and the heading is drawn
-        // half under the row above it. That is the clipped "READY 134".
-        paddingTop: theme.spacing.lg,
-        paddingBottom: theme.spacing.xs,
-      }}
-    >
-      <Text
-        variant="micro"
-        style={{
-          textTransform: 'uppercase',
-          color: warn ? theme.color.warning : theme.color.textMuted,
-        }}
-      >
-        {label}
-      </Text>
-      <View
-        style={{
-          minWidth: 20,
-          paddingHorizontal: 6,
-          paddingVertical: 1,
-          borderRadius: theme.radius.pill,
-          alignItems: 'center',
-          backgroundColor: warn ? theme.color.warningSoft : theme.color.surfaceMuted,
-        }}
-      >
-        <Text variant="micro" style={{ color: warn ? theme.color.warning : theme.color.textMuted }}>
-          {String(count)}
-        </Text>
-      </View>
-    </Row>
   );
 }
 
@@ -333,7 +264,6 @@ function CaptureListRow({
   onMore,
   onFile,
   onDismiss,
-  selecting = false,
   selected = false,
   onToggleSelected,
   bare = false,
@@ -350,9 +280,9 @@ function CaptureListRow({
   onFile: (() => void) | null;
   /** Take it off the list: it was never an expense. */
   onDismiss: () => void;
-  /** Whether the list is in selection mode, which puts a tick box on the row. */
-  selecting?: boolean;
+  /** Whether this row's tick box is filled. Never set on a `bare` row. */
   selected?: boolean;
+  /** Tick or untick. Absent on a `bare` row — a batch is ticked as one card. */
   onToggleSelected?: () => void;
   /** A row nested in a batch card: no card frame of its own, and no chip. */
   bare?: boolean;
@@ -382,11 +312,17 @@ function CaptureListRow({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      // A checkbox, because that is what a press now does. It read as a button
+      // labelled "file this to Goa" while actually ticking the row — an
+      // announcement of one action and the performance of another, which is the
+      // one accessibility bug a sighted test can never catch. The destination
+      // still rides on the label, because knowing where a draft is headed is
+      // most of what the row says; it is just no longer claimed as the action.
+      accessibilityRole={bare ? 'button' : 'checkbox'}
       accessibilityLabel={
         destinationName
           ? `${title}, ${t.captures.fileTo.replace('{name}', destinationName)}`
-          : `${title}, ${t.captures.assign}`
+          : title
       }
       accessibilityActions={actions}
       onAccessibilityAction={(event) => {
@@ -395,8 +331,11 @@ function CaptureListRow({
         else if (name === 'dismiss') onDismiss();
         else if (name === 'file') onFile?.();
       }}
-      onPress={selecting ? onToggleSelected : onAssign}
-      accessibilityState={selecting ? { checked: selected } : undefined}
+      // A row in the list ticks; a row inside an opened batch still opens the
+      // picker, because it has no tick of its own to give. Without this split a
+      // batch member's press did nothing at all.
+      onPress={bare ? onAssign : onToggleSelected}
+      accessibilityState={bare ? undefined : { checked: selected }}
       style={({ pressed }) =>
         bare
           ? { opacity: pressed ? 0.6 : 1 }
@@ -413,16 +352,24 @@ function CaptureListRow({
       <Row
         style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
       >
-        {/* Only while selecting. Review's main verb is the swipe, and a tick
-            box on every row at rest would crowd it for a gesture most people
-            never make here. */}
-        {selecting ? (
+        {/* Always drawn — except inside an opened batch. Ticking is Review's
+            main verb now: the list is a hundred rows deep on a phone whose
+            messages the app reads, and answering it row by row is not
+            answering, it is data entry. Behind a "Select" button that was a
+            gesture most people never found; in front of them it is the one the
+            screen is for. Same rule, same reasoning, as Bank messages.
+
+            A `bare` row is a member of an expanded spoken batch. It gets no
+            `onToggleSelected` and is not in `selectableIds` — the batch is
+            ticked as one card — so a box here would be a control that looks
+            live, never fills, and leaves "select all" apparently incomplete. */}
+        {bare ? null : (
           <Ionicons
             name={selected ? 'checkbox' : 'square-outline'}
             size={iconSize.lg}
             color={selected ? theme.color.brand : theme.color.textMuted}
           />
-        ) : null}
+        )}
         <CategoryBadge
           category={capture.category}
           meta={capture.category_meta}
@@ -902,13 +849,12 @@ export default function CapturesScreen() {
   // live before the first load carries rows is the tab seeding will choose.
   const activeTab: ReviewTabId = tab ?? 'added';
   const tabRows = byTab[activeTab];
-  const { items: feedItems } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
+  const feedItems = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
 
   // Ticking several drafts and placing them together. Held as ids rather than
   // rows so a refresh that replaces the row objects does not silently drop a
   // selection, and pruned against what is actually on screen so "place 6" can
   // never act on a draft the person can no longer see.
-  const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   // Exactly the rows that draw a tick box — which is not every draft in the
   // tab. A spoken batch folds several into one card with no box of its own and
@@ -1085,7 +1031,6 @@ export default function CapturesScreen() {
         });
         if (!ok) return;
       }
-      setSelecting(false);
       setSelected(new Set());
       let failed = 0;
       let firstError: unknown = undefined;
@@ -1288,7 +1233,6 @@ export default function CapturesScreen() {
       // which is right: a selection somebody backed out of is one they still
       // have.
       if (target.kind === 'batch') {
-        setSelecting(false);
         setSelected(new Set());
       }
       if (target.kind === 'capture') {
@@ -1363,7 +1307,6 @@ export default function CapturesScreen() {
       // The group and its people exist only on the queue so far, so the mirror
       // cannot list its members yet. Their ids were minted here, so the batch
       // names them itself rather than waiting for a read that has not happened.
-      setSelecting(false);
       setSelected(new Set());
       void placeInGroup({
         lockKey: target.items[0]!.id,
@@ -1412,8 +1355,6 @@ export default function CapturesScreen() {
   const renderItem = useCallback(
     ({ item }: { item: ReviewFeedItem }) => {
       switch (item.kind) {
-        case 'section':
-          return <SectionHeading section={item.section} count={item.count} locale={locale} t={t} />;
         case 'day':
           return (
             <Text
@@ -1449,24 +1390,10 @@ export default function CapturesScreen() {
           const capture = item.capture;
           const destination = destinations.get(capture.id) ?? null;
           const destinationName = destination ? nameOfGroup(destination.groupId) : null;
-          // Leading: file it where the chip says — offered only when the chip
-          // actually says somewhere, so the gesture can never do something the
-          // row did not first state. Trailing: take it off the list.
-          const leading: SwipeAction | null =
-            destination && destinationName
-              ? {
-                  label: destinationName,
-                  icon: 'checkmark-circle-outline',
-                  tone: 'brand',
-                  onAction: () => fileWhereItSays(capture),
-                }
-              : null;
-          const trailing: SwipeAction = {
-            label: wasFound(capture) ? t.captures.notAnExpense : t.captures.delete,
-            icon: wasFound(capture) ? 'close-circle-outline' : 'trash-outline',
-            tone: 'muted',
-            onAction: () => void dismiss(capture),
-          };
+          // "File it where the chip says" is offered only when the chip
+          // actually names somewhere, so it can never do something the row did
+          // not first state. That condition used to ride on the swipe's leading
+          // action; the swipe has gone and the condition has not.
           const row = (
             <CaptureListRow
               capture={capture}
@@ -1475,28 +1402,20 @@ export default function CapturesScreen() {
               destinationName={destinationName}
               onAssign={() => openAssign(capture)}
               onMore={() => openCaptureMenu(capture)}
-              onFile={leading ? () => fileWhereItSays(capture) : null}
+              onFile={destinationName ? () => fileWhereItSays(capture) : null}
               onDismiss={() => void dismiss(capture)}
-              selecting={selecting}
               selected={selected.has(capture.id)}
               onToggleSelected={() => toggleSelected(capture.id)}
             />
           );
           return (
-            <View style={{ paddingVertical: theme.spacing.xs }}>
-              {/* No swipe while selecting. A drag that both ticks a row and
-                  files it somewhere is two answers to one gesture, and the one
-                  it would pick is whichever the finger moved further toward.
-                  Keyed by the draft: FlashList recycles this cell, and a fresh
-                  SwipeRow per draft is what stops one arriving half-open. */}
-              {selecting ? (
-                row
-              ) : (
-                <SwipeRow key={capture.id} leading={leading} trailing={trailing}>
-                  {row}
-                </SwipeRow>
-              )}
-            </View>
+            /* No swipe. A drag that both ticks a row and files it somewhere is
+               two answers to one gesture, and the one it would win is whichever
+               way the finger moved further — so with the tick boxes always out,
+               the swipe had to go. Both of its answers survive as plain rows in
+               the ⋯ sheet, and "not an expense" now also answers a whole ticked
+               pile at once, which is what the gesture was really for. */
+            <View style={{ paddingVertical: theme.spacing.xs }}>{row}</View>
           );
         }
       }
@@ -1511,7 +1430,6 @@ export default function CapturesScreen() {
       openBatchIds,
       openBatchMenu,
       selected,
-      selecting,
       toggleSelected,
       openCaptureMenu,
       t,
@@ -1589,21 +1507,6 @@ export default function CapturesScreen() {
     </Pressable>
   ) : null;
 
-  // Where pasting lives now. With a reader running it is one quiet line at the
-  // foot of the list — a fallback, labelled as an alternative rather than as the
-  // way in. With nothing reading (every iPhone) it is a real, labelled button,
-  // because it is the only path there is and a consolation prize is not what a
-  // person on an iPhone should be handed.
-  const anotherWay = (
-    <View style={{ alignItems: 'center', paddingTop: theme.spacing.lg }}>
-      <Button
-        label={auto.enabled ? t.captures.addAnotherWay : t.captures.fromMessage}
-        variant={auto.enabled ? 'ghost' : 'secondary'}
-        onPress={() => router.push('/captures/paste')}
-      />
-    </View>
-  );
-
   return (
     <Screen edges={[]}>
       {/* Review opens on the same panel a group does — the gradient running up
@@ -1639,10 +1542,10 @@ export default function CapturesScreen() {
             />
           ) : undefined
         }
-        // With nothing reading, the message path keeps its glyph up here: it is
-        // the main way a spend arrives on an iPhone and must not be buried.
-        // With a reader running, pasting lives at the foot of the list under
-        // "Add another way", and the glyph would be a second door to it.
+        // With nothing reading, the message path keeps its glyph up here: it
+        // is the main way a spend arrives on an iPhone and must not be buried.
+        // With a reader running there is no glyph at all — the app is already
+        // doing the thing the glyph would offer to do by hand.
         actions={
           auto.enabled
             ? []
@@ -1679,27 +1582,21 @@ export default function CapturesScreen() {
               {t.captures.nothingNeedsYou}
             </Text>
           )}
-          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-            <HeroPillButton
-              label={t.captures.captureCta}
-              icon="add"
-              gradient={theme.gradient.brand}
-              onPress={() => router.push('/capture')}
-            />
-            {/* Bank messages is a whole screen of its own, and reaching it from
-                the hero rather than only from a row in the list says so. The
-                row stays: it carries the count of what is waiting there, which
-                a circle has nowhere to put. */}
-            {smsReader ? (
-              <Row style={{ marginLeft: 'auto' }}>
-                <HeroActionCircle
-                  icon="chatbubbles"
-                  label={t.smsInbox.entryTitle}
-                  onPress={() => router.push('/captures/sms')}
-                />
-              </Row>
-            ) : null}
-          </Row>
+          {/* No "Save an expense" pill. The raised mic in the bottom bar opens
+              a capture from anywhere in the app, and a second door to it was
+              standing in the room the panel needed for its number. Bank
+              messages keeps its circle: that is a screen nothing else on here
+              reaches, and the row in the list below carries the count a circle
+              has nowhere to put. */}
+          {smsReader ? (
+            <Row style={{ alignItems: 'center' }}>
+              <HeroActionCircle
+                icon="chatbubbles"
+                label={t.smsInbox.entryTitle}
+                onPress={() => router.push('/captures/sms')}
+              />
+            </Row>
+          ) : null}
         </View>
       </ScreenHero>
 
@@ -1726,7 +1623,6 @@ export default function CapturesScreen() {
               // would leave rows ticked that are no longer on screen, and "place
               // 6" would act on drafts the person can no longer see.
               setSelected(new Set());
-              setSelecting(false);
             }}
             tabs={[
               {
@@ -1757,49 +1653,6 @@ export default function CapturesScreen() {
         </View>
       ) : null}
 
-      {/* One line for the whole selection gesture: what is ticked, and the two
-          ways to change that. Review's main verb is the swipe, so the tick
-          boxes are *not* always there — they would fight the gesture and
-          clutter a list most people never multi-select on. They appear when
-          somebody asks for them, which is what "Select" is for. */}
-      {tabRows.length > 0 ? (
-        <Row
-          style={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingVertical: theme.spacing.xs,
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: theme.spacing.md,
-          }}
-        >
-          {/* Nothing on the left any more. This band used to open with "140
-              expenses waiting to be added" — the same sentence the hero says,
-              two centimetres above it, in the same words. A screen that says
-              one thing twice has said it once and wasted a band. The count
-              lives on the hero; the tab says how it splits; the action bar says
-              how many are ticked. Three numbers, three questions, no repeats. */}
-          <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
-            {selecting ? (
-              <Button
-                label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
-                variant="ghost"
-                size="sm"
-                onPress={() => setSelected(everythingTicked ? new Set() : new Set(selectableIds))}
-              />
-            ) : null}
-            <Button
-              label={selecting ? t.common.cancel : t.captures.select}
-              variant="ghost"
-              size="sm"
-              onPress={() => {
-                setSelecting((on) => !on);
-                setSelected(new Set());
-              }}
-            />
-          </Row>
-        </Row>
-      ) : null}
-
       {/* One virtualized scroll region for every state — pull-to-refresh still
           works while loading or empty, but a pasted month only mounts the rows
           near the viewport. */}
@@ -1823,7 +1676,7 @@ export default function CapturesScreen() {
           // Room for the selection bar when it is up, so the last row is not
           // sitting under it. Two lines now — the count and the dismissal above
           // the two placements — so the reserve grew with it.
-          paddingBottom: clearance + (selecting && chosenRows.length > 0 ? 128 : 0),
+          paddingBottom: clearance + (chosenRows.length > 0 ? 128 : 0),
         }}
         refreshControl={
           <RefreshControl
@@ -1833,7 +1686,6 @@ export default function CapturesScreen() {
           />
         }
         ListHeaderComponent={bankMessagesRow}
-        ListFooterComponent={rows.length > 0 ? anotherWay : null}
         ListEmptyComponent={
           captures.isLoading ? (
             <InboxSkeleton />
@@ -1994,7 +1846,6 @@ export default function CapturesScreen() {
               } else if (choice.kind === 'me') {
                 closeAssign();
                 if (target.kind === 'batch') {
-                  setSelecting(false);
                   setSelected(new Set());
                 }
                 void placeInPersonal({
@@ -2022,7 +1873,7 @@ export default function CapturesScreen() {
           Both buttons hand the ticked rows to machinery that already existed
           for a spoken batch: one destination for several drafts, everybody in,
           split equally. Nothing new decides anything here. */}
-      {selecting && chosenRows.length > 0 ? (
+      {chosenRows.length > 0 ? (
         <View
           style={{
             position: 'absolute',
@@ -2048,6 +1899,16 @@ export default function CapturesScreen() {
             <Text variant="caption" tone="muted">
               {plural(locale, chosenRows.length, t.smsInbox.selected)}
             </Text>
+            {/* "Select all" lives here now rather than in a band of its own
+                above the list. It is the same reach — tick one row and the bar
+                is up — and it costs no height at rest, which on a screen whose
+                list is the point is the whole argument. */}
+            <Button
+              label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+              variant="ghost"
+              size="sm"
+              onPress={() => setSelected(everythingTicked ? new Set() : new Set(selectableIds))}
+            />
             <Button
               label={chosenRows.every(wasFound) ? t.captures.notAnExpense : t.captures.delete}
               variant="ghostDanger"
@@ -2065,7 +1926,6 @@ export default function CapturesScreen() {
               style={{ flex: 1 }}
               onPress={() => {
                 const items = chosenRows;
-                setSelecting(false);
                 setSelected(new Set());
                 void placeInPersonal({ lockKey: items[0]!.id, items });
               }}
