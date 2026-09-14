@@ -85,6 +85,19 @@ export const SUGGESTION_MARGIN = 0.15;
  */
 const MIN_CATEGORY_FILINGS = 2;
 
+/**
+ * The cleaned name a merchant is remembered under, or null when the line was
+ * all gateway noise and there is no brand underneath to remember.
+ *
+ * One function rather than the same length check written out at both ends,
+ * because the two ends must agree: a name the index is built under and a name a
+ * draft is looked up by that disagreed would quietly never match.
+ */
+function merchantKey(description: string | null | undefined): string | null {
+  const name = normaliseMerchantName(description ?? '');
+  return name.length >= SHORTEST_USABLE_NAME ? name : null;
+}
+
 /** Why a row points where it points. The chip and the sheet can say it. */
 export type SuggestionReason = 'tagged' | 'trip' | 'merchant' | 'category';
 
@@ -141,8 +154,8 @@ export function buildSuggestionIndex(expenses: readonly FiledExpense[]): Suggest
   const categories: Tally = new Map();
 
   for (const expense of expenses) {
-    const name = normaliseMerchantName(expense.description ?? '');
-    if (name.length >= SHORTEST_USABLE_NAME) bump(merchants, name, expense.groupId);
+    const name = merchantKey(expense.description);
+    if (name) bump(merchants, name, expense.groupId);
     if (expense.category) bump(categories, expense.category, expense.groupId);
   }
 
@@ -245,10 +258,9 @@ export function suggestGroup(input: SuggestionInput): GroupSuggestion | null {
     if (assignable.has(groupId)) add(groupId, WEIGHT.trip.base, 'trip');
   }
 
-  const merchantKey = normaliseMerchantName(capture.description ?? '');
   const merchantScores = scoresFrom(
     index.merchants,
-    merchantKey.length >= SHORTEST_USABLE_NAME ? merchantKey : null,
+    merchantKey(capture.description),
     WEIGHT.merchant,
     1,
     assignable,
