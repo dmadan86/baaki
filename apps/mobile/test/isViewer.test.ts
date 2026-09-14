@@ -58,7 +58,13 @@ describe('when it does not', () => {
     // that has not arrived, and a `.find` that used to return the first row.
     const members = [ghost, { profile_id: null }, me];
     expect(members.find((member) => isViewer(member, null))).toBeUndefined();
-    // And for contrast, the spelling this function exists to replace:
+    // And for contrast, the spelling this function exists to replace. The lint
+    // rule that bans it is right to fire here — this line is the bug, written
+    // out on purpose so the assertion above has something to be different
+    // from. Disabled for exactly one line, with the reason, rather than the
+    // rule being loosened for test files: a deliberate counterexample is not
+    // grounds for letting the real mistake through anywhere else.
+    // eslint-disable-next-line no-restricted-syntax
     expect(members.find((member) => member.profile_id === null)).toBe(ghost);
   });
 });

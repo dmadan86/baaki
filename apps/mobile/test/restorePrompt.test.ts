@@ -16,13 +16,13 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { RestorePromptInput } from '../src/lib/backup/restorePrompt';
+
 // `settings.ts` reaches the sync-network module, which imports expo-network for
 // a type-level enum. Nothing here touches a network; this only has to load.
 vi.mock('expo-network', () => ({
   NetworkStateType: { WIFI: 'wifi', CELLULAR: 'cellular', NONE: 'none' },
 }));
-
-import type { RestorePromptInput } from '../src/lib/backup/restorePrompt';
 
 const { restoreOffer, RestoreOffer } = await import('../src/lib/backup/restorePrompt');
 const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;

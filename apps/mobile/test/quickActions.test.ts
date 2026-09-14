@@ -10,8 +10,6 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
-
 import {
   SHORTCUT_ACTIONS,
   actionForId,
@@ -21,6 +19,8 @@ import {
   syncQuickActions,
   takeInitialQuickAction,
 } from '../src/lib/quickActions';
+
+vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 
 const TITLES = { add: 'Add an expense', scan: 'Scan a receipt', voice: 'Speak an expense' };
 

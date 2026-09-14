@@ -151,7 +151,7 @@ beforeEach(() => {
   calls.fetch.mockResolvedValue({ ok: true, text: async () => '' });
   vi.stubGlobal('fetch', calls.fetch);
   process.env.EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID_WEB = '1234.apps.googleusercontent.com';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   setSigninModuleForTests(fakeModule() as any);
 });
 
