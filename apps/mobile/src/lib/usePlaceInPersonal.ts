@@ -68,7 +68,7 @@ export function usePlaceInPersonal(): (input: {
       try {
         const plan = planPersonalPlacement({
           captures: input.items,
-          fallbackDescription: t.captures.unassigned,
+          fallbackDescription: t.voice.anExpense,
         });
 
         // The ordering rule lives in `runPersonalPlacement`, where it can be

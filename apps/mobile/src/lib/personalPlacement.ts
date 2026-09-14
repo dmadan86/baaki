@@ -69,7 +69,11 @@ function minorAmount(value: string): bigint | null {
  * What to write so a pile of drafts lands in the private ledger.
  *
  * `fallbackDescription` is what an unnamed draft is called — the same courtesy
- * the voice save does, rather than filing a row with no note at all. The
+ * the voice save does, rather than filing a row with no note at all. It must be
+ * a name for the *thing*, never a status: the callers first passed "Saved for
+ * later", which is what the inbox calls a draft still waiting, and which reads
+ * as a lie on a finished entry that is waiting for nothing. `voice.anExpense`
+ * is the one the voice save already uses for exactly this. The
  * category is the draft's own where it has one and a guess from the description
  * where it does not, which is exactly what the add-expense form would have
  * shown had the person opened it to accept its defaults.

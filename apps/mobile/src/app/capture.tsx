@@ -472,7 +472,7 @@ export default function CaptureScreen() {
               amount,
             }),
           ],
-          fallbackDescription: t.captures.unassigned,
+          fallbackDescription: t.voice.anExpense,
         });
         const write = plan.writes[0];
         if (!write) {
