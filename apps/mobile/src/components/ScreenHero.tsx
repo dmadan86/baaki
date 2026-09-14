@@ -29,12 +29,40 @@
  * `edges={[]}` so it can run under the status bar the way the dashboard's does.
  */
 
-import type { ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { Pressable, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { directionalIcon, Gradient, iconSize, Row, Text, useTheme } from '@waves/ui';
+
+/**
+ * Light status-bar icons for as long as a hero screen is the one you are on.
+ *
+ * The panel runs up under the status bar, and the root layout sets the clock
+ * and the battery to *dark* ink whenever the light theme is on — dark glyphs on
+ * a deep indigo wash, which is exactly the contrast failure the hero is
+ * otherwise designed around.
+ *
+ * Scoped to focus rather than to mount, which is the whole reason this is a
+ * hook and not a `<StatusBar style="light" />` in the tree. A tab screen does
+ * not unmount when you leave it: Review would go on holding the status bar
+ * light after you had walked to Friends, and white glyphs on a white screen is
+ * a worse bug than the one being fixed. On focus it takes the bar; on blur it
+ * hands it back to whatever the theme says at rest.
+ */
+export function useHeroStatusBar(): void {
+  const theme = useTheme();
+  const resting = theme.scheme === 'dark' ? 'light' : 'dark';
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle('light');
+      return () => setStatusBarStyle(resting);
+    }, [resting]),
+  );
+}
 
 /**
  * One round translucent action on a hero — a white glyph on a dim white disc.

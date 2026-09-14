@@ -48,7 +48,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
-import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { MutationKind, peopleSignatureKey, SmsKind } from '@waves/core';
@@ -72,7 +71,7 @@ import {
   type DestinationSelection,
   type PersonChoice,
 } from '@/components/DestinationPicker';
-import { ScreenHero } from '@/components/ScreenHero';
+import { ScreenHero, useHeroStatusBar } from '@/components/ScreenHero';
 import { filterLabel, SmsFilterSheet } from '@/components/SmsFilterSheet';
 import { SmsMessageRow } from '@/components/SmsMessageRow';
 import { SmsScanSheet } from '@/components/SmsScanSheet';
@@ -121,6 +120,10 @@ type Quick = '7' | '30' | '90' | 'all' | 'more';
 
 export default function SmsInboxScreen(): React.JSX.Element | null {
   const theme = useTheme();
+  // White clock and battery over the hero's wash, for as long as this screen is
+  // the one in front — and handed back on the way out, which a mounted
+  // `<StatusBar>` does not do (`useHeroStatusBar`).
+  useHeroStatusBar();
   const { t, locale } = useStrings();
   const clearance = useBottomClearance();
   const { session } = useAuth();
@@ -532,8 +535,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
 
   return (
     <Screen edges={[]}>
-      {/* The hero runs dark under the status bar; force light icons for it. */}
-      <StatusBar style="light" />
       {/* Bank messages opens on the same panel a group does. It is not a
           sub-page of Review — it is a screen people come to and work, and it
           used to announce itself with the small-glyph-and-title row of a

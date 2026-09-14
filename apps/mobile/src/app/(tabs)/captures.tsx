@@ -99,7 +99,12 @@ import {
   type PersonChoice,
 } from '@/components/DestinationPicker';
 import { PendingMark } from '@/components/PendingMark';
-import { HeroActionCircle, HeroPillButton, ScreenHero } from '@/components/ScreenHero';
+import {
+  HeroActionCircle,
+  HeroPillButton,
+  ScreenHero,
+  useHeroStatusBar,
+} from '@/components/ScreenHero';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { SwipeRow, type SwipeAction } from '@/components/SwipeRow';
 import { WatchingLine } from '@/components/WatchingLine';
@@ -696,6 +701,10 @@ function ActionSheetRow({
 /** The Review tab: what was found, in two piles, one gesture each. */
 export default function CapturesScreen() {
   const theme = useTheme();
+  // The hero runs dark under the status bar, so the clock and the battery go
+  // white — but only while this tab is the one you are looking at. See
+  // `useHeroStatusBar`: a tab does not unmount when you leave it.
+  useHeroStatusBar();
   const { height } = useWindowDimensions();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();

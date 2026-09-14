@@ -44,6 +44,19 @@ describe('every hero is the same hero', () => {
       // colour above the gradient — the bug that makes a hero look pasted on.
       expect(source(path)).toMatch(/<Screen edges=\{\[\]\}>/);
     });
+
+    it(`${name} takes the status bar for as long as it is in front`, () => {
+      const screen = source(path);
+      // Running under the status bar means owning it: the root layout sets dark
+      // glyphs under the light theme, which is unreadable on the wash.
+      expect(screen).toMatch(/useHeroStatusBar\(\);/);
+      // And it must be the focus-scoped hook, not a status bar mounted into the
+      // tree — a tab screen stays mounted after you leave it, so that spelling
+      // holds the bar light over the next white screen you walk to. Checked by
+      // the import rather than by the element, so the prose in these files can
+      // go on naming the thing it is explaining.
+      expect(screen).not.toMatch(/from 'expo-status-bar'/);
+    });
   }
 
   it('the group hero uses the shared controls rather than its own copies', () => {
@@ -79,7 +92,11 @@ describe('review can answer "not an expense" about a whole pile', () => {
     expect(body![0]).toMatch(/if \(!allFound\) \{[\s\S]*?await confirm\(\{/);
   });
 
-  it('keeps a mixed user, rider, traveller and financer selection if the delete is cancelled', () => {
+  it('keeps the ticks when the confirm is answered "no"', () => {
+    // The selection used to be cleared by the button, before the dialog had
+    // even been drawn — so cancelling still cost a person every tick they had
+    // made and left them to make them again. It is cleared inside, past the
+    // point of no return, which is also past `guard.blockWrite()`.
     const body = captures.match(/const dismissMany = useCallback\([\s\S]*?\n {4}\[/);
     expect(body, 'captures should define dismissMany').not.toBeNull();
     expect(body![0]).toMatch(/if \(!ok\) return;[\s\S]*?setSelecting\(false\);/);
