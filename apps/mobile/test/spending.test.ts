@@ -183,4 +183,33 @@ describe('computeSpendingRows', () => {
     // The built-in beside it carries no snapshot.
     expect(rows.find((r) => r.category === 'food')?.category_meta).toBeNull();
   });
+
+  it('keeps the first custom tag snapshot even when the rider row was saved without it', () => {
+    const meta = { label: 'Airport rides', icon: 'car-outline', tint: 'sky' };
+    const rows = computeSpendingRows([
+      expense({
+        id: 'rider',
+        category: 'custom-airport',
+        meta: null,
+        shares: [{ member_id: 'm1', amount: '300' }],
+      }),
+      expense({
+        id: 'traveller',
+        category: 'custom-airport',
+        meta,
+        shares: [{ member_id: 'm1', amount: '500' }],
+      }),
+      expense({
+        id: 'financer',
+        category: 'custom-airport',
+        meta: { label: 'Airport cabs', icon: 'car-sport-outline', tint: 'purple' },
+        shares: [{ member_id: 'm1', amount: '200' }],
+      }),
+    ]);
+
+    const custom = find(rows, 'm1', 'custom-airport', '2026-03-01');
+    expect(custom?.share_amount).toBe('1000');
+    expect(custom?.expense_count).toBe(3);
+    expect(custom?.category_meta).toEqual(meta);
+  });
 });
