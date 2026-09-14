@@ -133,15 +133,27 @@ export function splitByTab(rows: readonly CaptureRow[]): Record<ReviewTabId, Cap
 /**
  * Which tab to open on.
  *
- * Whichever has something in it, preferring what the app found — that is the
- * half a person cannot have seen yet. Decided once, from the first load that
- * carries rows, and never re-decided: a tab that moves under somebody between
- * renders is worse than one that opened on the emptier half.
+ * Whichever has something in it, preferring **what the person added
+ * themselves**. This is a reversal: it used to prefer the found pile, on the
+ * grounds that it is the half nobody has seen yet, and that was the right rule
+ * while the found pile was a handful of drafts an hourly read had turned up.
+ *
+ * It is the wrong rule now that the same pile is the automatic one. A phone
+ * whose messages the app reads tops that half up on its own, forever — open
+ * there and Review is a backlog every single time, a screen that can never look
+ * finished no matter what anybody does to it. The other half is finite: it is
+ * exactly the spends this person caught on purpose and has not filed, and it
+ * empties when they are done. Opening on the half that can reach zero is what
+ * makes the zero state reachable at all.
+ *
+ * Decided once, from the first load that carries rows, and never re-decided: a
+ * tab that moves under somebody between renders is worse than one that opened
+ * on the emptier half.
  */
 export function openingTab(rows: readonly CaptureRow[]): ReviewTabId {
   const split = splitByTab(rows);
-  if (split.found.length > 0) return 'found';
-  return split.added.length > 0 ? 'added' : 'found';
+  if (split.added.length > 0) return 'added';
+  return split.found.length > 0 ? 'found' : 'added';
 }
 
 /** How many drafts are in each pile, folded so one spoken batch counts once. */

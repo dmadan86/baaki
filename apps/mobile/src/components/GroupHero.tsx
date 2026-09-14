@@ -18,6 +18,7 @@ import { useConfirmSettlement, useDisputeSettlement, useSettlementProof } from '
 import { groupLabel, type GroupRow, type MemberRow, type SettlementRow } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { GroupPhoto } from '@/components/GroupPhoto';
+import { HeroActionCircle, HeroPillButton } from '@/components/ScreenHero';
 import { SyncStatusIcon } from '@/components/SyncBanner';
 import { router, useGoBack } from '@/lib/navigation';
 import { useDialog } from '@/lib/dialog';
@@ -54,41 +55,6 @@ function daysToConfirm(initiatedIso: string, now: number = Date.now()): number {
   if (!Number.isFinite(parsed)) return AUTO_CONFIRM_DAYS;
   const left = AUTO_CONFIRM_DAYS * 86_400_000 - (now - parsed);
   return Math.max(1, Math.ceil(left / 86_400_000));
-}
-
-/**
- * One round translucent action on the group hero — a white glyph on a dim white
- * disc, the same on-panel circle the dashboard hero uses. Icon-only; its name
- * rides on the accessibility label.
- */
-function HeroActionCircle({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.lg} color={theme.color.onBrand} />
-    </Pressable>
-  );
 }
 
 /**
@@ -268,26 +234,12 @@ export function GroupHero({
             />
 
             <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-              <Pressable
+              <HeroPillButton
+                label={t.addExpense}
+                icon="add"
+                gradient={heroGradient}
                 onPress={() => router.push(`/group/${groupId}/add-expense`)}
-                accessibilityRole="button"
-                accessibilityLabel={t.addExpense}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: theme.spacing.xs,
-                  paddingVertical: theme.spacing.sm,
-                  paddingHorizontal: theme.spacing.lg,
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: '#FFFFFF',
-                  opacity: pressed ? 0.85 : 1,
-                })}
-              >
-                <Ionicons name="add" size={iconSize.lg} color={heroGradient[0]} />
-                <Text variant="subheading" style={{ color: heroGradient[0] }} numberOfLines={1}>
-                  {t.addExpense}
-                </Text>
-              </Pressable>
+              />
               <Row style={{ marginLeft: 'auto', gap: theme.spacing.sm }}>
                 <HeroActionCircle
                   icon="swap-horizontal"
@@ -331,29 +283,14 @@ export function GroupHero({
                 />
 
                 <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                  <Pressable
-                    onPress={() => confirmSettlement.mutate(settlement.id)}
+                  <HeroPillButton
+                    label={t.group.confirmReceived}
+                    icon="checkmark"
+                    gradient={heroGradient}
                     disabled={busy}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.group.confirmReceived}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: theme.spacing.xs,
-                      paddingVertical: theme.spacing.sm,
-                      paddingHorizontal: theme.spacing.lg,
-                      borderRadius: theme.radius.pill,
-                      backgroundColor: '#FFFFFF',
-                      opacity: pressed ? 0.85 : 1,
-                    })}
-                  >
-                    <Ionicons name="checkmark" size={iconSize.lg} color={heroGradient[0]} />
-                    <Text variant="subheading" style={{ color: heroGradient[0] }} numberOfLines={1}>
-                      {t.group.confirmReceived}
-                    </Text>
-                  </Pressable>
+                    style={{ flex: 1 }}
+                    onPress={() => confirmSettlement.mutate(settlement.id)}
+                  />
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={t.group.rejectSettlement}
@@ -427,26 +364,12 @@ export function GroupHero({
                 style={{ color: theme.color.onBrand }}
               />
               <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-                <Pressable
+                <HeroPillButton
+                  label={fill(t.group.reviewClaims, { count: pendingForMe.length })}
+                  trailingIcon="chevron-forward"
+                  gradient={heroGradient}
                   onPress={() => router.push(`/group/${groupId}/pending`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={fill(t.group.reviewClaims, { count: pendingForMe.length })}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: theme.spacing.xs,
-                    paddingVertical: theme.spacing.sm,
-                    paddingHorizontal: theme.spacing.lg,
-                    borderRadius: theme.radius.pill,
-                    backgroundColor: '#FFFFFF',
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Text variant="subheading" style={{ color: heroGradient[0] }} numberOfLines={1}>
-                    {fill(t.group.reviewClaims, { count: pendingForMe.length })}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={iconSize.md} color={heroGradient[0]} />
-                </Pressable>
+                />
               </Row>
             </View>
           ) : null}
