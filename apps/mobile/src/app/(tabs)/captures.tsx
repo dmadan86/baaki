@@ -9,9 +9,12 @@
  * already granted permission to read those messages, sending somebody to
  * Messages to select, copy, come back and paste is the app refusing to do its
  * job — so the paste box is no longer the shape of this screen. It is the
- * fallback it always was, reachable through a quiet "Add another way", and the
- * primary path only where there is no other: iPhone, where no reading API
- * exists at any tier.
+ * fallback it always was, reachable from the header glyph on a phone that
+ * cannot read, and from the zero state — and the primary path only where there
+ * is no other: iPhone, where no reading API exists at any tier. It has no
+ * footer under the list: a button sitting below a hundred and forty drafts is
+ * one nobody scrolls to, and on a phone that *does* read, an alternative way in
+ * is not something to advertise at all.
  *
  * FOUR THINGS CHANGED, AND EACH ANSWERS A COMPLAINT.
  *
@@ -277,8 +280,9 @@ function CaptureListRow({
   onFile: (() => void) | null;
   /** Take it off the list: it was never an expense. */
   onDismiss: () => void;
-  /** Whether the list is in selection mode, which puts a tick box on the row. */
+  /** Whether this row's tick box is filled. Never set on a `bare` row. */
   selected?: boolean;
+  /** Tick or untick. Absent on a `bare` row — a batch is ticked as one card. */
   onToggleSelected?: () => void;
   /** A row nested in a batch card: no card frame of its own, and no chip. */
   bare?: boolean;
@@ -308,11 +312,17 @@ function CaptureListRow({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      // A checkbox, because that is what a press now does. It read as a button
+      // labelled "file this to Goa" while actually ticking the row — an
+      // announcement of one action and the performance of another, which is the
+      // one accessibility bug a sighted test can never catch. The destination
+      // still rides on the label, because knowing where a draft is headed is
+      // most of what the row says; it is just no longer claimed as the action.
+      accessibilityRole={bare ? 'button' : 'checkbox'}
       accessibilityLabel={
         destinationName
           ? `${title}, ${t.captures.fileTo.replace('{name}', destinationName)}`
-          : `${title}, ${t.captures.assign}`
+          : title
       }
       accessibilityActions={actions}
       onAccessibilityAction={(event) => {
@@ -321,8 +331,11 @@ function CaptureListRow({
         else if (name === 'dismiss') onDismiss();
         else if (name === 'file') onFile?.();
       }}
-      onPress={onToggleSelected}
-      accessibilityState={{ checked: selected }}
+      // A row in the list ticks; a row inside an opened batch still opens the
+      // picker, because it has no tick of its own to give. Without this split a
+      // batch member's press did nothing at all.
+      onPress={bare ? onAssign : onToggleSelected}
+      accessibilityState={bare ? undefined : { checked: selected }}
       style={({ pressed }) =>
         bare
           ? { opacity: pressed ? 0.6 : 1 }
@@ -339,17 +352,24 @@ function CaptureListRow({
       <Row
         style={{ gap: theme.spacing.md, alignItems: 'center', paddingVertical: theme.spacing.md }}
       >
-        {/* Always drawn. Ticking is Review's main verb now — the list is a
-            hundred rows deep on a phone whose messages the app reads, and
-            answering it row by row is not answering, it is data entry. Behind a
-            "Select" button it was a gesture most people never found; in front
-            of them it is the one the screen is for. Same rule, same reasoning,
-            as the Bank messages screen. */}
-        <Ionicons
-          name={selected ? 'checkbox' : 'square-outline'}
-          size={iconSize.lg}
-          color={selected ? theme.color.brand : theme.color.textMuted}
-        />
+        {/* Always drawn — except inside an opened batch. Ticking is Review's
+            main verb now: the list is a hundred rows deep on a phone whose
+            messages the app reads, and answering it row by row is not
+            answering, it is data entry. Behind a "Select" button that was a
+            gesture most people never found; in front of them it is the one the
+            screen is for. Same rule, same reasoning, as Bank messages.
+
+            A `bare` row is a member of an expanded spoken batch. It gets no
+            `onToggleSelected` and is not in `selectableIds` — the batch is
+            ticked as one card — so a box here would be a control that looks
+            live, never fills, and leaves "select all" apparently incomplete. */}
+        {bare ? null : (
+          <Ionicons
+            name={selected ? 'checkbox' : 'square-outline'}
+            size={iconSize.lg}
+            color={selected ? theme.color.brand : theme.color.textMuted}
+          />
+        )}
         <CategoryBadge
           category={capture.category}
           meta={capture.category_meta}
@@ -1487,21 +1507,6 @@ export default function CapturesScreen() {
     </Pressable>
   ) : null;
 
-  // Where pasting lives now. With a reader running it is one quiet line at the
-  // foot of the list — a fallback, labelled as an alternative rather than as the
-  // way in. With nothing reading (every iPhone) it is a real, labelled button,
-  // because it is the only path there is and a consolation prize is not what a
-  // person on an iPhone should be handed.
-  const anotherWay = (
-    <View style={{ alignItems: 'center', paddingTop: theme.spacing.lg }}>
-      <Button
-        label={auto.enabled ? t.captures.addAnotherWay : t.captures.fromMessage}
-        variant={auto.enabled ? 'ghost' : 'secondary'}
-        onPress={() => router.push('/captures/paste')}
-      />
-    </View>
-  );
-
   return (
     <Screen edges={[]}>
       {/* Review opens on the same panel a group does — the gradient running up
@@ -1537,10 +1542,10 @@ export default function CapturesScreen() {
             />
           ) : undefined
         }
-        // With nothing reading, the message path keeps its glyph up here: it is
-        // the main way a spend arrives on an iPhone and must not be buried.
-        // With a reader running, pasting lives at the foot of the list under
-        // "Add another way", and the glyph would be a second door to it.
+        // With nothing reading, the message path keeps its glyph up here: it
+        // is the main way a spend arrives on an iPhone and must not be buried.
+        // With a reader running there is no glyph at all — the app is already
+        // doing the thing the glyph would offer to do by hand.
         actions={
           auto.enabled
             ? []
@@ -1681,7 +1686,6 @@ export default function CapturesScreen() {
           />
         }
         ListHeaderComponent={bankMessagesRow}
-        ListFooterComponent={rows.length > 0 ? anotherWay : null}
         ListEmptyComponent={
           captures.isLoading ? (
             <InboxSkeleton />

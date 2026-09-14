@@ -85,7 +85,7 @@ describe("Review's list cells reserve their own spacing", () => {
   it('spaces every rendered item with padding, never margin', () => {
     const render = captures.match(/const renderItem = useCallback\([\s\S]*?\n {4}\[/);
     expect(render, 'captures should define renderItem').not.toBeNull();
-    expect(render![0]).not.toMatch(/margin[A-Za-z]*:/);
+    expect(render![0]).not.toMatch(/\bmargin[A-Za-z]*:/);
   });
 
   it('spaces the day heading with padding too', () => {
@@ -104,7 +104,7 @@ describe('Review is ticked, not swiped', () => {
     // Behind a "Select" button the tick boxes were a gesture most people never
     // found; in front of them they are the gesture the screen is for. With no
     // `selecting` state there is also no state to get stuck in.
-    expect(captures).not.toMatch(/selecting/);
+    expect(captures).not.toMatch(/\bselecting\b/);
     expect(captures).not.toMatch(/setSelecting\(/);
   });
 
@@ -113,7 +113,7 @@ describe('Review is ticked, not swiped', () => {
     // gesture, and the one it wins is whichever way the finger moved further.
     // Both of the swipe's answers survive as plain rows in the overflow sheet,
     // and "not an expense" also answers a whole ticked pile at once.
-    expect(captures).not.toMatch(/<SwipeRow/);
+    expect(captures).not.toMatch(/<SwipeRow\b/);
     expect(captures).not.toMatch(/from '@\/components\/SwipeRow'/);
   });
 
