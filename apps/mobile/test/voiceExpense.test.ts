@@ -10,6 +10,18 @@ import {
   type VoiceGroupRef,
 } from '@/lib/voiceExpense';
 
+import {
+  detectAddMember,
+  detectBalanceQuery,
+  detectCreateGroup,
+  detectMoneyIntent,
+  detectRelativeGroup,
+  isSelfOnlyVoiceIntent,
+  normalizeDigits,
+  parseVoiceExpenses,
+  voiceAutoAction,
+} from '@/lib/voiceExpense';
+
 const groups: VoiceGroupRef[] = [
   { id: 'g-goa', name: 'Goa Trip' },
   { id: 'g-flat', name: 'Flat 4B' },
@@ -498,18 +510,6 @@ describe('matchMemberNames', () => {
     ).toEqual(all);
   });
 });
-
-import {
-  detectAddMember,
-  detectBalanceQuery,
-  detectCreateGroup,
-  detectMoneyIntent,
-  detectRelativeGroup,
-  isSelfOnlyVoiceIntent,
-  normalizeDigits,
-  parseVoiceExpenses,
-  voiceAutoAction,
-} from '@/lib/voiceExpense';
 
 describe('parseVoiceExpenses (several in one breath)', () => {
   it('splits a comma-and-and list into one expense each', () => {

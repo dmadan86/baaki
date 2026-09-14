@@ -320,11 +320,6 @@ export default function GroupSettingsScreen() {
     otherGroupPeople: fromAnotherGroupOffer.length > 0,
   });
 
-  const openAddFromAnotherGroup = (): void => {
-    requestAddFromAnotherGroup({ groupId, onPicked: (people) => void addPicked(people) });
-    router.push('/add-from-another-group');
-  };
-
   const [name, setName] = useState(group.data?.name ?? '');
   // Seed the name field once the group query resolves (and re-seed if the
   // loaded group changes) — synced in render, the app's idiom for following a

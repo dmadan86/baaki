@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { friendlyError } from '@/lib/errors';
+
 // friendlyError reports the raw error to the crash reporter, which pulls the
 // native Sentry pipeline — stub it so the pure string logic can be tested.
 vi.mock('@/lib/observability', () => ({ reportHandled: vi.fn() }));
-
-import { friendlyError } from '@/lib/errors';
 
 const FALLBACK = 'Could not sign in.';
 const OFFLINE = 'Check your connection.';

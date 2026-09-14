@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { _internals } = require('../plugins/withWavesWidgets.js');
 const { WIDGETS, addReceivers, writeNativeSources } = _internals as {
-  WIDGETS: Array<{ className: string; key: string; label: string; link: string; icon: string }>;
-  addReceivers: (m: unknown) => { manifest: { application: Array<{ receiver?: unknown[] }> } };
+  WIDGETS: { className: string; key: string; label: string; link: string; icon: string }[];
+  addReceivers: (m: unknown) => { manifest: { application: { receiver?: unknown[] }[] } };
   writeNativeSources: (projectRoot: string, pkg: string) => void;
 };
 
@@ -29,11 +29,11 @@ describe('withWavesWidgets — manifest receivers', () => {
   it('adds one exported receiver per widget, each wired to its provider xml', () => {
     const manifest = emptyManifest();
     const out = addReceivers(manifest);
-    const receivers = out.manifest.application[0].receiver as Array<{
+    const receivers = out.manifest.application[0].receiver as {
       $: Record<string, string>;
-      'intent-filter': Array<{ action: Array<{ $: Record<string, string> }> }>;
-      'meta-data': Array<{ $: Record<string, string> }>;
-    }>;
+      'intent-filter': { action: { $: Record<string, string> }[] }[];
+      'meta-data': { $: Record<string, string> }[];
+    }[];
 
     expect(receivers).toHaveLength(WIDGETS.length);
 

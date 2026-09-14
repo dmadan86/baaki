@@ -4,7 +4,7 @@ const sharing = {
   available: true,
   shareAsync: vi.fn(),
 };
-const files: Array<{ uri: string; bytes: number[] }> = [];
+const files: { uri: string; bytes: number[] }[] = [];
 const capture = vi.fn();
 
 vi.mock('expo-sharing', () => ({
