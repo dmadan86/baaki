@@ -88,14 +88,38 @@ describe("Review's list cells reserve their own spacing", () => {
     expect(render![0]).not.toMatch(/margin[A-Za-z]*:/);
   });
 
-  it('spaces the pile heading with padding too', () => {
-    // Bounded by the next declaration rather than by a closing brace: the
-    // destructured parameter list closes at column nought too, so `\n}` ends
-    // the match before the body it was meant to read.
-    const heading = captures.match(/function SectionHeading\([\s\S]*?function DestinationChip/);
-    expect(heading, 'captures should define SectionHeading').not.toBeNull();
-    expect(heading![0]).not.toMatch(/margin[A-Za-z]*:/);
+  it('spaces the day heading with padding too', () => {
+    const heading = captures.match(/case 'day':[\s\S]*?case 'batch':/);
+    expect(heading, 'captures should render a day heading').not.toBeNull();
+    expect(heading![0]).not.toMatch(/margin[A-Za-z]*:/);
     expect(heading![0]).toMatch(/paddingTop:/);
+  });
+});
+
+describe('Review is ticked, not swiped', () => {
+  const captures = source('app/(tabs)/captures.tsx');
+
+  it('draws a tick box on every row, with nothing to switch on first', () => {
+    // The list runs a hundred deep on a phone whose messages the app reads.
+    // Behind a "Select" button the tick boxes were a gesture most people never
+    // found; in front of them they are the gesture the screen is for. With no
+    // `selecting` state there is also no state to get stuck in.
+    expect(captures).not.toMatch(/selecting/);
+    expect(captures).not.toMatch(/setSelecting\(/);
+  });
+
+  it('has no swipe left to disagree with the tick', () => {
+    // A drag that both ticks a row and files it somewhere is two answers to one
+    // gesture, and the one it wins is whichever way the finger moved further.
+    // Both of the swipe's answers survive as plain rows in the overflow sheet,
+    // and "not an expense" also answers a whole ticked pile at once.
+    expect(captures).not.toMatch(/<SwipeRow/);
+    expect(captures).not.toMatch(/from '@\/components\/SwipeRow'/);
+  });
+
+  it('keeps "not an expense" reachable without the swipe', () => {
+    expect(captures).toMatch(/t\.captures\.notAnExpense/);
+    expect(captures).toMatch(/void dismissMany\(items\)/);
   });
 });
 
@@ -127,13 +151,13 @@ describe('review can answer "not an expense" about a whole pile', () => {
     // point of no return, which is also past `guard.blockWrite()`.
     const body = captures.match(/const dismissMany = useCallback\([\s\S]*?\n {4}\[/);
     expect(body, 'captures should define dismissMany').not.toBeNull();
-    expect(body![0]).toMatch(/if \(!ok\) return;[\s\S]*?setSelecting\(false\);/);
+    expect(body![0]).toMatch(/if \(!ok\) return;[\s\S]*?setSelected\(new Set\(\)\);/);
 
     const bulkButton = captures.match(
       /label=\{chosenRows\.every\(wasFound\)[\s\S]*?void dismissMany\(items\);[\s\S]*?\}\}/,
     );
     expect(bulkButton, 'captures should define the bulk dismissal button').not.toBeNull();
-    expect(bulkButton![0]).not.toMatch(/setSelecting\(false\)|setSelected\(new Set\(\)\)/);
+    expect(bulkButton![0]).not.toMatch(/setSelected\(new Set\(\)\)/);
   });
 
   it('lets one refusal fail alone, and keeps its reason', () => {

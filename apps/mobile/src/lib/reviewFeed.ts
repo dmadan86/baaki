@@ -1,49 +1,42 @@
 /**
- * Review, cut into the two piles a person actually feels.
+ * Review's list: one run of drafts, newest first, under day headings.
  *
- * The tab used to be one flat run of drafts under day headings. That is the
- * right shape for a ledger you read and the wrong one for a list of questions
- * you are trying to empty: every row looked equally unsure, so every row had to
- * be opened. The split here is **what the app is sure of** — the only
- * distinction that changes what a person does next:
+ * ## The cut that stayed, and the one that went
  *
- *   * **Ready** — the app has no doubt about this one. A spend you typed, spoke
- *     or photographed, or a bank message it read cleanly. One gesture files it.
- *   * **Worth a look** — the app read this one and was not certain, and says
- *     which part it was unsure of on the row itself.
+ * Two things separate these rows, and only one of them earns a place in the
+ * layout.
  *
- * Not two tabs, deliberately. A tab is a place, and a place has to be worth
- * visiting twice; "worth a look" is a pile you want to *end up with none of*.
- * Sections need no navigation, carry their own counts, and disappear when
- * empty — so a screen with one section looks like a screen with one section,
- * rather than a tab bar with a dead half.
+ * **Where a draft came from** is a tab, and stays one:
  *
- * ## The other cut, which *is* two tabs
+ *   * **SMS** — read out of the phone's bank messages, or pasted in from one.
+ *     Nobody asked for these; the app went and got them, and a person arrives
+ *     wanting to know what it found while they were not looking.
+ *   * **Added by you** — typed, spoken or photographed. Every one is something
+ *     a person did on purpose and already knows about; they are here only
+ *     because they have not been told which group they belong to yet.
  *
- * Confidence is not the only thing that separates these rows, and the second
- * thing does earn a tab where confidence did not:
+ * Two errands, not two degrees of one. "What did it find?" and "where do mine
+ * go?" are asked at different moments and answered by different gestures, and
+ * mixing them meant a morning's bank messages buried the three lunches somebody
+ * typed on purpose.
  *
- *   * **Found for you** — read out of the phone's bank messages. Nobody asked
- *     for these; the app went and got them, and a person arrives wanting to
- *     know what it found while they were not looking.
- *   * **Added by you** — typed, spoken or photographed. Every one of these is
- *     something a person did on purpose and already knows about; they are here
- *     only because they have not been told which group they belong to yet.
+ * **What the app was sure of** used to cut each tab again, into *Ready* and
+ * *Worth a look*, with a counted heading over each. Those headings are gone.
+ * The reasoning for them was sound and the result was not: on a tab holding a
+ * hundred and forty drafts, "READY 134" is a band of furniture above a list
+ * whose first row is about to say the same thing better. Because the doubt is
+ * already **on the row** — `doubtsAbout` drives a mark there, naming the part
+ * the parser was unsure of — the heading was never where a person learned it.
+ * It only said how many, which is a number the tab above already carries.
  *
- * Those are two errands, not two degrees of one. "What did it find?" and
- * "where do mine go?" are asked at different moments and answered by different
- * gestures, and mixing them meant a morning's bank messages buried the three
- * lunches somebody typed on purpose. Both halves are worth visiting twice,
- * which is the test a tab has to pass and "worth a look" failed.
+ * So the confidence cut survives where it was always most useful (the row) and
+ * leaves the layout it was not earning. What remains is the shape a list of
+ * questions wants: the drafts, in the order they arrived, with a day heading
+ * when and only when the pile spans more than one day.
  *
- * The confidence split lives *inside* each tab, unchanged. Only found rows can
- * ever be doubted — a spend a person typed is never second-guessed — so in
- * practice the second tab shows one section and the first shows two, which is
- * exactly what each deserves.
- *
- * Everything here is pure so the arithmetic of "which pile, how many, in what
- * order" can be pinned by a test with no device (mobile's vitest renders
- * nothing; see vitest.config.ts).
+ * Everything here is pure so the arithmetic of "which tab, in what order" can
+ * be pinned by a test with no device (mobile's vitest renders nothing; see
+ * vitest.config.ts).
  */
 
 import { SMS_LOW_CONFIDENCE } from '@waves/core';
@@ -52,17 +45,11 @@ import { groupByDay } from '@/data/activity';
 import type { CaptureRow } from '@/data/types';
 import { foldCaptureBatches, type CaptureInboxItem } from '@/lib/captureFeed';
 
-/** Which pile a draft belongs in. */
-export type ReviewSectionId = 'ready' | 'look';
-
 /**
- * A row in the Review list: a section heading, a day heading under one, or a
- * draft (alone, or a spoken batch folded into one card).
+ * A row in the Review list: a day heading, or a draft (alone, or a spoken batch
+ * folded into one card).
  */
-export type ReviewFeedItem =
-  | { kind: 'section'; key: string; section: ReviewSectionId; count: number }
-  | { kind: 'day'; key: string; section: ReviewSectionId; createdAt: string }
-  | (CaptureInboxItem & { section: ReviewSectionId });
+export type ReviewFeedItem = { kind: 'day'; key: string; createdAt: string } | CaptureInboxItem;
 
 /**
  * What the app was unsure of about one draft, as machine-readable reasons the
@@ -88,11 +75,6 @@ export function doubtsAbout(capture: { parsed?: unknown }): ReviewDoubt[] {
     doubts.push('hard-to-read');
   }
   return doubts;
-}
-
-/** Which pile one draft falls in. */
-export function sectionFor(capture: { parsed?: unknown }): ReviewSectionId {
-  return doubtsAbout(capture).length > 0 ? 'look' : 'ready';
 }
 
 /** Which tab a draft belongs to: what the app found, or what its user added. */
@@ -156,69 +138,38 @@ export function openingTab(rows: readonly CaptureRow[]): ReviewTabId {
   return split.found.length > 0 ? 'found' : 'added';
 }
 
-/** How many drafts are in each pile, folded so one spoken batch counts once. */
-export interface ReviewCounts {
-  readonly ready: number;
-  readonly look: number;
-}
-
 /**
- * The list, in order: Ready first with its count, then Worth a look with its
- * own. A pile with nothing in it contributes no heading at all.
+ * The list, in the order the drafts arrived.
  *
- * Day headings survive inside a pile, but only when the pile actually spans
- * more than one day — a month pasted in one go still reads as a calendar, while
- * the ordinary case (everything caught today) is not made to carry a "TODAY"
- * that says nothing. Batches are folded *within* a pile, which is safe because
- * only SMS drafts can land in the second one and a spoken batch is never one.
+ * Day headings only when the pile actually spans more than one day — a month
+ * pasted in one go still reads as a calendar, while the ordinary case
+ * (everything caught today) is not made to carry a "TODAY" that says nothing.
+ * Expenses spoken in one breath are folded into one card.
  */
-export function buildReviewFeed(rows: readonly CaptureRow[]): {
-  items: ReviewFeedItem[];
-  counts: ReviewCounts;
-} {
-  const piles: Record<ReviewSectionId, CaptureRow[]> = { ready: [], look: [] };
-  for (const row of rows) piles[sectionFor(row)].push(row);
+export function buildReviewFeed(rows: readonly CaptureRow[]): ReviewFeedItem[] {
+  if (rows.length === 0) return [];
 
   const items: ReviewFeedItem[] = [];
-  const counts = { ready: 0, look: 0 };
+  const days = groupByDay(rows);
 
-  for (const section of ['ready', 'look'] as const) {
-    const pile = piles[section];
-    if (pile.length === 0) continue;
-
-    const days = groupByDay(pile);
-    const folded = days.map((day) => ({ day, entries: foldCaptureBatches(day.entries) }));
-    const count = folded.reduce((sum, day) => sum + day.entries.length, 0);
-    counts[section] = count;
-
-    items.push({ kind: 'section', key: `section-${section}`, section, count });
-    for (const { day, entries } of folded) {
-      if (days.length > 1) {
-        const first = day.entries[0];
-        if (first) {
-          items.push({
-            kind: 'day',
-            key: `day-${section}-${day.key}`,
-            section,
-            createdAt: first.created_at,
-          });
-        }
-      }
-      for (const entry of entries) items.push({ ...entry, section });
+  for (const day of days) {
+    if (days.length > 1) {
+      const first = day.entries[0];
+      if (first) items.push({ kind: 'day', key: `day-${day.key}`, createdAt: first.created_at });
     }
+    for (const entry of foldCaptureBatches(day.entries)) items.push(entry);
   }
 
-  return { items, counts };
+  return items;
 }
 
-/** The key FlashList tracks a row by. Unique across both piles. */
+/** The key FlashList tracks a row by. */
 export function reviewItemKey(item: ReviewFeedItem): string {
   switch (item.kind) {
-    case 'section':
     case 'day':
       return item.key;
     case 'batch':
-      return `batch-${item.section}-${item.id}`;
+      return `batch-${item.id}`;
     case 'single':
       return item.capture.id;
   }
