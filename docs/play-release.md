@@ -111,6 +111,45 @@ An AAB cannot be installed on a phone. To test the exact artefact Play will
 serve, use [bundletool](https://github.com/google/bundletool) to build APKs from
 it, or upload to the internal test track and install from there.
 
+## The one permission that can get the app removed
+
+`READ_SMS` is a **restricted** permission. Google Play scans the merged manifest
+of the uploaded artefact, and an app that declares it without an approved core
+use case on the Permissions Declaration Form is **removed** — not "this update is
+rejected", removed. "We never actually call it" is not a defence the scanner can
+hear, and neither is a feature flag: a flag is invisible to a manifest scan, and
+the permission is either in the binary or it is not.
+
+So the rule for this repository is absolute. **The artefact uploaded to Play must
+not contain `READ_SMS`**, which means the Play build is prebuilt with the switch
+off, and the switch is off unless somebody spells it exactly:
+
+```sh
+# The Play artefact. No READ_SMS in the manifest.
+npx expo prebuild --clean --platform android
+
+# A sideloaded build that reads the inbox (A79). Never uploaded to Play.
+WAVES_SMS_READER=1 npx expo prebuild --clean --platform android
+```
+
+Anything other than `1` — unset, `0`, `true`, `yes` — is off, and one spelling is
+accepted on purpose: a permission this consequential should not be turned on by a
+value somebody typed loosely. [`plugins/withSmsReader.js`](../apps/mobile/plugins/withSmsReader.js)
+is where that decision is made; off, it registers no mod at all.
+
+Verify before every upload, on the generated manifest rather than on memory:
+
+```sh
+grep -c READ_SMS apps/mobile/android/app/src/main/AndroidManifest.xml   # must print 0
+```
+
+The app half of this is designed to survive the permission being absent: the
+reader registers only on Android, only in a build that declares the permission,
+only for the treatment arm of the flag and only while the permission is granted,
+and Review still takes a bank message pasted in by hand. See
+[`plan-drafts-and-rules.md`](plan-drafts-and-rules.md) §1.2 for the policy in
+full, and amendment A79 in [`waves-tdr.md`](../waves-tdr.md).
+
 ## What the console needs
 
 ### Account deletion

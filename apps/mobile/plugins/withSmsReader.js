@@ -11,7 +11,8 @@
  * full stop, and that decision has to be made where the manifest is written.
  *
  * See `docs/plan-drafts-and-rules.md` §1.2 for the policy, and
- * `docs/GOOGLE-PLAY.md` for the same rule in this repo's own words.
+ * `docs/play-release.md` ("The one permission that can get the app removed") for
+ * the same rule stated where a release is actually built.
  *
  * HOW IT IS TURNED ON. One environment variable, at prebuild time:
  *
