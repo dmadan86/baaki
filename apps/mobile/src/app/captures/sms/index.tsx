@@ -858,7 +858,14 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
                 link beside a filled pill reads as a footnote, and "set aside"
                 is not a footnote, it is half of what this bar is for. */}
             <Button
-              label={plural(locale, chosen.length, t.smsInbox.setAside)}
+              // Deliberately the singular wording whatever the count is: the
+              // panel above already says how many are ticked, and a button
+              // that repeats it is the label that wrapped and took this bar's
+              // alignment with it. `plural` at 1 gives the countless form in
+              // every language, and falls back the way every other caller does
+              // rather than reaching into the table for a form that is
+              // optional in the type.
+              label={plural(locale, 1, t.smsInbox.setAside)}
               variant="secondary"
               style={{ flex: 1 }}
               // No confirm. Setting aside is reversible — the row comes back
@@ -867,7 +874,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
               onPress={() => void setAside()}
             />
             <Button
-              label={plural(locale, chosen.length, t.smsInbox.addToGroup)}
+              label={t.captures.assignTitle}
               style={{ flex: 1.4 }}
               disabled={placing}
               onPress={() => setPickerOpen(true)}

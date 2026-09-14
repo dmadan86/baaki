@@ -126,6 +126,13 @@ export function Button({
     >
       {icon}
       <Text
+        // One line, always. A button is a fixed-height pill; a label that wraps
+        // inside one does not make the pill taller, it makes the row of pills
+        // it sits in look broken — and the languages this app ships in do not
+        // agree about how long a word is. Truncation is the honest failure
+        // here, and it is a signal to shorten the label rather than to widen
+        // the button.
+        numberOfLines={1}
         variant={size === 'sm' ? 'caption' : 'subheading'}
         tone={
           variant === 'primary' ||
