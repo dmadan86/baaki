@@ -284,6 +284,9 @@ const ICON_KEYWORDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['wallet-outline', ['wallet', 'upi', 'gpay', 'phonepe', 'paytm', 'transfer']],
   ['cash-outline', ['cash', 'advance']],
   ['receipt-outline', ['bill', 'receipt', 'invoice']],
+  // Last in the money group, so a row that names both its bank and what it
+  // bought keeps the more specific reading — "HDFC fuel" is a pump, not a bank.
+  ['business-outline', ['bank', 'atm', 'branch']],
 ];
 
 /**

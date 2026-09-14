@@ -230,37 +230,63 @@ export function reasonsPresent(rows: readonly StoredSms[]): SmsOtherReason[] {
 // ──────────────────────────────────────────────────────────── totals ──
 
 export interface SmsTotal {
+  /** How many rows are in the set, counted however they add up. */
   readonly count: number;
-  /** Null when the rows are not all one currency — then no total is shown. */
+  /** What the countable ones come to, or null when none of them were. */
   readonly total: bigint | null;
   readonly currency: string;
+  /**
+   * Rows the total leaves out: a different currency, or an amount the ledger
+   * could not read. Never hidden — a total that quietly skipped rows would be a
+   * number the reader has no reason to doubt and no way to check.
+   */
+  readonly uncounted: number;
 }
 
 /**
  * What a set of rows comes to — the band under the tabs, and the selection bar.
  *
- * A mixed-currency set gets no total rather than a wrong one: adding ₹400 to
- * $12 produces a number that is true of nothing. The count is still right, and
- * everything still works — placing drafts in two currencies into one group is
- * something the ledger handles perfectly well.
+ * This used to answer "null" the moment anything in the set was awkward: one
+ * row in another currency, or one amount the parser had mangled, and fifteen
+ * perfectly good rupee rows showed no total at all. The band went blank, which
+ * reads as a bug rather than as caution, and the reader is left adding a column
+ * of numbers up by hand.
+ *
+ * So it counts what it can and says what it left out. The majority currency is
+ * the first row's — these sets are one country's bank messages in practice, and
+ * a foreign row or two is the exception the count names rather than the reason
+ * to give up. Adding ₹400 to $12 still never happens: the dollar row is
+ * excluded and reported, not converted.
  */
 export function sumOf(rows: readonly StoredSms[]): SmsTotal {
-  if (rows.length === 0) return { count: 0, total: null, currency: '' };
+  if (rows.length === 0) return { count: 0, total: null, currency: '', uncounted: 0 };
   const currency = rows[0]!.currency;
-  const oneCurrency = rows.every((row) => row.currency === currency);
-  if (!oneCurrency) return { count: rows.length, total: null, currency };
 
   let total = 0n;
+  let counted = 0;
+  let uncounted = 0;
   for (const row of rows) {
-    try {
-      total += BigInt(row.amount);
-    } catch {
-      // A row whose amount the ledger could not take is counted but not added
-      // up; `planCaptureAssign` reports it as unusable when it is placed.
-      return { count: rows.length, total: null, currency };
+    if (row.currency !== currency) {
+      uncounted += 1;
+      continue;
     }
+    // A row whose amount the ledger could not take is counted in `count` and
+    // named in `uncounted`; `planCaptureAssign` reports it as unusable when it
+    // is placed, so it is never silently lost either way.
+    if (!/^-?\d+$/.test(row.amount.trim())) {
+      uncounted += 1;
+      continue;
+    }
+    total += BigInt(row.amount.trim());
+    counted += 1;
   }
-  return { count: rows.length, total, currency };
+
+  return {
+    count: rows.length,
+    total: counted > 0 ? total : null,
+    currency,
+    uncounted,
+  };
 }
 
 /** The ticked rows, in the order the list shows them. */
