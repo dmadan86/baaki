@@ -1073,6 +1073,8 @@ export default function CapturesScreen() {
         });
         if (!ok) return;
       }
+      setSelecting(false);
+      setSelected(new Set());
       let failed = 0;
       for (const item of items) {
         try {
@@ -2015,8 +2017,6 @@ export default function CapturesScreen() {
               size="sm"
               onPress={() => {
                 const items = chosenRows;
-                setSelecting(false);
-                setSelected(new Set());
                 void dismissMany(items);
               }}
             />

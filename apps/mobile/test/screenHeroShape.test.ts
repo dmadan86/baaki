@@ -79,6 +79,18 @@ describe('review can answer "not an expense" about a whole pile', () => {
     expect(body![0]).toMatch(/if \(!allFound\) \{[\s\S]*?await confirm\(\{/);
   });
 
+  it('keeps a mixed user, rider, traveller and financer selection if the delete is cancelled', () => {
+    const body = captures.match(/const dismissMany = useCallback\([\s\S]*?\n {4}\[/);
+    expect(body, 'captures should define dismissMany').not.toBeNull();
+    expect(body![0]).toMatch(/if \(!ok\) return;[\s\S]*?setSelecting\(false\);/);
+
+    const bulkButton = captures.match(
+      /label=\{chosenRows\.every\(wasFound\)[\s\S]*?void dismissMany\(items\);[\s\S]*?\}\}/,
+    );
+    expect(bulkButton, 'captures should define the bulk dismissal button').not.toBeNull();
+    expect(bulkButton![0]).not.toMatch(/setSelecting\(false\)|setSelected\(new Set\(\)\)/);
+  });
+
   it('lets one refusal fail alone', () => {
     // Every other batch on this screen works this way: a draft the queue
     // refuses stays on the list rather than vanishing into a success message
