@@ -27,14 +27,18 @@ import { Button, Card, Divider, iconSize, Row, SegmentedTabs, Text, useTheme } f
 
 import { groupLabel, GroupType, type GroupRow } from '@/data/types';
 import { matchesAssignGroupQuery } from '@/lib/captureAssign';
+import {
+  initialDestinationTab,
+  initialPickedPeople,
+  type DestinationPersonChoice,
+  type DestinationSelectionSeed,
+} from '@/lib/destinationPickerState';
 import type { UiStrings } from '@/i18n';
 
 /** A person this expense can be pointed at: an existing 1:1 contact, surfaced by
  *  name, whose own group is reused rather than a second one being made. */
-export interface PersonChoice {
+export interface PersonChoice extends DestinationPersonChoice {
   personKey: string;
-  name: string;
-  groupId: string;
 }
 
 /** A single-tap choice: one place, chosen, sheet closed. People are not here —
@@ -46,13 +50,7 @@ export type DestinationChoice =
   | { kind: 'existing'; groupId: string };
 
 /** Which row reads back as chosen. `none` is a picker opened on nothing yet. */
-export type DestinationSelection =
-  | { kind: 'none' }
-  | { kind: 'unassigned' }
-  | { kind: 'me' }
-  | { kind: 'create' }
-  | { kind: 'existing'; groupId: string }
-  | { kind: 'people'; names: readonly string[] };
+export type DestinationSelection = DestinationSelectionSeed;
 
 /** One Ionicon per group type, the fallback when a group has no cover emoji —
  * echoing the new-group picker and the dashboard's category glyphs. */
@@ -121,19 +119,14 @@ export function DestinationPicker({
   // back: the People tab for a people destination, and also for an existing group
   // that is really a 1:1 contact (its id is one the People tab represents);
   // otherwise Groups. Re-seeded on each open by the remount key at the call site.
-  const [tab, setTab] = useState<'groups' | 'people'>(
-    selection.kind === 'people' ||
-      (selection.kind === 'existing' &&
-        people.some((person) => person.groupId === selection.groupId))
-      ? 'people'
-      : 'groups',
+  const [tab, setTab] = useState<'groups' | 'people'>(() =>
+    initialDestinationTab(selection, people),
   );
   // People are chosen as a set and confirmed — a group is one place, but an
   // expense can be with several people at once. Seeded from a people destination
-  // so the running selection reads back when the sheet reopens.
-  const [picked, setPicked] = useState<string[]>(() =>
-    selection.kind === 'people' ? [...selection.names] : [],
-  );
+  // or from an existing 1:1 group, so the running selection reads back when the
+  // sheet reopens.
+  const [picked, setPicked] = useState<string[]>(() => initialPickedPeople(selection, people));
   // One box for both jobs, the way WhatsApp's new-group search is: it filters the
   // contacts you already have and, for a name nobody matches, adds a new person.
   const [query, setQuery] = useState('');

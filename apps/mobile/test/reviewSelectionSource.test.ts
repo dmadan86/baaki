@@ -1,8 +1,8 @@
 /**
  * Review selection is a screen interaction, but the failure mode is structural:
  * hidden batch members must not count as visible checkboxes, and every batch
- * placement path must clear the selection. The source is small enough to pin
- * those contracts without mounting the native screen.
+ * placement path must clear only drafts that actually landed. The source is
+ * small enough to pin those contracts without mounting the native screen.
  *
  * There is no longer a selection *mode* to end — the tick boxes are always out,
  * so `setSelecting(false)` has no meaning and clearing the ticks is the whole of
@@ -39,18 +39,29 @@ describe('Review selection source contracts', () => {
     );
   });
 
-  it('clears the ticks when a whole batch is placed into a new group or Just me', () => {
+  it('clears the ticks when a whole batch is placed into a new group', () => {
     const assignToPeople = SCREEN.slice(
       SCREEN.indexOf('const assignToPeople = useCallback('),
       SCREEN.indexOf('const closeMenu = useCallback('),
     );
+
+    expect(assignToPeople).toContain('setSelected(new Set());');
+  });
+
+  it('keeps Just me ticks until personal placement reports which drafts landed', () => {
     const pickerMe = SCREEN.slice(
       SCREEN.indexOf("} else if (choice.kind === 'me')"),
       SCREEN.indexOf("} else if (choice.kind === 'create'"),
     );
+    const bulkMe = SCREEN.slice(
+      SCREEN.indexOf('label={t.voice.justMe}'),
+      SCREEN.indexOf('label={plural(locale, chosenRows.length, t.smsInbox.addToGroup)}'),
+    );
 
-    expect(assignToPeople).toContain('setSelected(new Set());');
-    expect(pickerMe).toContain("if (target.kind === 'batch')");
-    expect(pickerMe).toContain('setSelected(new Set());');
+    expect(pickerMe).toContain('.then((done) =>');
+    expect(pickerMe).not.toContain('setSelected(new Set());');
+    expect(bulkMe).toContain('.then((done) =>');
+    expect(bulkMe).not.toContain('setSelected(new Set());');
+    expect(bulkMe).toContain('for (const id of done) next.delete(id);');
   });
 });

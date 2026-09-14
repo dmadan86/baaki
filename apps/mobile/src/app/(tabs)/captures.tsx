@@ -1889,13 +1889,21 @@ export default function CapturesScreen() {
                 chooseExistingGroup(target, choice.groupId);
               } else if (choice.kind === 'me') {
                 closeAssign();
-                if (target.kind === 'batch') {
-                  setSelected(new Set());
-                }
+                // Only the drafts that actually landed lose their tick. The
+                // personal path reports which those are for exactly this
+                // reason: clearing the lot up front tells somebody six went
+                // when five did, and leaves the sixth on the list with nothing
+                // pointing at it. What refused stays ticked, ready to retry.
                 void placeInPersonal({
                   lockKey: target.kind === 'capture' ? target.capture.id : target.items[0]!.id,
                   items: target.kind === 'capture' ? [target.capture] : target.items,
-                });
+                }).then((done) =>
+                  setSelected((current) => {
+                    const next = new Set(current);
+                    for (const id of done) next.delete(id);
+                    return next;
+                  }),
+                );
               } else if (choice.kind === 'create' && target.kind === 'capture') {
                 closeAssign();
                 router.push({
@@ -1974,8 +1982,15 @@ export default function CapturesScreen() {
               style={{ flex: 1 }}
               onPress={() => {
                 const items = chosenRows;
-                setSelected(new Set());
-                void placeInPersonal({ lockKey: items[0]!.id, items });
+                // Same rule as the sheet's own "Just me": untick what landed,
+                // leave what refused where a person can see and retry it.
+                void placeInPersonal({ lockKey: items[0]!.id, items }).then((done) =>
+                  setSelected((current) => {
+                    const next = new Set(current);
+                    for (const id of done) next.delete(id);
+                    return next;
+                  }),
+                );
               }}
             />
             <Button
