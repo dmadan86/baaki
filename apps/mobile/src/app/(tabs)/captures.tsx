@@ -1845,12 +1845,18 @@ export default function CapturesScreen() {
                 chooseExistingGroup(target, choice.groupId);
               } else if (choice.kind === 'me') {
                 closeAssign();
-                if (target.kind === 'batch') {
-                  setSelected(new Set());
-                }
+                const items = target.kind === 'capture' ? [target.capture] : target.items;
                 void placeInPersonal({
                   lockKey: target.kind === 'capture' ? target.capture.id : target.items[0]!.id,
-                  items: target.kind === 'capture' ? [target.capture] : target.items,
+                  items,
+                }).then((done) => {
+                  if (target.kind === 'batch') {
+                    setSelected((current) => {
+                      const next = new Set(current);
+                      for (const id of done) next.delete(id);
+                      return next;
+                    });
+                  }
                 });
               } else if (choice.kind === 'create' && target.kind === 'capture') {
                 closeAssign();
@@ -1926,8 +1932,13 @@ export default function CapturesScreen() {
               style={{ flex: 1 }}
               onPress={() => {
                 const items = chosenRows;
-                setSelected(new Set());
-                void placeInPersonal({ lockKey: items[0]!.id, items });
+                void placeInPersonal({ lockKey: items[0]!.id, items }).then((done) => {
+                  setSelected((current) => {
+                    const next = new Set(current);
+                    for (const id of done) next.delete(id);
+                    return next;
+                  });
+                });
               }}
             />
             <Button
