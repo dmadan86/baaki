@@ -128,27 +128,48 @@ export function planPersonalPlacement(input: {
  * rather than thrown: the caller needs to say how many landed *and* how many
  * did not, and a throw would lose the first half.
  */
+export interface PersonalOutcome {
+  readonly done: string[];
+  readonly failed: number;
+  /**
+   * Why the first failure failed, kept rather than dropped.
+   *
+   * This used to be a bare `catch {}`, and that was a mistake worth naming: the
+   * loop counted a refusal and threw away the only thing that could explain it,
+   * so the person was told "couldn't save this — try again in a moment" whether
+   * the cause was a dead network (true, retry works) or something permanent
+   * (false, retry never works), and nothing reached Sentry either. An error
+   * nobody looks at is an error nobody can fix.
+   *
+   * The first rather than all of them: a pile that fails usually fails for one
+   * reason, and the caller has room to say one thing.
+   */
+  readonly firstError: unknown;
+}
+
 export async function runPersonalPlacement(input: {
   readonly plan: PersonalPlan;
   /** Queue the record. Rejecting means the draft is kept. */
   readonly upsert: (write: PersonalWrite) => Promise<unknown>;
   /** Close the draft. Only ever called after `upsert` has resolved. */
   readonly close: (captureId: string) => Promise<unknown>;
-}): Promise<{ done: string[]; failed: number }> {
+}): Promise<PersonalOutcome> {
   const done: string[] = [];
   // A draft whose amount the ledger cannot take never had a write to try, so it
   // starts out already counted as a failure rather than being skipped silently.
   let failed = input.plan.unusable.length;
+  let firstError: unknown = undefined;
 
   for (const write of input.plan.writes) {
     try {
       await input.upsert(write);
       await input.close(write.captureId);
       done.push(write.captureId);
-    } catch {
+    } catch (caught) {
       failed += 1;
+      if (firstError === undefined) firstError = caught;
     }
   }
 
-  return { done, failed };
+  return { done, failed, firstError };
 }

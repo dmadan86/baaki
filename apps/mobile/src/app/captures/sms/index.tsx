@@ -272,6 +272,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
 
         const done: string[] = [];
         let failed = unusable.length + plan.unusable.length;
+        let firstError: unknown = undefined;
         for (const write of plan.writes) {
           try {
             await mutate(MutationKind.ExpenseCreate, input.groupId, write.payload);
@@ -285,8 +286,11 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
               });
             }
             done.push(write.captureId);
-          } catch {
+          } catch (caught) {
             failed += 1;
+            // Kept rather than dropped: a counted refusal with its reason
+            // discarded is a failure nobody can look at afterwards.
+            if (firstError === undefined) firstError = caught;
           }
         }
 
@@ -311,7 +315,19 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
           );
         }
         if (failed > 0) {
-          toast.show(plural(locale, failed, t.captures.assignBatchSomeFailed), 'negative');
+          // The count *and* the reason. A refusal reported only as a number is
+          // one nobody can act on or look up afterwards; `friendlyError` renders
+          // it and reports it in the same breath.
+          const why =
+            firstError === undefined
+              ? null
+              : friendlyError(firstError, t.captures.couldNotSave, 'sms.placeItem');
+          toast.show(
+            [plural(locale, failed, t.captures.assignBatchSomeFailed), why]
+              .filter(Boolean)
+              .join(' '),
+            'negative',
+          );
         }
       } catch (caught) {
         toast.show(friendlyError(caught, t.captures.couldNotSave, 'sms.place'), 'negative');

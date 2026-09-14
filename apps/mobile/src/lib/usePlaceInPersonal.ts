@@ -97,9 +97,21 @@ export function usePlaceInPersonal(): (input: {
         // Something did not land, so this is said in a dialog rather than a
         // toast that fades: it names how many are still waiting, and (when some
         // did land) how many did, so neither half of a partial run is implied.
+        //
+        // And it names *why*. The reason used to be discarded by the loop, so
+        // every failure read the same — "try again in a moment", which is a
+        // guess, and a wrong one whenever the cause is not going to pass on its
+        // own. `friendlyError` turns the exception into words a person can act
+        // on and reports it, so the next one of these is diagnosable instead of
+        // being described.
         const lines: string[] = [];
         if (placed > 0) lines.push(plural(locale, placed, t.captures.placedInPersonal));
         lines.push(plural(locale, failed, t.captures.assignBatchSomeFailed));
+        if (outcome.firstError !== undefined) {
+          lines.push(
+            friendlyError(outcome.firstError, t.captures.couldNotSave, 'captures.personal'),
+          );
+        }
         await notify({ title: t.captures.title, body: lines.join('\n\n') });
         return done;
       } catch (caught) {

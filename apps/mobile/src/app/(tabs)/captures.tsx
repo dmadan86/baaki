@@ -28,9 +28,9 @@
  *    button that adds to it.
  *
  * 2. **Two errands in tabs, two confidences in sections.** The tabs are *where
- *    a draft came from*: what the app found in the phone's bank messages
- *    (labelled "SMS" where it really is reading them), and what this person
- *    added on purpose. Inside whichever tab is open, the list is cut again into
+ *    a draft came from*: **SMS** — read off the phone's inbox, or pasted in on
+ *    an iPhone, which is still a bank message — and what this person added on
+ *    purpose. Inside whichever tab is open, the list is cut again into
  *    **Ready** and **Worth a look** — a split by what the parser is *sure of*.
  *    Two questions, asked at different moments, and `lib/reviewFeed.ts` carries
  *    both rules and the reasoning; the sections stay sections because they need
@@ -227,8 +227,12 @@ function SectionHeading({
       style={{
         gap: theme.spacing.sm,
         alignItems: 'center',
-        marginTop: theme.spacing.lg,
-        marginBottom: theme.spacing.xs,
+        // Padding, never margin. This Row is the root of a FlashList cell, and
+        // FlashList measures a cell without its outer margins — so a margin
+        // here is height the list does not know about, and the heading is drawn
+        // half under the row above it. That is the clipped "READY 134".
+        paddingTop: theme.spacing.lg,
+        paddingBottom: theme.spacing.xs,
       }}
     >
       <Text
@@ -898,7 +902,7 @@ export default function CapturesScreen() {
   // live before the first load carries rows is the tab seeding will choose.
   const activeTab: ReviewTabId = tab ?? 'added';
   const tabRows = byTab[activeTab];
-  const { items: feedItems, counts } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
+  const { items: feedItems } = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
 
   // Ticking several drafts and placing them together. Held as ids rather than
   // rows so a refresh that replaces the row objects does not silently drop a
@@ -931,7 +935,6 @@ export default function CapturesScreen() {
       return next;
     });
   }, []);
-  const waitingCount = counts.ready + counts.look;
 
   // Every row's destination, worked out once per render of the list rather than
   // per recycled row: the group the draft was tagged for, else the group this
@@ -1085,15 +1088,23 @@ export default function CapturesScreen() {
       setSelecting(false);
       setSelected(new Set());
       let failed = 0;
+      let firstError: unknown = undefined;
       for (const item of items) {
         try {
           await deleteCapture.mutateAsync(item.id);
-        } catch {
+        } catch (caught) {
           failed += 1;
+          if (firstError === undefined) firstError = caught;
         }
       }
       if (failed === 0) toast.show(t.captures.notAnExpenseDone);
-      else toast.show(t.captures.couldNotSave, 'negative');
+      // The reason, not a guess at it — and reported, so a failure here is
+      // something that can be looked at rather than only described.
+      else
+        toast.show(
+          friendlyError(firstError, t.captures.couldNotSave, 'captures.dismissMany'),
+          'negative',
+        );
     },
     [
       confirm,
@@ -1161,6 +1172,10 @@ export default function CapturesScreen() {
         let placed = 0;
         // A draft whose amount the ledger cannot take never had a write to try.
         let failed = plan.unusable.length;
+        // Kept rather than dropped. A bare `catch {}` here counted the refusal
+        // and threw away the only thing that could explain it, so every failure
+        // read alike and none of them reached Sentry.
+        let firstError: unknown = undefined;
         for (const write of plan.writes) {
           try {
             await mutate(MutationKind.ExpenseCreate, input.groupId, write.payload);
@@ -1172,8 +1187,9 @@ export default function CapturesScreen() {
               expenseId: write.expenseId,
             });
             placed += 1;
-          } catch {
+          } catch (caught) {
             failed += 1;
+            if (firstError === undefined) firstError = caught;
           }
         }
 
@@ -1195,6 +1211,12 @@ export default function CapturesScreen() {
           );
         }
         lines.push(plural(locale, failed, t.captures.assignBatchSomeFailed));
+        // And why, in words a person can act on. "Try again in a moment" is a
+        // guess, and a wrong one whenever the cause is not going to pass on its
+        // own; `friendlyError` reports the exception as it renders it.
+        if (firstError !== undefined) {
+          lines.push(friendlyError(firstError, t.captures.couldNotSave, 'captures.assignBatch'));
+        }
         await notify({ title: t.captures.title, body: lines.join('\n\n') });
       } catch (caught) {
         // The callers fire this without awaiting it, so anything the planning
@@ -1399,8 +1421,10 @@ export default function CapturesScreen() {
               tone="muted"
               style={{
                 textTransform: 'uppercase',
-                marginTop: theme.spacing.md,
-                marginBottom: theme.spacing.xs,
+                // Padding, for the same reason as the section heading above:
+                // a margin on a cell root is height FlashList cannot see.
+                paddingTop: theme.spacing.md,
+                paddingBottom: theme.spacing.xs,
               }}
             >
               {dayHeading(locale, item.createdAt)}
@@ -1408,7 +1432,7 @@ export default function CapturesScreen() {
           );
         case 'batch':
           return (
-            <View style={{ marginVertical: theme.spacing.xs }}>
+            <View style={{ paddingVertical: theme.spacing.xs }}>
               <BatchGroupCard
                 items={item.items}
                 locale={locale}
@@ -1459,7 +1483,7 @@ export default function CapturesScreen() {
             />
           );
           return (
-            <View style={{ marginVertical: theme.spacing.xs }}>
+            <View style={{ paddingVertical: theme.spacing.xs }}>
               {/* No swipe while selecting. A drag that both ticks a row and
                   files it somewhere is two answers to one gesture, and the one
                   it would pick is whichever the finger moved further toward.
@@ -1632,13 +1656,20 @@ export default function CapturesScreen() {
         }
       >
         <View style={{ gap: theme.spacing.md }}>
-          {waitingCount > 0 ? (
+          {rows.length > 0 ? (
             <>
               <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
                 {t.captures.heroWaiting}
               </Text>
-              <Text variant="title" tone="onBrand">
-                {plural(locale, waitingCount, t.captures.unassignedBody)}
+              {/* The whole screen's figure, not the open tab's: a hero number
+                  that changed every time you touched a tab would be part of the
+                  tab rather than the screen. Counted the way the tabs count —
+                  one per draft, a spoken batch of two counting twice — so the
+                  three numbers on this screen agree. And short enough to stay
+                  on one line, which "N expenses waiting to be added" was not:
+                  at 140 it wrapped and took the panel with it. */}
+              <Text variant="title" tone="onBrand" numberOfLines={1}>
+                {plural(locale, rows.length, t.captures.batchExpenses)}
               </Text>
             </>
           ) : (
@@ -1709,16 +1740,14 @@ export default function CapturesScreen() {
               },
               {
                 value: 'found' as ReviewTabId,
-                // Named for where it comes from where that is a real answer. On
-                // a phone whose bank messages the app reads, "SMS" says at a
-                // glance which half fills itself. On an iPhone nothing reads
-                // anything — the pile is whatever was pasted in — so the name
-                // stays the favour rather than claiming a source the app never
-                // had access to.
-                label: countLabel(
-                  smsReader ? t.captures.tabSms : t.captures.tabFound,
-                  byTab.found.length,
-                ),
+                // "SMS", on every phone. Everything in this pile carries
+                // `source: 'sms'`, which only the message paths write — read off
+                // the inbox on an Android that may, pasted in on an iPhone,
+                // which cannot at any tier. Either way the thing it was made
+                // from was a bank message, so the source is a true name on both
+                // and a more useful one than the favour: it says at a glance
+                // which half of Review fills itself.
+                label: countLabel(t.captures.tabSms, byTab.found.length),
                 icon: (color) => (
                   <Ionicons name="chatbubbles-outline" size={iconSize.md} color={color} />
                 ),
@@ -1739,17 +1768,16 @@ export default function CapturesScreen() {
             paddingHorizontal: theme.spacing.xl,
             paddingVertical: theme.spacing.xs,
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             gap: theme.spacing.md,
           }}
         >
-          {/* Always what is in this tab, never what is ticked: the action bar
-              that appears the moment anything is ticked carries that count
-              directly above the buttons it applies to, and the same number in
-              two bands is one of them saying nothing. */}
-          <Text variant="micro" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
-            {plural(locale, counts.ready + counts.look, t.captures.unassignedBody)}
-          </Text>
+          {/* Nothing on the left any more. This band used to open with "140
+              expenses waiting to be added" — the same sentence the hero says,
+              two centimetres above it, in the same words. A screen that says
+              one thing twice has said it once and wasted a band. The count
+              lives on the hero; the tab says how it splits; the action bar says
+              how many are ticked. Three numbers, three questions, no repeats. */}
           <Row style={{ gap: theme.spacing.xs, alignItems: 'center' }}>
             {selecting ? (
               <Button
