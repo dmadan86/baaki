@@ -2751,6 +2751,8 @@ export interface UiStrings {
     selected: PluralForms;
     selectAll: string;
     selectNone: string;
+    /** Rows a total leaves out — a different currency, or an unreadable amount. */
+    notCounted: PluralForms;
     addToGroup: PluralForms;
     setAside: PluralForms;
     setAsideDone: PluralForms;
@@ -5546,6 +5548,10 @@ const en: UiStrings = {
     selected: { one: '{n} selected', other: '{n} selected' },
     selectAll: 'Select all',
     selectNone: 'Clear',
+    notCounted: {
+      one: '{n} not counted',
+      other: '{n} not counted',
+    },
     addToGroup: { one: 'Add to a group', other: 'Add {n} to a group' },
     setAside: { one: 'Set aside', other: 'Set aside {n}' },
     setAsideDone: { one: 'Set aside', other: '{n} set aside' },
@@ -8430,6 +8436,10 @@ const ta: UiStrings = {
     selected: { one: '{n} தேர்ந்தெடுக்கப்பட்டது', other: '{n} தேர்ந்தெடுக்கப்பட்டன' },
     selectAll: 'எல்லாவற்றையும் தேர்வு',
     selectNone: 'அழி',
+    notCounted: {
+      one: '{n} கணக்கிடப்படவில்லை',
+      other: '{n} கணக்கிடப்படவில்லை',
+    },
     addToGroup: { one: 'ஒரு குழுவில் சேர்', other: '{n} ஐ ஒரு குழுவில் சேர்' },
     setAside: { one: 'ஒதுக்கி வை', other: '{n} ஐ ஒதுக்கி வை' },
     setAsideDone: { one: 'ஒதுக்கப்பட்டது', other: '{n} ஒதுக்கப்பட்டன' },
@@ -11255,6 +11265,10 @@ const hi: UiStrings = {
     selected: { one: '{n} चुना गया', other: '{n} चुने गए' },
     selectAll: 'सब चुनें',
     selectNone: 'हटाएँ',
+    notCounted: {
+      one: '{n} गिना नहीं गया',
+      other: '{n} गिने नहीं गए',
+    },
     addToGroup: { one: 'ग्रुप में जोड़ें', other: '{n} को ग्रुप में जोड़ें' },
     setAside: { one: 'अलग रखें', other: '{n} अलग रखें' },
     setAsideDone: { one: 'अलग रखा गया', other: '{n} अलग रखे गए' },
@@ -14348,6 +14362,13 @@ const ar: UiStrings = {
     },
     selectAll: 'حدد الكل',
     selectNone: 'مسح',
+    notCounted: {
+      one: 'واحد غير محتسب',
+      two: 'اثنان غير محتسبين',
+      few: '{n} غير محتسبة',
+      many: '{n} غير محتسبًا',
+      other: '{n} غير محتسب',
+    },
     addToGroup: {
       zero: 'أضف إلى مجموعة',
       one: 'أضف إلى مجموعة',

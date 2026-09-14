@@ -284,23 +284,35 @@ describe('ticking rows', () => {
 describe('what the ticked rows come to', () => {
   it('adds up one currency', () => {
     const total = sumOf([row({ amount: '25000' }), row({ amount: '75000' })]);
-    expect(total).toEqual({ count: 2, total: 100000n, currency: 'INR' });
+    expect(total).toEqual({ count: 2, total: 100000n, currency: 'INR', uncounted: 0 });
   });
 
-  it('refuses to add up two', () => {
-    // ₹400 + $12 is a number true of nothing. The count still is true.
+  it('still never adds two currencies together', () => {
+    // ₹400 + $12 is a number true of nothing, so the dollar row is left out —
+    // and said out loud, rather than taking the rupee total down with it.
     const total = sumOf([row({ amount: '40000' }), row({ amount: '1200', currency: 'USD' })]);
-    expect(total.count).toBe(2);
-    expect(total.total).toBeNull();
+    expect(total).toEqual({ count: 2, total: 40000n, currency: 'INR', uncounted: 1 });
   });
 
-  it('does not fall over on an amount the ledger could not take', () => {
+  it('counts the good rows around one the ledger could not take', () => {
+    // The bug this fixes: one mangled amount used to blank the whole band, and
+    // an empty total reads as broken rather than as careful.
+    const total = sumOf([
+      row({ amount: '25000' }),
+      row({ amount: 'not-a-number' }),
+      row({ amount: '75000' }),
+    ]);
+    expect(total).toEqual({ count: 3, total: 100000n, currency: 'INR', uncounted: 1 });
+  });
+
+  it('has no total when nothing at all could be counted', () => {
     const total = sumOf([row({ amount: 'not-a-number' })]);
     expect(total.count).toBe(1);
     expect(total.total).toBeNull();
+    expect(total.uncounted).toBe(1);
   });
 
   it('is nothing for nothing', () => {
-    expect(sumOf([])).toEqual({ count: 0, total: null, currency: '' });
+    expect(sumOf([])).toEqual({ count: 0, total: null, currency: '', uncounted: 0 });
   });
 });

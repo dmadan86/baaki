@@ -36,6 +36,7 @@ import { CategoryBadge } from '@/components/Category';
 import { dayHeading } from '@/data/activity';
 import type { UiStrings } from '@/i18n';
 import { doubtsAbout, reachedReview } from '@/lib/smsInbox';
+import { bankFromSender } from '@/lib/smsPlain';
 import type { StoredSms } from '@/lib/smsMessageTypes';
 
 /** The words for why a row is in the third pile. */
@@ -80,7 +81,25 @@ export const SmsMessageRow = memo(function SmsMessageRow({
   const doubts = doubtsAbout(row);
   const reason = reasonWords(row.reason, t);
   const inReview = reachedReview(row);
-  const name = row.merchant ?? t.smsInbox.noShopNamed;
+
+  // The bank, in the words a person uses for it. `lib/smsPlain` states the rule
+  // this follows — *when we do not know, we say nothing* — and the row was
+  // breaking it: it printed `row.sender` raw, so a column of payments read
+  // "AD-AXISBK-S", which is an operator prefix, a registered header and a
+  // message-category letter, two thirds of it routing. A code on the screen is
+  // worse than a blank, because a blank is honestly empty and a code looks like
+  // information the reader is failing to understand.
+  const bank = bankFromSender(row.sender);
+
+  // A great many bank messages name no shop — a UPI transfer, an ATM, a bill.
+  // Three rows reading "No shop named" down a column tell the reader nothing
+  // and look broken. The bank is the next truest thing about such a row, and it
+  // is something a person recognises, so it takes the line and the placeholder
+  // becomes the last resort it should always have been.
+  const name = row.merchant ?? bank ?? t.smsInbox.noShopNamed;
+  // Only where it is not already the title — a row that said "Axis Bank · Axis
+  // Bank" would be repeating itself to fill space.
+  const secondary = row.merchant && bank ? bank : null;
 
   // Money coming in reads as a credit; everything else reads as money leaving.
   // The sign is carried by the colour *and* the words beside it, never colour
@@ -126,7 +145,12 @@ export const SmsMessageRow = memo(function SmsMessageRow({
         {/* The glyph is guessed from the shop's own name — a coffee cup for a
             café — exactly as it is on every other row in the app. Nothing has
             chosen a category yet: that happens when the row becomes an expense. */}
-        <CategoryBadge category={null} meta={null} description={row.merchant ?? ''} size={38} />
+        {/* Guessed from whatever the row is actually called — a coffee cup for
+            a café. Fed the title rather than the raw merchant, so the rows with
+            no shop name stop all sharing one washed-out fallback glyph.
+            Nothing has *chosen* a category yet: that happens when the row
+            becomes an expense. */}
+        <CategoryBadge category={null} meta={null} description={name} size={38} />
 
         <View style={{ flex: 1, minWidth: 0 }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
@@ -142,9 +166,9 @@ export const SmsMessageRow = memo(function SmsMessageRow({
             <Text variant="micro" tone="muted">
               {dayHeading(locale, row.at, now)}
             </Text>
-            {row.sender ? (
+            {secondary ? (
               <Text variant="micro" tone="muted" numberOfLines={1}>
-                {`· ${row.sender}`}
+                {`· ${secondary}`}
               </Text>
             ) : null}
             {row.accountTail ? (

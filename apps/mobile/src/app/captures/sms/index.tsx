@@ -630,29 +630,49 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         ]}
       />
 
-      {/* What this view comes to. The band FinArt puts under its tabs, and it
-          earns its place: a filtered list with no total makes a person add the
-          rows up themselves. Absent for the third pile, deliberately — those
-          are the rows that must not be summed as spending. */}
-      {period.count > 0 && kind !== SmsKind.Other ? (
+      {/* What this view comes to, and the one gesture that acts on all of it.
+          These were two bands: a date label that repeated the chip already
+          selected above it, and "Select all" alone on a row of its own. Between
+          them they pushed the first message most of the way down the screen to
+          say one thing the reader could already see and offer one button.
+          Folded into a single line, the left half now carries the figure that
+          justified the band in the first place — a filtered list with no total
+          makes a person add the rows up themselves — and the right half carries
+          the action. No total for the third pile, deliberately: those are the
+          rows that must not be summed as spending. */}
+      {period.count > 0 ? (
         <Row
           style={{
             paddingHorizontal: theme.spacing.xl,
-            paddingVertical: theme.spacing.sm,
+            paddingVertical: theme.spacing.xs,
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: theme.color.surfaceMuted,
+            gap: theme.spacing.md,
           }}
         >
-          <Text variant="caption" tone="muted">
-            {filterLabel(date, locale, t)}
-          </Text>
-          {period.total !== null ? (
-            <MoneyText
-              amount={period.total}
-              currency={period.currency}
-              locale={locale}
-              variant="caption"
+          <Row style={{ alignItems: 'baseline', gap: theme.spacing.xs, flexShrink: 1 }}>
+            {period.total !== null && kind !== SmsKind.Other ? (
+              <MoneyText
+                amount={period.total}
+                currency={period.currency}
+                locale={locale}
+                variant="subheading"
+              />
+            ) : null}
+            {/* Said out loud rather than left to be noticed: a total that
+                quietly skipped rows is a number with nothing to question. */}
+            {period.uncounted > 0 && kind !== SmsKind.Other ? (
+              <Text variant="micro" tone="muted">
+                {plural(locale, period.uncounted, t.smsInbox.notCounted)}
+              </Text>
+            ) : null}
+          </Row>
+          {visible.length > 0 ? (
+            <Button
+              label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+              variant="ghost"
+              size="sm"
+              onPress={() => setSelected((current) => toggleAll(visible, current))}
             />
           ) : null}
         </Row>
@@ -670,18 +690,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance + (chosen.length > 0 ? 80 : 0),
         }}
-        ListHeaderComponent={
-          visible.length > 0 ? (
-            <Row style={{ paddingTop: theme.spacing.sm, justifyContent: 'flex-end' }}>
-              <Button
-                label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
-                variant="ghost"
-                size="sm"
-                onPress={() => setSelected((current) => toggleAll(visible, current))}
-              />
-            </Row>
-          ) : null
-        }
         ListEmptyComponent={
           loading ? null : (
             <View style={{ paddingTop: theme.spacing.xxxl }}>
@@ -750,6 +758,16 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
                 locale={locale}
                 variant="caption"
               />
+            ) : null}
+            {/* The same disclosure the band above carries, and for the same
+                reason — more so here, because this figure sits directly beside
+                the button that acts on the rows. A bar reading "6 selected"
+                over the sum of five would be wrong exactly where somebody is
+                about to commit. */}
+            {chosenTotal.uncounted > 0 ? (
+              <Text variant="micro" tone="muted">
+                {plural(locale, chosenTotal.uncounted, t.smsInbox.notCounted)}
+              </Text>
             ) : null}
           </Row>
           <Row style={{ gap: theme.spacing.sm }}>

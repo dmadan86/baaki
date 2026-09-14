@@ -111,4 +111,17 @@ describe('guessIcon', () => {
     expect(guessIcon('COFFEE')).toBe('cafe-outline');
     expect(guessIcon('Coffee ☕ break')).toBe('cafe-outline');
   });
+
+  it('gives a bank its own glyph, so a column of them is not one blank circle', () => {
+    // Bank messages that name no shop are labelled by their bank instead, and
+    // without this every one of them shared the category fallback.
+    expect(guessIcon('Axis Bank')).toBe('business-outline');
+    expect(guessIcon('State Bank of India')).toBe('business-outline');
+    expect(guessIcon('ATM')).toBe('business-outline');
+  });
+
+  it('still prefers what was bought over who it was banked with', () => {
+    // The bank entry sits last in its group on purpose.
+    expect(guessIcon('HDFC fuel')).toBe('speedometer-outline');
+  });
 });
