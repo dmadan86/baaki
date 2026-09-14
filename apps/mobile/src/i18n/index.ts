@@ -1719,7 +1719,15 @@ export interface UiStrings {
      * readable without unlocking the phone, so no amount, no note and no
      * category may ever be interpolated into either of these.
      */
-    nudgeTitle: PluralForms;
+    /**
+     * The title says what the thing *is* and never how many. The count rides on
+     * the notification's own badge (`captureNudge/schedule`, Android's
+     * `setNumber`, iOS's app badge) the way Gmail's does, and again in the body
+     * where there is room to say what it counts. A title carrying the figure
+     * spent its width on it and then truncated — "You saved 147 expenses for
+     * l…" — which is the worst of both.
+     */
+    nudgeTitle: string;
     nudgeBody: PluralForms;
   };
   /** Attaching where a spend happened (A43): the opt-in control on the expense
@@ -4664,13 +4672,10 @@ const en: UiStrings = {
     savedOnDevice: 'Saved on this device',
     couldNotSave: "Couldn't save this — please try again in a moment.",
     save: 'Save',
-    nudgeTitle: {
-      one: 'You saved {n} expense for later',
-      other: 'You saved {n} expenses for later',
-    },
+    nudgeTitle: 'Waiting on you',
     nudgeBody: {
-      one: 'It still needs a group. Tap to add it.',
-      other: 'They still need a group. Tap to add them.',
+      one: '{n} expense still needs a group. Tap to add it.',
+      other: '{n} expenses still need a group. Tap to add them.',
     },
   },
   location: {
@@ -7496,13 +7501,10 @@ const ta: UiStrings = {
     savedOnDevice: 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது',
     couldNotSave: 'இதைச் சேமிக்க முடியவில்லை — சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
     save: 'சேமி',
-    nudgeTitle: {
-      one: '{n} செலவைப் பிறகு சேமித்தீர்கள்',
-      other: '{n} செலவுகளைப் பிறகு சேமித்தீர்கள்',
-    },
+    nudgeTitle: 'உங்கள் கவனத்திற்கு',
     nudgeBody: {
-      one: 'அதற்கு இன்னும் ஒரு குழு வேண்டும். சேர்க்கத் தட்டுங்கள்.',
-      other: 'அவற்றுக்கு இன்னும் ஒரு குழு வேண்டும். சேர்க்கத் தட்டுங்கள்.',
+      one: '{n} செலவுக்கு இன்னும் ஒரு குழு வேண்டும். சேர்க்கத் தட்டுங்கள்.',
+      other: '{n} செலவுகளுக்கு இன்னும் ஒரு குழு வேண்டும். சேர்க்கத் தட்டுங்கள்.',
     },
   },
   location: {
@@ -10388,13 +10390,10 @@ const hi: UiStrings = {
     savedOnDevice: 'इस डिवाइस पर सहेजा गया',
     couldNotSave: 'इसे सहेजा नहीं जा सका — कृपया थोड़ी देर में फिर से कोशिश करें।',
     save: 'सहेजें',
-    nudgeTitle: {
-      one: 'आपने {n} खर्च बाद के लिए सहेजा है',
-      other: 'आपने {n} खर्च बाद के लिए सहेजे हैं',
-    },
+    nudgeTitle: 'आपके इंतज़ार में',
     nudgeBody: {
-      one: 'इसे अब भी एक समूह चाहिए। जोड़ने के लिए टैप करें।',
-      other: 'इन्हें अब भी एक समूह चाहिए। जोड़ने के लिए टैप करें।',
+      one: '{n} खर्च को अब भी एक समूह चाहिए। जोड़ने के लिए टैप करें।',
+      other: '{n} खर्चों को अब भी एक समूह चाहिए। जोड़ने के लिए टैप करें।',
     },
   },
   location: {
@@ -13317,17 +13316,13 @@ const ar: UiStrings = {
     // Arabic counts in six categories, and this is one of the few strings in the
     // app that can genuinely land in all of them, so all of them are written
     // out rather than falling through to `other` with the wrong agreement.
-    nudgeTitle: {
-      one: 'حفظت مصروفًا واحدًا لوقت لاحق',
-      two: 'حفظت مصروفين لوقت لاحق',
-      few: 'حفظت {n} مصاريف لوقت لاحق',
-      many: 'حفظت {n} مصروفًا لوقت لاحق',
-      other: 'حفظت {n} مصروف لوقت لاحق',
-    },
+    nudgeTitle: 'بانتظارك',
     nudgeBody: {
-      one: 'ما زال بحاجة إلى مجموعة. اضغط لإضافته.',
-      two: 'ما زالا بحاجة إلى مجموعة. اضغط لإضافتهما.',
-      other: 'ما زالت بحاجة إلى مجموعة. اضغط لإضافتها.',
+      one: 'مصروف واحد ما زال بحاجة إلى مجموعة. اضغط لإضافته.',
+      two: 'مصروفان ما زالا بحاجة إلى مجموعة. اضغط لإضافتهما.',
+      few: '{n} مصاريف ما زالت بحاجة إلى مجموعة. اضغط لإضافتها.',
+      many: '{n} مصروفًا ما زالت بحاجة إلى مجموعة. اضغط لإضافتها.',
+      other: '{n} مصروف ما زال بحاجة إلى مجموعة. اضغط لإضافته.',
     },
   },
   location: {

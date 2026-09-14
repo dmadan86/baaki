@@ -75,6 +75,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MutationKind, peopleSignatureKey } from '@waves/core';
 import {
@@ -129,6 +130,7 @@ import { useGuestGuard } from '@/lib/guestGuard';
 import { destinationFor, type RowDestination } from '@/lib/merchantDestination';
 import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
+import { suppressTabBar } from '@/lib/tabBarSuppress';
 import {
   buildReviewFeed,
   openingTab,
@@ -264,6 +266,7 @@ function CaptureListRow({
   onMore,
   onFile,
   onDismiss,
+  ticking = false,
   selected = false,
   onToggleSelected,
   bare = false,
@@ -280,6 +283,15 @@ function CaptureListRow({
   onFile: (() => void) | null;
   /** Take it off the list: it was never an expense. */
   onDismiss: () => void;
+  /**
+   * Whether this row offers a tick box at all.
+   *
+   * True on the SMS tab, where the pile is a hundred deep and answering it one
+   * row at a time is data entry. False on the drafts a person added themselves:
+   * there are a handful, each one is a spend they remember making, and each
+   * wants its own answer — so a press there opens the picker, as it always did.
+   */
+  ticking?: boolean;
   /** Whether this row's tick box is filled. Never set on a `bare` row. */
   selected?: boolean;
   /** Tick or untick. Absent on a `bare` row — a batch is ticked as one card. */
@@ -318,7 +330,7 @@ function CaptureListRow({
       // one accessibility bug a sighted test can never catch. The destination
       // still rides on the label, because knowing where a draft is headed is
       // most of what the row says; it is just no longer claimed as the action.
-      accessibilityRole={bare ? 'button' : 'checkbox'}
+      accessibilityRole={ticking && !bare ? 'checkbox' : 'button'}
       accessibilityLabel={
         destinationName
           ? `${title}, ${t.captures.fileTo.replace('{name}', destinationName)}`
@@ -331,11 +343,11 @@ function CaptureListRow({
         else if (name === 'dismiss') onDismiss();
         else if (name === 'file') onFile?.();
       }}
-      // A row in the list ticks; a row inside an opened batch still opens the
-      // picker, because it has no tick of its own to give. Without this split a
-      // batch member's press did nothing at all.
-      onPress={bare ? onAssign : onToggleSelected}
-      accessibilityState={bare ? undefined : { checked: selected }}
+      // A row on the ticking tab ticks. Everything else opens the picker: the
+      // drafts a person added themselves, and any row inside an opened batch,
+      // which has no tick of its own to give.
+      onPress={ticking && !bare ? onToggleSelected : onAssign}
+      accessibilityState={ticking && !bare ? { checked: selected } : undefined}
       style={({ pressed }) =>
         bare
           ? { opacity: pressed ? 0.6 : 1 }
@@ -363,13 +375,13 @@ function CaptureListRow({
             `onToggleSelected` and is not in `selectableIds` — the batch is
             ticked as one card — so a box here would be a control that looks
             live, never fills, and leaves "select all" apparently incomplete. */}
-        {bare ? null : (
+        {ticking && !bare ? (
           <Ionicons
             name={selected ? 'checkbox' : 'square-outline'}
             size={iconSize.lg}
             color={selected ? theme.color.brand : theme.color.textMuted}
           />
-        )}
+        ) : null}
         <CategoryBadge
           category={capture.category}
           meta={capture.category_meta}
@@ -652,6 +664,7 @@ function ActionSheetRow({
 /** The Review tab: what was found, in two piles, one gesture each. */
 export default function CapturesScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   // The hero runs dark under the status bar, so the clock and the battery go
   // white — but only while this tab is the one you are looking at. See
   // `useHeroStatusBar`: a tab does not unmount when you leave it.
@@ -849,6 +862,13 @@ export default function CapturesScreen() {
   // live before the first load carries rows is the tab seeding will choose.
   const activeTab: ReviewTabId = tab ?? 'added';
   const tabRows = byTab[activeTab];
+  // Ticking belongs to the SMS tab only. That pile is a stream the app fills on
+  // its own — a hundred and forty rows, most of them a card bill or a transfer
+  // to yourself — and it is answered in handfuls. The drafts somebody added
+  // themselves are a handful to begin with, each one a spend they remember
+  // making and each wanting its own destination, so a tick box there would be
+  // furniture on every row for a gesture that half of them never fits.
+  const ticking = activeTab === 'found';
   const feedItems = useMemo(() => buildReviewFeed(tabRows), [tabRows]);
 
   // Ticking several drafts and placing them together. Held as ids rather than
@@ -873,6 +893,27 @@ export default function CapturesScreen() {
     [tabRows, selected, selectableSet],
   );
   const everythingTicked = selectableIds.length > 0 && chosenRows.length === selectableIds.length;
+
+  /**
+   * While anything is ticked, the bottom bar stands down.
+   *
+   * The action bar is an in-tree view and the navigation is rendered at the root
+   * over the whole stack, so the two used to sit on top of one another — a band
+   * of buttons with the bar beneath it, and the raised mic landing squarely on
+   * "Add 2 to a group". Nothing about the route has changed, so neither could
+   * move out of the other's way by the usual rule; the bar takes a second input
+   * instead (`lib/tabBarSuppress`).
+   *
+   * An effect rather than a render-time call, because it is exactly what an
+   * effect is for: a subscription to something outside React, released on the
+   * way out. The cleanup matters — walking away mid-selection must put the
+   * navigation back, or a person is left on another tab with no way to leave it.
+   */
+  const bottomBarStandsDown = ticking && chosenRows.length > 0;
+  useEffect(() => {
+    if (!bottomBarStandsDown) return;
+    return suppressTabBar();
+  }, [bottomBarStandsDown]);
   const toggleSelected = useCallback((id: string): void => {
     setSelected((current) => {
       const next = new Set(current);
@@ -1404,6 +1445,7 @@ export default function CapturesScreen() {
               onMore={() => openCaptureMenu(capture)}
               onFile={destinationName ? () => fileWhereItSays(capture) : null}
               onDismiss={() => void dismiss(capture)}
+              ticking={ticking}
               selected={selected.has(capture.id)}
               onToggleSelected={() => toggleSelected(capture.id)}
             />
@@ -1430,6 +1472,7 @@ export default function CapturesScreen() {
       openBatchIds,
       openBatchMenu,
       selected,
+      ticking,
       toggleSelected,
       openCaptureMenu,
       t,
@@ -1673,10 +1716,11 @@ export default function CapturesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          // Room for the selection bar when it is up, so the last row is not
-          // sitting under it. Two lines now — the count and the dismissal above
-          // the two placements — so the reserve grew with it.
-          paddingBottom: clearance + (chosenRows.length > 0 ? 128 : 0),
+          // Room for whatever is at the foot. With nothing ticked that is the
+          // navigation; with something ticked the navigation has stood down and
+          // the action bar is there instead, which is two lines taller than the
+          // bar it replaced — so the reserve grows rather than swapping.
+          paddingBottom: bottomBarStandsDown ? insets.bottom + 176 : clearance,
         }}
         refreshControl={
           <RefreshControl
@@ -1873,7 +1917,7 @@ export default function CapturesScreen() {
           Both buttons hand the ticked rows to machinery that already existed
           for a spoken batch: one destination for several drafts, everybody in,
           split equally. Nothing new decides anything here. */}
-      {chosenRows.length > 0 ? (
+      {ticking && chosenRows.length > 0 ? (
         <View
           style={{
             position: 'absolute',
@@ -1882,7 +1926,11 @@ export default function CapturesScreen() {
             bottom: 0,
             paddingHorizontal: theme.spacing.xl,
             paddingTop: theme.spacing.md,
-            paddingBottom: clearance,
+            // The navigation is gone while this is up (`suppressTabBar` below),
+            // so the bar clears the system's own gesture pill and nothing else.
+            // Using the tab-bar clearance here would reserve room for a bar
+            // that is not there and leave a band of empty surface.
+            paddingBottom: insets.bottom + theme.spacing.md,
             gap: theme.spacing.sm,
             backgroundColor: theme.color.surface,
             borderTopWidth: 1,

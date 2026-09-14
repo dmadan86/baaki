@@ -36,6 +36,7 @@ import { captureInboxActionState } from '@/lib/dashboardActions';
 import { router, switchTab } from '@/lib/navigation';
 import { pushToTalk } from '@/lib/pushToTalk';
 import { resolveTabBar, tabBarRouteForSelection } from '@/lib/tabBar';
+import { useTabBarSuppressed } from '@/lib/tabBarSuppress';
 
 /**
  * How far the finger has to slide off the mic to call the whole thing off.
@@ -80,6 +81,11 @@ export function AppTabBar() {
   // No session means no bar anywhere — the privacy page opened from the login
   // legal line is the one place it used to leak onto a signed-out screen.
   const { hidden, activeKey } = resolveTabBar(segments, !session);
+  // A screen can also ask the bar to stand down while it is *on* that screen —
+  // Review does it while drafts are ticked, so its action bar has the bottom of
+  // the phone to itself rather than stacking on top of the navigation with the
+  // raised mic over the button somebody is reaching for. See `tabBarSuppress`.
+  const suppressed = useTabBarSuppressed();
 
   // The Review tab's badge — the same folded count the dashboard hero's inbox
   // circle showed before Activity took its place there (see `(tabs)/index.tsx`).
@@ -214,8 +220,10 @@ export function AppTabBar() {
     [holdEnd, holdMove, holdStart, openVoice, t.voice.micHint, t.voice.speakExpense],
   );
 
-  // Hidden, unless a hold is running — see `holding` above.
-  if (hidden && !holding) return null;
+  // Hidden, unless a hold is running — see `holding` above. A hold wins over a
+  // screen's request too: the mic is the thing under the finger at that moment,
+  // and taking it away mid-sentence would cancel what somebody is saying.
+  if ((hidden || suppressed) && !holding) return null;
 
   return (
     <PillTabBar items={items} activeKey={activeKey} onSelect={go} animated centerAction={voice} />

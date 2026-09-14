@@ -146,6 +146,13 @@ export async function scheduleNudge(input: {
       content: {
         title: input.text.title,
         body: input.text.body,
+        // The count as a number on the icon rather than as words in the title.
+        // Android draws it the way Gmail's does (`setNumber`), iOS puts it on
+        // the app badge — and either way the title keeps its width for saying
+        // what the thing *is*, instead of spending it on a figure that then
+        // truncates. It is still in the body, where there is room to say what
+        // the number counts; the badge only repeats it at a glance.
+        badge: input.count,
         // No amount, and no description of any single draft: a lock screen is
         // readable without unlocking the phone, and the count is the whole of
         // what needs saying.
