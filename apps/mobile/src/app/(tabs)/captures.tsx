@@ -812,14 +812,6 @@ export default function CapturesScreen() {
     return map;
   }, [signatures.data]);
 
-  // Which row the picker opens with ticked: the group the capture was tagged
-  // for at capture time, when it is still one the viewer can assign into.
-  const pickerSelection: DestinationSelection = useMemo(() => {
-    const targetId = assigningCapture?.target_group_id;
-    return targetId && assignableIds.has(targetId)
-      ? { kind: 'existing', groupId: targetId }
-      : { kind: 'none' };
-  }, [assigningCapture?.target_group_id, assignableIds]);
   // How tall the picker sheet is ever allowed to get. A ceiling, not a height.
   const pickerMaxHeight = height * 0.8;
 
@@ -947,6 +939,19 @@ export default function CapturesScreen() {
     }
     return byCapture;
   }, [rows, suggestions, trips, assignableIds]);
+
+  // Which row the picker opens with ticked: the group the capture was tagged
+  // for at capture time, else the group the row chip already suggested. Both
+  // still have to be assignable; stale suggestions are not choices.
+  const pickerSelection: DestinationSelection = useMemo(() => {
+    if (!assigningCapture) return { kind: 'none' };
+    const targetId = assigningCapture.target_group_id;
+    if (targetId && assignableIds.has(targetId)) return { kind: 'existing', groupId: targetId };
+    const suggestedId = destinations.get(assigningCapture.id)?.groupId;
+    return suggestedId && assignableIds.has(suggestedId)
+      ? { kind: 'existing', groupId: suggestedId }
+      : { kind: 'none' };
+  }, [assigningCapture, assignableIds, destinations]);
 
   const openAssign = useCallback((capture: CaptureRow): void => {
     setAssigning({ kind: 'capture', capture });
