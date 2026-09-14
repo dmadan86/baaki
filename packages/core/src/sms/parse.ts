@@ -635,9 +635,14 @@ function readUpiCounterparty(raw: string): string | null {
   UPI_REFERENCE.lastIndex = 0;
   for (const match of raw.matchAll(UPI_REFERENCE)) {
     // Allowing spaces means the match can run past the reference into the
-    // sentence after it ("… /RAHUL SHARMA. Avl Bal- INR 15000"). A full stop
-    // followed by a space ends it, exactly as it does for the prose reader.
-    const reference = (match[0].split(/\.\s/)[0] ?? '').replace(/[.,;:]+$/, '');
+    // sentence after it ("… /RAHUL SHARMA. Avl Bal- INR 15000"). Sentence,
+    // balance and complaint markers all end the reference before bank prose
+    // becomes somebody's merchant name.
+    const reference = (
+      match[0].split(
+        /\.\s|(?=\s+(?:avl|available|avbl)\s+(?:bal|balance|lmt)\b)|(?=\s+to\s+(?:dispute|report)\b)/iu,
+      )[0] ?? ''
+    ).replace(/[.,;:]+$/, '');
     for (const segment of reference.split(/[/-]/)) {
       const piece = segment.trim();
       if (!piece) continue;

@@ -952,6 +952,14 @@ describe('a reference that is not closed by a full stop', () => {
     expect(parsed?.merchant).toBe('ZOMATO LTD');
   });
 
+  it('stops before a full available-balance phrase after a named rider', () => {
+    const parsed = parseSms(
+      'INR 125.00 debited A/c XX9811 13-09-26 UPI/P2M/987654321/RIDER TRAVELLER Available Balance INR 900.00',
+    );
+
+    expect(parsed?.merchant).toBe('RIDER TRAVELLER');
+  });
+
   it('stops before a helpline that follows with no break', () => {
     const parsed = parseSms(
       'INR 60.00 debited A/c XX7777 13-09-26 UPI/P2M/222222/CHAI POINT Call 18001030',
@@ -968,6 +976,14 @@ describe('position is the weakest evidence, so it is fenced', () => {
       'INR 700.00 debited from A/c XX8888 on 13-09-26 at 18:45:00 towards monthly rent Avl Bal INR 200.00',
     );
     expect(parsed?.merchant).not.toBe('towards monthly rent');
+  });
+
+  it('does not treat Avl Lmt alone as card context for a financer debit', () => {
+    const parsed = parseSms(
+      'INR 700.00 debited from A/c XX8888 on 13-09-26 at 18:45:00 IST Avl Lmt INR 200.00',
+    );
+
+    expect(parsed?.merchant).not.toBe('IST');
   });
 
   it('still reads a real card spend', () => {
