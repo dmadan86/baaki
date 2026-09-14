@@ -1620,7 +1620,29 @@ export default function CapturesScreen() {
         }
       >
         <View style={{ gap: theme.spacing.md }}>
-          {rows.length > 0 ? (
+          {chosenRows.length > 0 ? (
+            /* While rows are ticked the panel stops reporting the pile and
+               reports the selection instead — the shape every list with a
+               selection mode converges on (Todoist, Matter, GitHub, Quo all
+               put the count in the header and nothing but actions at the
+               bottom). Two things are won by moving it up here. The count is
+               a *state*, and a state belongs where this screen already says
+               what it is rather than in the band a thumb is aiming at. And
+               "select all" stops sitting a few pixels from "not an expense":
+               one is a scope control and the other destroys work, and putting
+               them in the same row was a mis-tap waiting to be made. */
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+              <Text variant="title" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
+                {plural(locale, chosenRows.length, t.smsInbox.selected)}
+              </Text>
+              <Button
+                label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+                variant="onBrandOutline"
+                size="sm"
+                onPress={() => setSelected(everythingTicked ? new Set() : new Set(selectableIds))}
+              />
+            </Row>
+          ) : rows.length > 0 ? (
             <>
               <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
                 {t.captures.heroWaiting}
@@ -1963,44 +1985,44 @@ export default function CapturesScreen() {
             borderTopColor: theme.color.border,
           }}
         >
-          {/* The count, and the answer that is not a destination. Most of what
-              the app finds is not an expense at all — a card bill, a transfer
-              to yourself, rent nobody splits — and until now that answer could
-              only be given one row at a time. It sits on its own line, away
-              from the two placements, because it is the one button here that
-              takes drafts off the list rather than filing them. */}
-          <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text variant="caption" tone="muted">
-              {plural(locale, chosenRows.length, t.smsInbox.selected)}
-            </Text>
-            {/* "Select all" lives here now rather than in a band of its own
-                above the list. It is the same reach — tick one row and the bar
-                is up — and it costs no height at rest, which on a screen whose
-                list is the point is the whole argument. */}
-            <Button
-              label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
-              variant="ghost"
-              size="sm"
-              onPress={() => setSelected(everythingTicked ? new Set() : new Set(selectableIds))}
-            />
-            <Button
+          {/* One row, and everything in it is an *action*. The count and
+              "select all" moved into the panel above, which is what the rest
+              of this pattern does everywhere it is done well, and what is left
+              down here is the three answers a selection can be given: take
+              these off the list, keep them to myself, or put them in a group.
+
+              They are ordered by how much they commit to — the destructive one
+              first and smallest, the two placements after it, the likeliest
+              last and widest, under the thumb. */}
+          <Row style={{ gap: theme.spacing.sm, alignItems: 'center' }}>
+            {/* Most of what the app finds is not an expense at all — a card
+                bill, a transfer to yourself, rent nobody splits — and that
+                answer needs to be one tap for a pile as it is for a row. It
+                keeps the words in its accessibility label and in the row's own
+                ⋯ sheet, and shows as a glyph here: three labelled buttons on
+                one line is a truncation in Tamil and Arabic, and the glyph a
+                selection is dismissed with is the one control on this bar a
+                person should not be able to hit while reaching for another. */}
+            <IconButton
               label={chosenRows.every(wasFound) ? t.captures.notAnExpense : t.captures.delete}
-              variant="ghostDanger"
-              size="sm"
               onPress={() => {
                 const items = chosenRows;
                 void dismissMany(items);
               }}
-            />
-          </Row>
-          <Row style={{ gap: theme.spacing.sm }}>
+            >
+              <Ionicons
+                name={chosenRows.every(wasFound) ? 'close-circle-outline' : 'trash-outline'}
+                size={iconSize.lg}
+                color={theme.color.negative}
+              />
+            </IconButton>
             {/* Only where the private ledger is a place these can go: a guest
                 account may not hold one, and a button whose write would be
                 refused is worse than no button. */}
             {personalOffered ? (
               <Button
                 label={t.voice.justMe}
-                variant="ghost"
+                variant="secondary"
                 style={{ flex: 1 }}
                 onPress={() => {
                   const items = chosenRows;
