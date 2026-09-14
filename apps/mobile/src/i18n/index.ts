@@ -1663,6 +1663,8 @@ export interface UiStrings {
      *  can refuse — what is said when only some of them made it. */
     assignBatch: string;
     assignedBatch: PluralForms;
+    /** A pile of drafts filed into the private ledger — the "Just me" destination. */
+    placedInPersonal: PluralForms;
     assignBatchSomeFailed: PluralForms;
     /** Nothing was left to place — another device had already placed them. */
     assignBatchAlreadyDone: string;
@@ -4592,6 +4594,10 @@ const en: UiStrings = {
       one: '{n} expense added to {name}',
       other: '{n} expenses added to {name}',
     },
+    placedInPersonal: {
+      one: '{n} expense saved to Just me',
+      other: '{n} expenses saved to Just me',
+    },
     assignBatchSomeFailed: {
       one: '{n} could not be added, and is still saved for later.',
       other: '{n} could not be added, and are still saved for later.',
@@ -7405,6 +7411,10 @@ const ta: UiStrings = {
     assignedBatch: {
       one: '{n} செலவு {name} இல் சேர்க்கப்பட்டது',
       other: '{n} செலவுகள் {name} இல் சேர்க்கப்பட்டன',
+    },
+    placedInPersonal: {
+      one: '{n} செலவு "நானே மட்டும்" இல் சேமிக்கப்பட்டது',
+      other: '{n} செலவுகள் "நானே மட்டும்" இல் சேமிக்கப்பட்டன',
     },
     assignBatchSomeFailed: {
       one: '{n} சேர்க்க முடியவில்லை; அது இன்னும் பிறகுக்காகச் சேமித்திருக்கிறது.',
@@ -10279,6 +10289,10 @@ const hi: UiStrings = {
     assignedBatch: {
       one: '{n} खर्च {name} में जोड़ा गया',
       other: '{n} खर्च {name} में जोड़े गए',
+    },
+    placedInPersonal: {
+      one: '{n} खर्च "सिर्फ़ मैं" में सहेजा गया',
+      other: '{n} खर्च "सिर्फ़ मैं" में सहेजे गए',
     },
     assignBatchSomeFailed: {
       one: '{n} जोड़ा नहीं जा सका, वह अब भी बाद के लिए सहेजा है।',
@@ -13174,6 +13188,13 @@ const ar: UiStrings = {
       few: 'أُضيفت {n} مصاريف إلى {name}',
       many: 'أُضيف {n} مصروفًا إلى {name}',
       other: 'أُضيف {n} مصروف إلى {name}',
+    },
+    placedInPersonal: {
+      one: 'حُفظ مصروف واحد في "أنا فقط"',
+      two: 'حُفظ مصروفان في "أنا فقط"',
+      few: 'حُفظت {n} مصاريف في "أنا فقط"',
+      many: 'حُفظ {n} مصروفًا في "أنا فقط"',
+      other: 'حُفظ {n} مصروف في "أنا فقط"',
     },
     assignBatchSomeFailed: {
       one: 'تعذّرت إضافة مصروف واحد، وما زال محفوظًا لوقت لاحق.',

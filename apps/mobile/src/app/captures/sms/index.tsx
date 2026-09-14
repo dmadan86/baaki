@@ -112,6 +112,7 @@ import { smsCaptureId } from '@/lib/smsCaptureId';
 import { useSmsInboxReader } from '@/lib/smsFeature';
 import { smsRowAsCapture, splitPlaceable } from '@/lib/smsPlacement';
 import { useToast } from '@/lib/toast';
+import { usePlaceInPersonal } from '@/lib/usePlaceInPersonal';
 import { useSync } from '@/sync';
 
 /** The quick date windows, as chip values. `'more'` opens the filter sheet. */
@@ -139,6 +140,8 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   const viewerId = session?.user?.id ?? null;
   const { rows, loading, reload } = useSmsMessages();
   const toast = useToast();
+  // The shared path to the private ledger, behind the sheet's "Just me" row.
+  const placeInPersonal = usePlaceInPersonal();
   const guard = useGuestGuard();
 
   const [kind, setKind] = useState<SmsKind>(SmsKind.Expense);
@@ -327,6 +330,68 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
       toast,
     ],
   );
+
+  /**
+   * The ticked messages as private personal expenses — the "Just me" row.
+   *
+   * The records and the closing of any Review drafts are the shared path's job
+   * (`usePlaceInPersonal`); what stays here is this screen's own bookkeeping,
+   * which no other caller has: a placed message is marked answered so it stops
+   * appearing as something still waiting, and the list is reloaded from the
+   * device store. Only the ones that actually landed are settled — settling a
+   * message whose record never got written would hide a spend that was never
+   * recorded.
+   */
+  const keepForMyself = useCallback(async (): Promise<void> => {
+    if (placing) return;
+    setPickerOpen(false);
+    if (chosen.length === 0) return;
+    setPlacing(true);
+    try {
+      const { placeable, unusable } = splitPlaceable(chosen);
+      const ids = new Map<string, string>();
+      for (const row of placeable) {
+        ids.set(row.dedupeKey, await smsCaptureId(ownerId, row.dedupeKey));
+      }
+      const done = await placeInPersonal({
+        lockKey: placeable[0]?.dedupeKey ?? 'personal',
+        items: placeable.map((row) => smsRowAsCapture(row, ownerId, ids.get(row.dedupeKey)!)),
+      });
+
+      const byId = new Map([...ids].map(([key, id]) => [id, key]));
+      const settledKeys = done
+        .map((id) => byId.get(id))
+        .filter((key): key is string => key !== undefined);
+      await settleMessages(
+        ownerId,
+        settledKeys,
+        SmsSettlement.Placed,
+        (key) => ids.get(key) ?? null,
+      );
+      await reloadMessages(ownerId);
+      setSelected(new Set());
+
+      // A message the parser could not turn into an amount never had a record
+      // to try, and the shared path never saw it — so it is reported here, next
+      // to the count that did land, rather than silently dropped.
+      if (unusable.length > 0) {
+        toast.show(plural(locale, unusable.length, t.captures.assignBatchSomeFailed), 'negative');
+      }
+    } catch (caught) {
+      toast.show(friendlyError(caught, t.captures.couldNotSave, 'sms.personal'), 'negative');
+    } finally {
+      setPlacing(false);
+    }
+  }, [
+    chosen,
+    locale,
+    ownerId,
+    placeInPersonal,
+    placing,
+    t.captures.assignBatchSomeFailed,
+    t.captures.couldNotSave,
+    toast,
+  ]);
 
   const chooseExistingGroup = useCallback(
     (groupId: string): void => {
@@ -757,10 +822,11 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
             key={pickerOpen ? 'open' : 'closed'}
             selection={{ kind: 'none' } as DestinationSelection}
             eyebrow={null}
-            // Neither pinned default belongs here: these already *are*
-            // unassigned, and "just me" writes to the personal ledger, which
-            // this screen has no path to.
-            pinned={[]}
+            // "Unassigned" is not offered: these already sit outside every
+            // group, so the row would point at where they already are. "Just
+            // me" is — a private personal expense (A48), written through the
+            // same shared path the Review screen and the voice review use.
+            pinned={['me']}
             createRow={null}
             emptyGroups={t.captures.noGroups}
             labelFor={(group) => groupLabel(group, summary.membersFor(group.id), viewerId)}
@@ -769,6 +835,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
             t={t}
             onChoose={(choice) => {
               if (choice.kind === 'existing') chooseExistingGroup(choice.groupId);
+              else if (choice.kind === 'me') void keepForMyself();
             }}
             onResolvePeople={(names) => void assignToPeople(names)}
           />
