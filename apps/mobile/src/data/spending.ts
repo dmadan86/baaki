@@ -92,6 +92,12 @@ export function computeSpendingRows(expenses: readonly ExpenseRow[]): SpendingRo
           expenseIds: new Set(),
         };
         buckets.set(key, bucket);
+      } else if (!bucket.categoryMeta && categoryMeta) {
+        // A custom tag is only itself while its snapshot is present. If the
+        // first expense in this bucket was saved without one, take the first
+        // snapshot that does turn up rather than letting the whole bucket fall
+        // through to the built-in "Other" on the Spending screen.
+        bucket.categoryMeta = categoryMeta;
       }
       bucket.amount += BigInt(share.amount);
       bucket.expenseIds.add(expense.id);
