@@ -107,7 +107,7 @@ import { HeroActionCircle, ScreenHero, useHeroStatusBar } from '@/components/Scr
 import { InboxSkeleton } from '@/components/Skeletons';
 import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
-import { useFiledThisWeek, useMerchantDestinations } from '@/data/reviewSources';
+import { useFiledThisWeek, useSuggestionIndex } from '@/data/reviewSources';
 import {
   useAddGhostMember,
   useAssignCapture,
@@ -127,7 +127,7 @@ import { assignCaptureHref } from '@/lib/captureAssign';
 import { planCaptureAssign, stillWaiting, type AssignMember } from '@/lib/captureBulkAssign';
 import { friendlyError } from '@/lib/errors';
 import { useGuestGuard, usePersonalOffered } from '@/lib/guestGuard';
-import { destinationFor, type RowDestination } from '@/lib/merchantDestination';
+import { suggestGroup, tripWindowsOf, type GroupSuggestion } from '@/lib/groupSuggestion';
 import { router } from '@/lib/navigation';
 import { usePullRefresh } from '@/lib/pullRefresh';
 import { suppressTabBar } from '@/lib/tabBarSuppress';
@@ -717,7 +717,7 @@ export default function CapturesScreen() {
   const createGroup = useCreateGroup();
   // Where each shop's money has been going — the whole basis of the chip and
   // therefore of the swipe. Local mirror only, so it is right offline.
-  const merchants = useMerchantDestinations();
+  const suggestions = useSuggestionIndex();
   // Is anything actually reading the inbox? The one thing that decides whether
   // this screen opens on a status or on an instruction, and whether pasting is
   // the main path or the other way.
@@ -924,17 +924,29 @@ export default function CapturesScreen() {
     });
   }, []);
 
-  // Every row's destination, worked out once per render of the list rather than
-  // per recycled row: the group the draft was tagged for, else the group this
-  // shop's money went to last time, else nothing and the chip asks.
+  // The trips that were actually running, from the groups this viewer can still
+  // write to. Dateless trips are not windows and are left out — see
+  // `tripWindowsOf`.
+  const trips = useMemo(() => tripWindowsOf(assignableGroups), [assignableGroups]);
+
+  // Every row's suggestion, worked out once per render of the list rather than
+  // per recycled row: what the person tagged, else what the trip, the shop and
+  // the kind of spend agree on, else nothing and the chip asks. The weighing —
+  // and the two bars a winner has to clear before it is said out loud — is in
+  // `lib/groupSuggestion.ts`, where a test can reach it.
   const destinations = useMemo(() => {
-    const byCapture = new Map<string, RowDestination>();
+    const byCapture = new Map<string, GroupSuggestion>();
     for (const row of rows) {
-      const found = destinationFor(row, merchants, assignableIds);
+      const found = suggestGroup({
+        capture: row,
+        index: suggestions,
+        trips,
+        assignable: assignableIds,
+      });
       if (found) byCapture.set(row.id, found);
     }
     return byCapture;
-  }, [rows, merchants, assignableIds]);
+  }, [rows, suggestions, trips, assignableIds]);
 
   const openAssign = useCallback((capture: CaptureRow): void => {
     setAssigning({ kind: 'capture', capture });

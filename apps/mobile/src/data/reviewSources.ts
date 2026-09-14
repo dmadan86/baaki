@@ -3,7 +3,7 @@
  *
  * Both are one pass over rows the app already holds, so they cost no request
  * and are right with no network (ADR-005). The rules they feed are pure and
- * live elsewhere — `lib/merchantDestination.ts` decides what a destination may
+ * live elsewhere — `lib/groupSuggestion.ts` decides what a suggestion may
  * claim, and this only gathers what it decides over.
  */
 
@@ -13,24 +13,29 @@ import { materialiseCaptures, materialiseLedgerGroupIds, rowsFor, SyncTable } fr
 
 import { useAuth } from '@/lib/auth';
 import {
-  buildMerchantDestinations,
+  buildSuggestionIndex,
   type FiledExpense,
-  type MerchantDestinations,
-} from '@/lib/merchantDestination';
+  type SuggestionIndex,
+} from '@/lib/groupSuggestion';
 import { useSync } from '@/sync';
 
 /** A week, in milliseconds — the window the zero state speaks about. */
 const A_WEEK = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Merchant → the group its money goes to, from the ledger this device holds.
+ * What this device has learned about where spending goes, in one pass.
+ *
+ * Two tallies — by merchant and by category — over the ledger the phone already
+ * holds. Both are counts rather than timestamps, deliberately: `suggestGroup`
+ * breaks ties by share and by its other signals, and a "most recent wins" rule
+ * is exactly how one unusual filing on a Tuesday hijacks a shop's settled home.
  *
  * Soft-deleted expenses and groups the viewer no longer has a ledger for are
  * left out — the same two exclusions `useDestinationUsage` makes, for the same
  * reasons: a tombstone is not a filing, and a group you left is not somewhere a
- * chip may point.
+ * suggestion may point.
  */
-export function useMerchantDestinations(): MerchantDestinations {
+export function useSuggestionIndex(): SuggestionIndex {
   const { mirror } = useSync();
   return useMemo(() => {
     const ledgerGroupIds = materialiseLedgerGroupIds(mirror, []);
@@ -39,15 +44,17 @@ export function useMerchantDestinations(): MerchantDestinations {
       const expense = row as unknown as {
         group_id: string;
         deleted_at: string | null;
-        created_at: string;
-        currentVersion: { description?: string | null } | null;
+        currentVersion: { description?: string | null; category?: string | null } | null;
       };
       if (expense.deleted_at || !ledgerGroupIds.has(expense.group_id)) continue;
       const description = expense.currentVersion?.description;
-      if (!description) continue;
-      filed.push({ groupId: expense.group_id, description, at: String(expense.created_at) });
+      const category = expense.currentVersion?.category ?? null;
+      // A filing with neither a name nor a kind teaches nothing, and letting it
+      // through would only add an empty key to both tallies.
+      if (!description && !category) continue;
+      filed.push({ groupId: expense.group_id, description: description ?? '', category });
     }
-    return buildMerchantDestinations(filed);
+    return buildSuggestionIndex(filed);
   }, [mirror]);
 }
 
