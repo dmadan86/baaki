@@ -61,6 +61,7 @@ import {
 import { CategoryBadge } from '@/components/Category';
 import { PersonalLocked } from '@/components/PersonalGuard';
 import { useSourceLabel } from '@/components/IncomeSource';
+import { SignInWall } from '@/components/SignInWall';
 import {
   localIsoDate,
   postDueRecurring,
@@ -69,6 +70,7 @@ import {
   useUpsertPersonalRecord,
 } from '@/data/personal';
 import { useDefaultCurrency } from '@/lib/currency';
+import { useAuth } from '@/lib/auth';
 import { usePersonalGate } from '@/lib/lock';
 import { router } from '@/lib/navigation';
 import { useSync } from '@/sync';
@@ -86,7 +88,20 @@ const HERO_GLYPH = 'wallet-outline' as const;
 
 const HERO_CONTROL_BG = 'rgba(255, 255, 255, 0.16)';
 
+/**
+ * The account wall stands outside the ledger, not inside it: a guest session
+ * cannot be signed back into, so a year of private spending kept under one is a
+ * promise the app cannot keep (`components/SignInWall`). Outside, because
+ * everything below reads the mirror and raises the biometric prompt on mount,
+ * and neither should happen on the way to turning somebody away.
+ */
 export default function MeScreen() {
+  const { isGuest } = useAuth();
+  if (isGuest) return <SignInWall area="personal" />;
+  return <MeLedger />;
+}
+
+function MeLedger() {
   const theme = useTheme();
   const clearance = useTabBarClearance();
   const { t, locale } = useStrings();

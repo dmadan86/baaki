@@ -19,12 +19,30 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { Button, iconSize, Screen, Text, useTheme } from '@waves/ui';
 
+import { SignInWall } from '@/components/SignInWall';
 import { useStrings } from '@/i18n';
+import { useAuth } from '@/lib/auth';
 import { usePersonalGate, type PersonalGateValue } from '@/lib/lock';
 import { useGoBack } from '@/lib/navigation';
 
-/** Wraps a personal screen so its body never mounts while the section is shut. */
+/**
+ * Wraps a personal screen so its body never mounts while the section is shut.
+ *
+ * Two shields, in this order. The account wall asks whether there is anywhere
+ * for a private ledger to be *kept* — a guest session cannot be signed back
+ * into, so there is not (`components/SignInWall`). Only past that does the lock
+ * ask whether this is you. The order is also why the gate lives one component
+ * down: `usePersonalGate` raises the OS prompt on mount, and a guest being
+ * asked for a fingerprint on the way to being turned away would be the app
+ * asking a question it had already decided to ignore.
+ */
 export function PersonalGuard({ children }: { children: ReactNode }) {
+  const { isGuest } = useAuth();
+  if (isGuest) return <SignInWall area="personal" />;
+  return <PersonalUnlock>{children}</PersonalUnlock>;
+}
+
+function PersonalUnlock({ children }: { children: ReactNode }) {
   const { t } = useStrings();
   const gate = usePersonalGate(t.lock.personalPrompt);
   if (!gate.unlocked) return <PersonalLocked gate={gate} />;

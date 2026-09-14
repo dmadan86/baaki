@@ -22,6 +22,13 @@
  *      the inbox is offered the option. Off is the fallback for everything:
  *      no session, no flag row, a failed fetch (`lib/flags.tsx` says why).
  *
+ *   3. **Account.** A guest may not read bank messages at all. The messages
+ *      never leave the phone either way, but the expenses they become are kept
+ *      under an identity a guest cannot sign back into, and an hour of reading
+ *      somebody's bank texts into a ledger they will lose with the handset is
+ *      not a trade the app should offer. `components/SignInWall` is the wall;
+ *      this is the switch behind every door to it.
+ *
  * The variant is compared against `'treatment'` rather than merely asked
  * whether the person is enrolled. The flag's arms are `{control, treatment}`,
  * and "enrolled at all" would hand the reader to the control group too —
@@ -37,6 +44,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { useAuth } from '@/lib/auth';
 import { useFlagVariant, useFlagVerdict } from '@/lib/flags';
 
 /** The flag row seeded in the baseline migration. */
@@ -73,7 +81,8 @@ export function smsReaderInBuild(): boolean {
  */
 export function useSmsInboxReader(): boolean {
   const variant = useFlagVariant(SMS_INBOX_READ_FLAG);
-  return Platform.OS === 'android' && smsReaderInBuild() && variant === TREATMENT;
+  const { isGuest } = useAuth();
+  return Platform.OS === 'android' && smsReaderInBuild() && variant === TREATMENT && !isGuest;
 }
 
 /**
@@ -96,10 +105,16 @@ export type SmsInboxReaderVerdict = 'on' | 'off' | 'unknown';
 
 export function useSmsInboxReaderVerdict(): SmsInboxReaderVerdict {
   const { variant, settled } = useFlagVerdict(SMS_INBOX_READ_FLAG);
+  const { isGuest } = useAuth();
   // Neither of these can change without a new binary, so they are answers now
   // rather than answers pending, and they are checked first so a phone that can
   // never read is never left waiting on a fetch to say so.
   if (Platform.OS !== 'android' || !smsReaderInBuild()) return 'off';
+  // A guest is a settled "no" as well, and it belongs here rather than only on
+  // the screens: this verdict schedules the background reader, and a guest
+  // whose messages were being read hourly while every door to the results was
+  // shut would be the worst of both.
+  if (isGuest) return 'off';
   if (!settled) return 'unknown';
   return variant === TREATMENT ? 'on' : 'off';
 }

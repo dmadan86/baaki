@@ -93,6 +93,7 @@ import {
   useTheme,
 } from '@waves/ui';
 
+import { SignInWall } from '@/components/SignInWall';
 import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
 import { useCaptures, useCreateCapture } from '@/data/hooks';
@@ -333,7 +334,19 @@ function Step({ index, text }: { index: number; text: string }): React.JSX.Eleme
   );
 }
 
+/**
+ * Pasting a bank message is the SMS feature on a phone that cannot read the
+ * inbox, so it is behind the same account wall as the reader — and the wall is
+ * *outside* the screen so none of its state is built for somebody who will
+ * never see it.
+ */
 export default function PasteMessagesScreen(): React.JSX.Element {
+  const { isGuest } = useAuth();
+  if (isGuest) return <SignInWall area="sms" />;
+  return <PasteMessages />;
+}
+
+function PasteMessages(): React.JSX.Element {
   const theme = useTheme();
   const clearance = useBottomClearance(theme.spacing.xl);
   const { t, locale } = useStrings();

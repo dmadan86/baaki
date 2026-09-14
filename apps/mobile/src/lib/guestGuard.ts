@@ -61,6 +61,24 @@ export function createGuestGuard(
   return { gate, blockAddGroup, blockWrite };
 }
 
+/**
+ * Whether the private personal ledger is offered to whoever is holding the
+ * phone.
+ *
+ * A different question from the ceilings above, and a harder no: those are
+ * about how much a guest may do, this is about a room they may not enter at
+ * all. Personal records are the one part of the app nobody else can see, so
+ * nobody else can hand them back — and a guest session cannot be signed back
+ * into. Every door to the ledger asks this, and `components/SignInWall` is
+ * what stands behind the ones that can be walked to directly. The bank-message
+ * half of the same rule lives in `lib/smsFeature`, with the two gates it
+ * already had.
+ */
+export function usePersonalOffered(): boolean {
+  const { isGuest } = useAuth();
+  return !isGuest;
+}
+
 export function useGuestGuard(): GuestGuard {
   const { isGuest, session } = useAuth();
   const groups = useGroups();

@@ -53,6 +53,7 @@ import {
 } from '@waves/ui';
 
 import { CategoryBadge } from '@/components/Category';
+import { SignInWall } from '@/components/SignInWall';
 import { reasonWords } from '@/components/SmsMessageRow';
 import { dayHeading, relativeTime } from '@/data/activity';
 import { plural, useStrings } from '@/i18n';
@@ -73,7 +74,7 @@ export default function SmsMessageScreen(): React.JSX.Element | null {
   const theme = useTheme();
   const { t, locale } = useStrings();
   const clearance = useBottomClearance();
-  const { session } = useAuth();
+  const { session, isGuest } = useAuth();
   const ownerId = session?.user?.id ?? '';
   const reader = useSmsInboxReader();
   const toast = useToast();
@@ -121,6 +122,10 @@ export default function SmsMessageScreen(): React.JSX.Element | null {
     toast.show(t.smsInbox.forget);
     router.back();
   }, [confirm, ownerId, row, t.common.delete, t.smsInbox.forget, t.smsInbox.forgetConfirm, toast]);
+
+  // A guest is turned away with a reason rather than a blank screen, and
+  // before the reader check, which is false for them too.
+  if (isGuest) return <SignInWall area="sms" />;
 
   // Asked again here rather than trusted from the screen that pushed: a deep
   // link or a stale back stack must end the same way as everything else.
