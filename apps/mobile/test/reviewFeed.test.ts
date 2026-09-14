@@ -9,7 +9,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { CaptureStatus, type CaptureRow } from '../src/data/types';
-import { buildReviewFeed, doubtsAbout, reviewItemKey, sectionFor } from '../src/lib/reviewFeed';
+import {
+  buildReviewFeed,
+  doubtsAbout,
+  openingTab,
+  reviewItemKey,
+  sectionFor,
+  splitByTab,
+  tabFor,
+} from '../src/lib/reviewFeed';
 
 function capture(
   id: string,
@@ -145,5 +153,60 @@ describe('reviewItemKey', () => {
     ]);
     const keys = items.map(reviewItemKey);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('which tab a draft belongs to', () => {
+  // Two errands, not two degrees of one: "what did it find?" and "where do
+  // mine go?" are asked at different moments, and mixing them meant a
+  // morning's bank messages buried the three lunches somebody typed.
+
+  it('puts a bank message in the found tab', () => {
+    expect(tabFor(capture('a', '2026-09-14T09:00:00.000Z', sure))).toBe('found');
+  });
+
+  it('puts everything a person did in the added tab', () => {
+    // Typed: no provenance blob at all.
+    expect(tabFor(capture('typed', '2026-09-14T09:00:00.000Z', null))).toBe('added');
+    // Spoken and photographed both write a blob, but never source 'sms'.
+    expect(tabFor(capture('spoken', '2026-09-14T09:00:00.000Z', { source: 'voice' }))).toBe(
+      'added',
+    );
+    expect(tabFor(capture('shot', '2026-09-14T09:00:00.000Z', { batchId: 'b1' }))).toBe('added');
+  });
+
+  it('is not fooled by a blob that is not an object', () => {
+    expect(tabFor({ parsed: 'sms' })).toBe('added');
+    expect(tabFor({ parsed: undefined })).toBe('added');
+  });
+
+  it('splits a mixed pile and keeps each side in order', () => {
+    const rows = [
+      capture('m1', '2026-09-14T09:00:00.000Z', sure),
+      capture('t1', '2026-09-14T09:01:00.000Z', null),
+      capture('m2', '2026-09-14T09:02:00.000Z', sure),
+    ];
+    const split = splitByTab(rows);
+    expect(split.found.map((row) => row.id)).toEqual(['m1', 'm2']);
+    expect(split.added.map((row) => row.id)).toEqual(['t1']);
+  });
+});
+
+describe('which tab to open on', () => {
+  it('opens on what the app found, because that is what you cannot have seen', () => {
+    const rows = [
+      capture('m1', '2026-09-14T09:00:00.000Z', sure),
+      capture('t1', '2026-09-14T09:01:00.000Z', null),
+    ];
+    expect(openingTab(rows)).toBe('found');
+  });
+
+  it('opens on your own drafts when it found nothing', () => {
+    // Otherwise somebody with no bank reading lands on an empty tab every time.
+    expect(openingTab([capture('t1', '2026-09-14T09:00:00.000Z', null)])).toBe('added');
+  });
+
+  it('has a stable answer for an empty list', () => {
+    expect(openingTab([])).toBe('found');
   });
 });

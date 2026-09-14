@@ -1587,6 +1587,11 @@ export interface UiStrings {
      * The `…Count` forms are the spoken name of each heading, count and all.
      */
     sectionReady: string;
+    /** The two errands Review sorts: what the app found, and what you added. */
+    tabFound: string;
+    tabAdded: string;
+    /** Turns the tick boxes on, so several drafts can be placed at once. */
+    select: string;
     sectionLook: string;
     readyCount: PluralForms;
     lookCount: PluralForms;
@@ -4534,6 +4539,9 @@ const en: UiStrings = {
     checkingNow: 'Checking your messages…',
     checkNow: 'Check now',
     sectionReady: 'Ready',
+    tabFound: 'Found for you',
+    tabAdded: 'Added by you',
+    select: 'Select',
     sectionLook: 'Worth a look',
     readyCount: { one: '{n} ready', other: '{n} ready' },
     lookCount: { one: '{n} worth a look', other: '{n} worth a look' },
@@ -7355,6 +7363,9 @@ const ta: UiStrings = {
     checkingNow: 'உங்கள் செய்திகளைப் பார்க்கிறது…',
     checkNow: 'இப்போது பார்',
     sectionReady: 'தயார்',
+    tabFound: 'கண்டறியப்பட்டவை',
+    tabAdded: 'நீங்கள் சேர்த்தவை',
+    select: 'தேர்ந்தெடு',
     sectionLook: 'ஒரு பார்வை தேவை',
     readyCount: { one: '{n} தயார்', other: '{n} தயார்' },
     lookCount: { one: '{n} ஒரு பார்வை தேவை', other: '{n} ஒரு பார்வை தேவை' },
@@ -10243,6 +10254,9 @@ const hi: UiStrings = {
     checkingNow: 'आपके संदेश देखे जा रहे हैं…',
     checkNow: 'अभी देखें',
     sectionReady: 'तैयार',
+    tabFound: 'आपके लिए मिले',
+    tabAdded: 'आपने जोड़े',
+    select: 'चुनें',
     sectionLook: 'एक नज़र डालें',
     readyCount: { one: '{n} तैयार', other: '{n} तैयार' },
     lookCount: { one: '{n} पर एक नज़र डालें', other: '{n} पर एक नज़र डालें' },
@@ -13123,6 +13137,9 @@ const ar: UiStrings = {
     checkingNow: 'نتحقق من رسائلك…',
     checkNow: 'تحقّق الآن',
     sectionReady: 'جاهزة',
+    tabFound: 'وجدناها لك',
+    tabAdded: 'أضفتها أنت',
+    select: 'تحديد',
     sectionLook: 'تستحق نظرة',
     readyCount: {
       zero: 'لا شيء جاهز',

@@ -683,7 +683,11 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         keyExtractor={(item) => item.dedupeKey}
         renderItem={renderRow}
         extraData={selected}
-        drawDistance={1500}
+        // The group ledger's number, which is the one that has actually been
+        // tuned: 1500 was still being outrun by a hard fling down a long list,
+        // and blank rows flashing past is the failure people report. ~2500px is
+        // three dozen rows ahead, cheap when each row is light to draw.
+        drawDistance={2500}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={Divider}
         contentContainerStyle={{
