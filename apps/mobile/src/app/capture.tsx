@@ -45,12 +45,26 @@ import { DescriptionField } from '@/components/expense/DescriptionField';
 import { ExpenseHeader } from '@/components/expense/ExpenseHeader';
 import { ChoiceRow, SheetOverlay } from '@/components/expense/SheetOverlay';
 import { DetailRow, DetailRows } from '@/components/DetailRows';
-import { useCreateCapture, useGroups, useHomeSummary, useUpdateCapture } from '@/data/hooks';
-import { groupLabel, GroupType, type GroupRow, type MemberRow } from '@/data/types';
+import {
+  useCreateCapture,
+  useDeleteCapture,
+  useGroups,
+  useHomeSummary,
+  useUpdateCapture,
+} from '@/data/hooks';
+import { useUpsertPersonalRecord } from '@/data/personal';
+import {
+  groupLabel,
+  GroupType,
+  type CaptureRow,
+  type GroupRow,
+  type MemberRow,
+} from '@/data/types';
 import { useAuth } from '@/lib/auth';
 import { useDefaultCurrency } from '@/lib/currency';
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { assignCaptureHref, captureDraftFields } from '@/lib/captureAssign';
+import { planPersonalPlacement } from '@/lib/personalPlacement';
 import { dateFrom, isoDate, showDate } from '@/lib/expenseDay';
 import { captureReceipt, type PickedImage } from '@/lib/image';
 import { router } from '@/lib/navigation';
@@ -300,6 +314,12 @@ export default function CaptureScreen() {
     isEditing ? ((paymentParam as PaymentMethod | undefined) ?? null) : 'cash',
   );
   const [targetGroupId, setTargetGroupId] = useState<string | null>(() => targetGroupParam ?? null);
+  // "Just me": this spend is nobody else's, so it is not a draft waiting for a
+  // group at all — it is a personal-ledger entry (A48). Held apart from
+  // `targetGroupId` rather than encoded as a magic id, because it does not name
+  // a group and a sentinel that looked like one would eventually be treated as
+  // one. The two are mutually exclusive and `pickDestination` keeps them so.
+  const [justMe, setJustMe] = useState(false);
   const [pickingGroup, setPickingGroup] = useState(false);
   // Where it happened (A43). Optional and opt-in; null until the person taps
   // "Add location" and grants the permission — or, on an edit, the place the
@@ -309,14 +329,18 @@ export default function CaptureScreen() {
   );
 
   const { profile } = useAuth();
+  const upsertPersonal = useUpsertPersonalRecord();
+  const deleteCapture = useDeleteCapture();
   const groups = useGroups();
   const summary = useHomeSummary(profile?.id ?? null);
   const groupRows = groups.data ?? [];
   const groupNameHints = groupRows.map((group) => group.name ?? '').filter(Boolean);
   const targetGroup = groupRows.find((group) => group.id === targetGroupId) ?? null;
-  const targetGroupName = targetGroup
-    ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
-    : t.captures.decideLater;
+  const targetGroupName = justMe
+    ? t.voice.justMe
+    : targetGroup
+      ? groupLabel(targetGroup, summary.membersFor(targetGroup.id), profile?.id)
+      : t.captures.decideLater;
 
   // Category starts on Food & drink — the most common capture, one fewer tap for
   // it. The guess then follows the description until the row is tapped and a
@@ -420,6 +444,54 @@ export default function CaptureScreen() {
     setError(null);
     setSaving(true);
     try {
+      // "Just me" does not make a draft. A draft is a spend waiting to be told
+      // who it was with, and this one has been told: nobody. So it goes
+      // straight to the private ledger as a finished entry (A48) and there is
+      // no inbox row left behind to answer later.
+      //
+      // What to write is `planPersonalPlacement`'s decision, not this screen's
+      // — the same function the Review screen and Bank messages file through,
+      // so a lunch kept for oneself is the same row whichever door it came in
+      // by, including taking the capture's own id so a retry rewrites rather
+      // than duplicates.
+      //
+      // No photo is uploaded on this path. The personal ledger keeps amounts,
+      // not images, so an upload here would spend somebody's storage on a file
+      // nothing could ever show them. The sheet says so before they choose.
+      if (justMe) {
+        const plan = planPersonalPlacement({
+          captures: [
+            captureRowForPersonal({
+              captureId,
+              ownerId: profile?.id ?? '',
+              description: description.trim(),
+              category,
+              categoryMeta,
+              date,
+              currency,
+              amount,
+            }),
+          ],
+          fallbackDescription: t.voice.anExpense,
+        });
+        const write = plan.writes[0];
+        if (!write) {
+          setError(t.captures.couldNotSave);
+          return;
+        }
+        await upsertPersonal.mutateAsync({
+          recordId: write.recordId,
+          recordKind: 'txn',
+          data: write.data,
+        });
+        // Editing a draft into the private ledger consumes it. Only once the
+        // record is queued: a draft closed before its record exists is a spend
+        // that quietly disappeared.
+        if (isEditing) await deleteCapture.mutateAsync(captureId);
+        router.back();
+        return;
+      }
+
       // The bill photo goes to the person's own R2 storage under the capture id
       // (A44) — the `captures` bucket is keyed by the owner, so no group has to
       // exist yet. Best-effort: a failed upload (offline, out of storage) must
@@ -845,15 +917,28 @@ export default function CaptureScreen() {
           <GroupPicker
             groups={groupRows}
             selectedId={targetGroupId}
+            justMe={justMe}
+            photoAttached={photo !== null || keptPhotoPath !== null}
             profileId={profile?.id ?? null}
             membersFor={summary.membersFor}
             t={t}
-            onPick={(id) => {
+            onPick={(choice) => {
               setPickingGroup(false);
-              if (id === null) {
+              if (choice.kind === 'later') {
                 setTargetGroupId(null);
+                setJustMe(false);
                 return;
               }
+              // Unlike a group, this does not leave for the add-expense form —
+              // there is nothing to ask. It is a destination the Save button
+              // then honours, so the amount still goes through the same field,
+              // the same validation and the same button as every other capture.
+              if (choice.kind === 'me') {
+                setTargetGroupId(null);
+                setJustMe(true);
+                return;
+              }
+              const id = choice.id;
               router.push(
                 assignCaptureHref(
                   captureDraftFields({
@@ -911,6 +996,60 @@ export default function CaptureScreen() {
 }
 
 /**
+ * The form's fields, dressed as the row `planPersonalPlacement` reads.
+ *
+ * The planner takes a capture because two of its three callers have one. This
+ * one does not — the draft is still in the form and, on the "just me" path,
+ * never becomes a row at all. So the fields are handed over in the shape the
+ * planner expects, with the rest filled as a draft made here would have had
+ * them rather than left undefined, and the planner makes the same decisions it
+ * makes for everybody else.
+ */
+function captureRowForPersonal(input: {
+  captureId: string;
+  ownerId: string;
+  description: string;
+  category: string | null;
+  categoryMeta: CategoryMeta | null;
+  date: string;
+  currency: string;
+  amount: bigint;
+}): CaptureRow {
+  return {
+    id: input.captureId,
+    owner_user_id: input.ownerId,
+    description: input.description,
+    category: input.category,
+    category_meta: input.categoryMeta,
+    expense_date: input.date,
+    currency: input.currency,
+    amount: input.amount.toString(),
+    notes: null,
+    // Never uploaded on this path — the private ledger keeps amounts, not
+    // images, and the sheet says so before the choice is made.
+    photo_path: null,
+    raw_text: null,
+    parsed: null,
+    payment_method: null,
+    target_group_id: null,
+    location: null,
+    status: 'open' as CaptureRow['status'],
+    assigned_expense_id: null,
+    assigned_group_id: null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * What the destination sheet can answer.
+ *
+ * Three answers, not "a group id or null": "just me" is neither a group nor
+ * the absence of one, and encoding it as a sentinel id would leave something
+ * that looks like a group id in a variable every other reader treats as one.
+ */
+type CaptureDestination = { kind: 'later' } | { kind: 'me' } | { kind: 'group'; id: string };
+
+/**
  * The group destinations, grouped so the one you mean is near the top:
  *
  *   1. "Decide later" — pinned, the default that keeps the capture in the inbox.
@@ -925,6 +1064,8 @@ export default function CaptureScreen() {
 function GroupPicker({
   groups,
   selectedId,
+  justMe,
+  photoAttached,
   profileId,
   membersFor,
   t,
@@ -932,10 +1073,14 @@ function GroupPicker({
 }: {
   groups: readonly GroupRow[];
   selectedId: string | null;
+  /** Whether "Just me" is the current answer. Never true alongside a group. */
+  justMe: boolean;
+  /** Whether a bill photo is attached, which "Just me" cannot carry. */
+  photoAttached: boolean;
   profileId: string | null;
   membersFor: (groupId: string) => readonly MemberRow[];
   t: UiStrings;
-  onPick: (id: string | null) => void;
+  onPick: (choice: CaptureDestination) => void;
 }): React.JSX.Element {
   const theme = useTheme();
 
@@ -969,7 +1114,7 @@ function GroupPicker({
       leading={<GroupMark emoji={group.cover_emoji} size={22} />}
       label={groupLabel(group, membersFor(group.id), profileId)}
       selected={selectedId === group.id}
-      onPress={() => onPick(group.id)}
+      onPress={() => onPick({ kind: 'group', id: group.id })}
     />
   );
 
@@ -978,9 +1123,27 @@ function GroupPicker({
       <ChoiceRow
         leading={<Text variant="subheading">🕓</Text>}
         label={t.captures.decideLater}
-        selected={selectedId === null}
-        onPress={() => onPick(null)}
+        selected={selectedId === null && !justMe}
+        onPress={() => onPick({ kind: 'later' })}
       />
+      {/* Above the groups, beside "Decide later", because it answers the same
+          question they do: not "which group" but "who is this with". It is the
+          one answer that ends the errand here — a spend split with nobody is
+          complete the moment it is saved. */}
+      <ChoiceRow
+        leading={<Text variant="subheading">🧍</Text>}
+        label={t.voice.justMe}
+        selected={justMe}
+        onPress={() => onPick({ kind: 'me' })}
+      />
+      {/* Said before the choice, not after it. The personal ledger keeps
+          amounts, not images, so a bill attached here has nowhere to go — and
+          somebody who finds that out after saving has already lost it. */}
+      {photoAttached ? (
+        <Text variant="micro" tone="muted" style={{ paddingHorizontal: theme.spacing.sm }}>
+          {t.captures.justMeDropsPhoto}
+        </Text>
+      ) : null}
       {sections.map((section) => (
         <View key={section.key} style={{ gap: theme.spacing.xs }}>
           {showHeaders ? (
