@@ -129,6 +129,7 @@ import { useSmsMessages } from '@/lib/smsMessages';
 import { totalWaiting } from '@/lib/smsInbox';
 import { useDialog } from '@/lib/dialog';
 import { useToast } from '@/lib/toast';
+import { usePlaceInPersonal } from '@/lib/usePlaceInPersonal';
 import { useSync } from '@/sync';
 
 /**
@@ -686,6 +687,9 @@ export default function CapturesScreen() {
   // form per draft, so they queue them the way the form does (ADR-005).
   const { mutate } = useSync();
   const toast = useToast();
+  // "Just me" on the destination sheet: the shared path to the private ledger,
+  // the same one the voice review files through.
+  const placeInPersonal = usePlaceInPersonal();
   const { confirm, notify } = useDialog();
   // A guest past their trial may read but not write. The single-draft form path
   // is stopped by the same guard inside add-expense; a swipe or batch write never
@@ -1604,10 +1608,11 @@ export default function CapturesScreen() {
             }
             selection={pickerSelection}
             eyebrow={null}
-            // Neither pinned default belongs here: a draft already *is*
-            // unassigned, and "just me" writes to the personal ledger, which
-            // this screen has no path to.
-            pinned={[]}
+            // "Unassigned" is not offered: a draft already *is* unassigned, so
+            // the row would point at where it already sits. "Just me" is — it
+            // files the draft as a private personal expense (A48), through the
+            // same path the voice review uses (`usePlaceInPersonal`).
+            pinned={['me']}
             createRow={assigning?.kind === 'batch' ? null : { label: t.captures.assignNew }}
             emptyGroups={t.captures.noGroups}
             labelFor={(group) => groupLabel(group, summary.membersFor(group.id), viewerId)}
@@ -1621,6 +1626,12 @@ export default function CapturesScreen() {
               if (!target) return;
               if (choice.kind === 'existing') {
                 chooseExistingGroup(target, choice.groupId);
+              } else if (choice.kind === 'me') {
+                closeAssign();
+                void placeInPersonal({
+                  lockKey: target.kind === 'capture' ? target.capture.id : target.items[0]!.id,
+                  items: target.kind === 'capture' ? [target.capture] : target.items,
+                });
               } else if (choice.kind === 'create' && target.kind === 'capture') {
                 closeAssign();
                 router.push({
