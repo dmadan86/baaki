@@ -46,9 +46,14 @@ const actionBar = (screen: string): string => {
   const { below } = halves(screen);
   const start = below.indexOf("position: 'absolute'");
   expect(start, 'the screen should raise an action bar over the list').toBeGreaterThan(-1);
-  const end = below.indexOf('</View>', start);
-  expect(end, 'the action bar should close').toBeGreaterThan(-1);
-  return below.slice(start, end);
+  // Either closing tag: the bar slides in on one screen and is a plain view on
+  // the other, and which of the two it is has nothing to do with what belongs
+  // inside it.
+  const ends = ['</View>', '</Reanimated.View>']
+    .map((tag) => below.indexOf(tag, start))
+    .filter((at) => at > -1);
+  expect(ends.length, 'the action bar should close').toBeGreaterThan(0);
+  return below.slice(start, Math.min(...ends));
 };
 
 const SCREENS = [
