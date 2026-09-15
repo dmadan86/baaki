@@ -27,6 +27,8 @@ function capture(
   id: string,
   createdAt: string,
   parsed: Record<string, unknown> | null = null,
+  /** The day the money moved, when it is not the day the row was written. */
+  expenseDate?: string,
 ): CaptureRow {
   return {
     id,
@@ -34,7 +36,7 @@ function capture(
     description: id,
     category: null,
     category_meta: null,
-    expense_date: createdAt.slice(0, 10),
+    expense_date: expenseDate ?? createdAt.slice(0, 10),
     currency: 'INR',
     amount: '100',
     notes: null,
@@ -108,6 +110,34 @@ describe('buildReviewFeed', () => {
       capture('b', '2026-09-09T10:00:00Z'),
     ]);
     expect(twoDays.filter((item) => item.kind === 'day')).toHaveLength(2);
+  });
+
+  it('cuts the days by when the money moved, not by when the row was written', () => {
+    // The bug this is here for: one scan writes every message it finds in the
+    // same second, so a summer of bank messages all carried the same
+    // `created_at` and the list read as one enormous "Today" — a page of dates
+    // that were all the same date and none of them the date on the bill.
+    const items = buildReviewFeed([
+      capture('july', '2026-09-15T04:00:00Z', sure, '2026-07-04'),
+      capture('august', '2026-09-15T04:00:00Z', sure, '2026-08-19'),
+      capture('september', '2026-09-15T04:00:00Z', sure, '2026-09-02'),
+    ]);
+    expect(items).toMatchObject([
+      { kind: 'day', on: '2026-09-02T12:00:00' },
+      { kind: 'single', capture: { id: 'september' } },
+      { kind: 'day', on: '2026-08-19T12:00:00' },
+      { kind: 'single', capture: { id: 'august' } },
+      { kind: 'day', on: '2026-07-04T12:00:00' },
+      { kind: 'single', capture: { id: 'july' } },
+    ]);
+  });
+
+  it('keeps one day as one day however the rows were written', () => {
+    const items = buildReviewFeed([
+      capture('scanned', '2026-09-15T04:00:00Z', sure, '2026-09-10'),
+      capture('typed', '2026-09-10T18:00:00Z', null, '2026-09-10'),
+    ]);
+    expect(items.some((item) => item.kind === 'day')).toBe(false);
   });
 
   it('folds a spoken batch into one card', () => {
@@ -197,7 +227,7 @@ describe('a run of drafts is one card', () => {
   const day = (key: string): ReviewFeedItem => ({
     kind: 'day',
     key,
-    createdAt: '2026-09-10T10:00:00Z',
+    on: '2026-09-10T12:00:00',
   });
   const single = (id: string): ReviewFeedItem => ({
     kind: 'single',

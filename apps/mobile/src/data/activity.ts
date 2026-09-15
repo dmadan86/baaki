@@ -428,10 +428,16 @@ export function dayKey(iso: string): string {
  */
 export function groupByDay<T extends { created_at: string }>(
   entries: readonly T[],
+  /**
+   * Which day an entry belongs to, when it is not the day the row was written.
+   * Review passes the day the money moved: a scan writes three months of bank
+   * messages in one second, and every one of them would otherwise be "Today".
+   */
+  keyOf: (entry: T) => string = (entry) => dayKey(entry.created_at),
 ): { key: string; entries: T[] }[] {
   const sections: { key: string; entries: T[] }[] = [];
   for (const entry of entries) {
-    const key = dayKey(entry.created_at);
+    const key = keyOf(entry);
     const last = sections[sections.length - 1];
     if (last && last.key === key) last.entries.push(entry);
     else sections.push({ key, entries: [entry] });
