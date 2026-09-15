@@ -33,7 +33,7 @@ import {
 import {
   Button,
   Card,
-  ChipRow,
+  Chip,
   iconSize,
   ListRow,
   Row,
@@ -357,16 +357,33 @@ function TripRateSheet({
       <Text variant="heading">{editingFrom === '' ? t.fx.newRate : t.fx.editRate}</Text>
 
       {editingFrom === '' ? (
-        <ChipRow<string>
-          value={from}
-          onChange={(next) => {
-            setFrom(next);
-            setText('');
-            setExact(null);
-            setError(null);
-          }}
-          options={choices.map((code) => ({ value: code, label: code }))}
-        />
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="caption" tone="muted">
+            {t.captures.currencyPickerTitle}
+          </Text>
+          {/* Wrapped, not a `ChipRow`. That one is a horizontal ScrollView, and
+              a horizontal scroller inside a sheet card measures to nothing on
+              Android — the sheet opened with a title, a footnote and a dead
+              Save button, and no way to choose anything. Sixteen currencies
+              also read better as a block than as a strip that has to be
+              dragged sideways to find the one you want. */}
+          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+            {choices.map((code) => (
+              <Chip
+                key={code}
+                label={`${currencySymbol(code)} ${code}`}
+                selected={code === from}
+                repeatable
+                onPress={() => {
+                  setFrom(code);
+                  setText('');
+                  setExact(null);
+                  setError(null);
+                }}
+              />
+            ))}
+          </Row>
+        </View>
       ) : null}
 
       {foreign ? (
