@@ -49,6 +49,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MutationKind, peopleSignatureKey, SmsKind } from '@waves/core';
 import {
@@ -113,6 +114,7 @@ import { useSmsInboxReader } from '@/lib/smsFeature';
 import { smsRowAsCapture, splitPlaceable } from '@/lib/smsPlacement';
 import { useToast } from '@/lib/toast';
 import { usePlaceInPersonal } from '@/lib/usePlaceInPersonal';
+import { suppressTabBar } from '@/lib/tabBarSuppress';
 import { useSync } from '@/sync';
 
 export default function SmsInboxScreen(): React.JSX.Element | null {
@@ -123,6 +125,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   useHeroStatusBar();
   const { t, locale } = useStrings();
   const clearance = useBottomClearance();
+  const insets = useSafeAreaInsets();
   const { session, isGuest } = useAuth();
   const ownerId = session?.user?.id ?? '';
   const reader = useSmsInboxReader();
@@ -178,6 +181,23 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
   // placement succeeds.
   const chosen = useMemo(() => selectedRows(visible, selected), [visible, selected]);
   const chosenTotal = useMemo(() => sumOf(chosen), [chosen]);
+
+  /**
+   * While rows are ticked, the bottom of the phone belongs to this screen's own
+   * action bar — the same deal Review makes (`lib/tabBarSuppress`).
+   *
+   * Without it the foot is paid for twice: the navigation is a root-level bar
+   * over the whole stack, so the action bar reserved room for it
+   * (`useBottomClearance`) *and* sat under it, which is the band of empty
+   * surface between "Add to a group" and the system's own bar. Ask the
+   * navigation to stand down and the only thing left to clear is the gesture
+   * pill or the three buttons.
+   */
+  const selecting = chosen.length > 0;
+  useEffect(() => {
+    if (!selecting) return;
+    return suppressTabBar();
+  }, [selecting]);
 
   // ─────────────────────────────────────────────── where things go ──
 
@@ -748,7 +768,10 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         }
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
-          paddingBottom: clearance + (chosen.length > 0 ? 80 : 0),
+          // The bar is this screen's own while ticking and the navigation is
+          // gone under it, so the runway is the system inset plus the bar's own
+          // height — not the navigation's clearance on top of it.
+          paddingBottom: selecting ? insets.bottom + 128 : clearance,
         }}
         ListEmptyComponent={
           loading ? null : (
@@ -791,7 +814,7 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
       {/* The action bar, present only when something is ticked. It carries the
           count *and* the total, because "add 6" and "add ₹4,310" are two
           different things to be sure about before pressing. */}
-      {chosen.length > 0 ? (
+      {selecting ? (
         <View
           style={{
             position: 'absolute',
@@ -800,7 +823,9 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
             bottom: 0,
             paddingHorizontal: theme.spacing.xl,
             paddingTop: theme.spacing.md,
-            paddingBottom: clearance,
+            // Clears the system's bar and nothing else: the app's navigation
+            // has stood down for as long as this is up.
+            paddingBottom: insets.bottom + theme.spacing.md,
             gap: theme.spacing.sm,
             backgroundColor: theme.color.surface,
             borderTopWidth: 1,
