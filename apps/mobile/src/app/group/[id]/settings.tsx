@@ -44,12 +44,15 @@ import { CountryRow } from '@/components/CountryPicker';
 import { GroupCoverSheet } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
+import { SettlesInRow, TripRatesCard } from '@/components/TripRates';
 import { photoGateParam, photoGateStatus } from '@/lib/groupPhotoGate';
+import { canEditSettlementCurrency } from '@/lib/currencyChoices';
 import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import {
   useAddGhostMember,
   useDeleteGroup,
   useGroup,
+  useGroupFxRates,
   useGroupLedger,
   useGroups,
   useLeaveGroup,
@@ -147,6 +150,7 @@ export default function GroupSettingsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
+  const tripRates = useGroupFxRates(groupId);
 
   // Identity for "which member am I", from the session rather than the profile:
   // the session is on the device at launch, the profile is a fetch that lands
@@ -155,7 +159,7 @@ export default function GroupSettingsScreen() {
   // `lib/auth.useViewerId`.
   const viewerId = useViewerId();
 
-  const { group, members } = useGroup(groupId);
+  const { group, members, expenses } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, viewerId);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
@@ -445,6 +449,15 @@ export default function GroupSettingsScreen() {
   // sees the button; the RPC refuses it regardless (NOT_ADMIN).
   const isAdmin = (members.data ?? []).some(
     (member) => isViewer(member, viewerId) && member.role === 'admin',
+  );
+  const canChangeCurrency = canEditSettlementCurrency(
+    isAdmin,
+    // `rows`, not `data`: the first expense of an offline session is in the
+    // queue and nowhere else, and the server would happily take a currency
+    // change queued behind it — leaving one bill counted in a currency the
+    // group no longer settles in.
+    expenses.rows.length,
+    tripRates.data?.length ?? 0,
   );
 
   const leave = async (): Promise<void> => {
@@ -776,6 +789,27 @@ export default function GroupSettingsScreen() {
             updateGroup.mutate({ country_code }, { onSuccess: () => setStatus(t.account.saved) })
           }
         />
+
+        {/* What the group counts in, and what it converts foreign bills with.
+            Only an admin can choose it. It also stops being a control once
+            anything depends on it: either entries counted in it, or pinned rates
+            whose stored ratios all convert into it. Trip rates themselves can
+            be re-pinned at any time, because a bill keeps the rate it was saved
+            with (ADR-003). */}
+        <View style={{ gap: theme.spacing.sm }}>
+          <SectionHeader title={t.fx.section} />
+          <SettlesInRow
+            currency={currency}
+            locked={!canChangeCurrency}
+            onChange={(default_currency) =>
+              updateGroup.mutate(
+                { default_currency },
+                { onSuccess: () => setStatus(t.account.saved) },
+              )
+            }
+          />
+        </View>
+        <TripRatesCard groupId={groupId} groupCurrency={currency} canEdit={isAdmin} />
 
         {/* Trip dates and their nudges only mean anything on a trip, so the
             section appears only for that type and disappears the moment the

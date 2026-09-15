@@ -24,6 +24,8 @@ import {
   convertWithRecord,
   format,
   fromFxRecord,
+  type FxRate,
+  sameRate,
   minorUnitExponent,
   money,
   rateFromAmounts,
@@ -32,29 +34,14 @@ import {
   toFxRecord,
   type FxRecord,
 } from '@waves/core';
-import { Button, Callout, Card, ChipRow, Text, useTheme } from '@waves/ui';
+import { Button, Callout, Card, ChipRow, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
+import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
+import { rateLine } from '@/lib/tripRates';
 
 import { fetchFxRate } from '@/data/api';
-
-/** Enough for the currencies an India-first app actually sees. Exported so the
- *  capture screen's currency picker draws from the very same shortlist rather
- *  than a second copy that could drift out of step with this one. */
-export const COMMON_CURRENCIES = [
-  'INR',
-  'USD',
-  'EUR',
-  'GBP',
-  'AED',
-  'SGD',
-  'AUD',
-  'THB',
-  'JPY',
-  'LKR',
-  'NPR',
-];
 
 enum Method {
   Charged = 'charged',
@@ -72,6 +59,19 @@ export interface CurrencyRateProps {
   amount: bigint;
   fx: FxRecord | null;
   onFxChange: (fx: FxRecord | null) => void;
+  /**
+   * The rate the group has pinned for this pair, if it has one (A?? — see
+   * `components/TripRates`).
+   *
+   * Given one, a foreign expense opens already converted: the trip's rate is
+   * put on the bill and the card collapses to a single line saying what the
+   * total comes to and which rate said so. That is the whole point of pinning
+   * one — the rate was entered for the trip, so it should not be asked for
+   * again at every meal. "Change" opens the methods below for this bill alone,
+   * and what is then stored on the expense is that bill's own rate: the pinned
+   * number is a default, never a rule.
+   */
+  tripRate?: FxRate | null;
   /**
    * Whether this component owns picking the currency, too.
    *
@@ -92,6 +92,7 @@ export function CurrencyRate({
   amount,
   fx,
   onFxChange,
+  tripRate = null,
   showCurrencyPicker = true,
 }: CurrencyRateProps): React.JSX.Element | null {
   const theme = useTheme();
@@ -102,6 +103,12 @@ export function CurrencyRate({
   const [rateText, setRateText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Whether the methods are open. They start closed while the bill is riding the
+  // trip's rate, and open the moment somebody asks to change it — or the moment
+  // the bill carries a rate that is not the trip's, since that is a choice
+  // already made and hiding it would be hiding it from the person who made it.
+  const [overriding, setOverriding] = useState(false);
   // The pair the component is showing right now. `fetchToday` captures the pair
   // it launched for and, on return, applies its result only if this still
   // matches — otherwise a rate fetched for a currency the user has since changed
@@ -173,6 +180,10 @@ export function CurrencyRate({
     setChargedText('');
     setRateText('');
     setError(null);
+    // A new currency is a new question. Whatever was decided about the last
+    // one — including a decision to override the trip's rate for it — does not
+    // carry over to a rate for a different pair.
+    setOverriding(false);
   }
 
   const applyTyped = (text: string): void => {
@@ -214,6 +225,25 @@ export function CurrencyRate({
 
   const converted = fx && amount > 0n ? convertWithRecord(money(amount, currency), fx) : null;
 
+  // The trip's rate, but only if it converts the pair this expense is actually
+  // in — a pinned VND rate is not a worse answer for a THB bill, it is a wrong
+  // one, and `resolveFxRate` skips it for exactly the same reason.
+  const pinned =
+    tripRate && tripRate.from === currency && tripRate.to === groupCurrency ? tripRate : null;
+
+  // Put the pinned rate on the bill the moment it becomes a foreign one, unless
+  // a rate is already there — an edit reopening on its stored rate, or one the
+  // person has just typed, is never overwritten by the group's.
+  useEffect(() => {
+    if (!foreign || !pinned || fx) return;
+    onFxChange(toFxRecord(pinned));
+    // `onFxChange` is a setter from the screen and stable in practice; keying on
+    // it would re-run this on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foreign, pinned, fx]);
+
+  const onTripRate = Boolean(pinned && fx && sameRate(fromFxRecord(fx), pinned));
+
   // The currency lives in the header pill: nothing to show until the expense is
   // foreign, and then only the rate — never the in-card currency chips.
   if (!showCurrencyPicker) {
@@ -226,6 +256,35 @@ export function CurrencyRate({
         onPress={() => setOpen(true)}
         accessibilityHint={t.misc.settlesInHint.replace('{currency}', groupCurrency)}
       />
+    );
+  }
+
+  // Riding the trip's rate: one line, not a card of controls. What the bill
+  // comes to in the group's currency, the rate that said so, and the way out.
+  if (foreign && pinned && onTripRate && !overriding) {
+    return (
+      <Card style={{ gap: theme.spacing.xs }}>
+        <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            {converted ? (
+              <Text variant="body" numberOfLines={1}>
+                {t.misc.convertedApprox
+                  .replace('{amount}', format(converted))
+                  .replace('{currency}', groupCurrency)}
+              </Text>
+            ) : null}
+            <Text variant="micro" tone="muted" numberOfLines={1}>
+              {`${t.fx.tierTrip} · ${rateLine(pinned)}`}
+            </Text>
+          </View>
+          <Button
+            label={t.fx.change}
+            variant="ghost"
+            size="sm"
+            onPress={() => setOverriding(true)}
+          />
+        </Row>
+      </Card>
     );
   }
 

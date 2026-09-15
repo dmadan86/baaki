@@ -61,8 +61,9 @@ import { PaymentMethodRow, PaymentMethodSheet } from '@/components/PaymentMethod
 import { LocationField } from '@/components/LocationField';
 import { captureLocationIfGranted } from '@/lib/location';
 import { friendlyError } from '@/lib/errors';
-import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
+import { CurrencyRate } from '@/components/CurrencyRate';
 import { DescriptionField } from '@/components/expense/DescriptionField';
+import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
 import { ExpenseHero } from '@/components/expense/ExpenseHero';
 import { splitIcon } from '@/components/expense/splitIcon';
 import { ChoiceRow, SheetOverlay } from '@/components/expense/SheetOverlay';
@@ -77,8 +78,9 @@ import {
 } from '@/data/api';
 import { router } from '@/lib/navigation';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
+import { tripRateFor } from '@/lib/tripRates';
 import { StorageCapError } from '@/lib/storage';
-import { useAssignCapture, useGroup } from '@/data/hooks';
+import { useAssignCapture, useGroup, useGroupFxRates } from '@/data/hooks';
 import { displayName, groupLabel, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useViewerId } from '@/lib/auth';
@@ -396,6 +398,7 @@ export default function AddExpenseScreen() {
   const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
+  const groupFxRates = useGroupFxRates(groupId);
   const { mutate } = useSync();
   const assignCapture = useAssignCapture();
   const guard = useGuestGuard();
@@ -826,6 +829,18 @@ export default function AddExpenseScreen() {
   // The expense keeps the currency it was paid in; the group's is only the
   // default and what a converted total would be shown in (ADR-003).
   const currency = expenseCurrency ?? groupCurrency;
+  // The rate the trip has pinned for whatever this bill is in, if it has pinned
+  // one (`components/TripRates`). It is a default for the rate field below and
+  // nothing more — the bill can still carry its own, and whichever rate is on
+  // the expense when it saves is the one it keeps (ADR-003).
+  //
+  // Only ever on a *new* bill. A saved expense's own rate is not in the read
+  // model (see the edit branch above, which is why a foreign expense asks for
+  // its rate again), so defaulting one here would put the trip's number on a
+  // bill that was written with a different one and re-price it on save —
+  // quietly, in the one place this feature promised never to touch. Until the
+  // stored rate is readable, an edit asks, exactly as it did before.
+  const tripRate = editing ? null : tripRateFor(groupFxRates.data ?? [], currency, groupCurrency);
 
   // ───────────────────────────────────────────────────────── who paid ──
   //
@@ -2116,6 +2131,7 @@ export default function AddExpenseScreen() {
               amount={amount}
               fx={fx}
               onFxChange={setFx}
+              tripRate={tripRate}
               showCurrencyPicker={false}
             />
           </View>

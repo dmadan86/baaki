@@ -2098,6 +2098,9 @@ export interface GroupFxRateRow {
   from: string;
   num: bigint;
   den: bigint;
+  /** When the rate was captured — carried through so a bill written at the
+   *  trip's rate stores when that rate was taken, not when the bill was. */
+  ts: string;
   source: string;
 }
 
@@ -2114,6 +2117,7 @@ export function useGroupFxRates(groupId: string): LocalRead<GroupFxRateRow[]> {
         from,
         num: BigInt(value.num),
         den: BigInt(value.den),
+        ts: value.ts,
         source: value.source,
       }))
       .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));

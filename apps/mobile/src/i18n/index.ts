@@ -3311,6 +3311,36 @@ export interface UiStrings {
     /** Screen-reader announcement when the version wall takes the screen. */
     blockedAnnouncement: string;
   };
+  /** A group's settle currency and the rates it converts foreign bills with —
+   *  set once for the trip, overridable on a single bill (ADR-003, extended). */
+  fx: {
+    section: string;
+    settlesIn: string;
+    settlesInHint: string;
+    settlesInLocked: string;
+    tripRates: string;
+    tripRatesBody: string;
+    addRate: string;
+    editRate: string;
+    newRate: string;
+    removeRate: string;
+    noRates: string;
+    adminOnly: string;
+    /** The direction switch on the rate editor: "1 {from} = … {to}". */
+    swap: string;
+    typeIt: string;
+    /** The label above the rate input, e.g. "1 INR = ? VND". */
+    oneEquals: string;
+    /** The tier a bill's rate came from, said on the expense form. */
+    tierTrip: string;
+    tierBill: string;
+    /** The button that opens the full rate methods on an expense. */
+    change: string;
+    /** Confirmation before a pinned rate is dropped. */
+    removeConfirm: string;
+    /** What a pinned rate does and does not touch. */
+    appliesNote: string;
+  };
   /** The private personal-finance ledger (A48): the "Me" tab and its screens —
    *  solo expenses/income, recurring rules, loans and monthly budgets. */
   personal: {
@@ -6123,6 +6153,30 @@ const en: UiStrings = {
     dismiss: 'Got it',
     blockedAnnouncement: 'Waves needs updating before it can be used.',
   },
+  fx: {
+    section: 'Currency',
+    settlesIn: 'Settles in',
+    settlesInHint: 'Every balance in this group is counted in this currency.',
+    settlesInLocked: 'Set before the first expense. This group already has entries.',
+    tripRates: 'Trip rates',
+    tripRatesBody:
+      'Pin a rate for each currency you will pay in, and every bill converts the same way — no typing it again per bill.',
+    addRate: 'Add a currency',
+    editRate: 'Edit rate',
+    newRate: 'New rate',
+    removeRate: 'Remove this rate',
+    noRates: 'No rates pinned yet.',
+    adminOnly: 'Only an admin can pin the trip rate.',
+    swap: 'Turn it around',
+    typeIt: 'Type the rate',
+    oneEquals: '1 {from} =',
+    tierTrip: 'Trip rate',
+    tierBill: 'This bill',
+    change: 'Change',
+    removeConfirm: 'Bills already saved keep the rate they were saved with.',
+    appliesNote: 'Changing a rate never moves a bill already saved.',
+  },
+
   personal: {
     tab: 'Personal',
     title: 'Personal',
@@ -9069,6 +9123,31 @@ const ta: UiStrings = {
     dismiss: 'சரி',
     blockedAnnouncement: 'Waves-ஐப் பயன்படுத்த முதலில் புதுப்பிக்க வேண்டும்.',
   },
+  fx: {
+    section: 'நாணயம்',
+    settlesIn: 'கணக்கு இந்த நாணயத்தில்',
+    settlesInHint: 'இந்தக் குழுவின் எல்லா இருப்புகளும் இந்த நாணயத்தில் கணக்கிடப்படும்.',
+    settlesInLocked:
+      'முதல் செலவுக்கு முன் அமைக்க வேண்டும். இந்தக் குழுவில் ஏற்கெனவே பதிவுகள் உள்ளன.',
+    tripRates: 'பயண மாற்று விகிதங்கள்',
+    tripRatesBody:
+      'நீங்கள் செலவழிக்கும் ஒவ்வொரு நாணயத்துக்கும் ஒரு விகிதத்தை ஒரே முறை குறியுங்கள் — ஒவ்வொரு பில்லுக்கும் மீண்டும் தட்டச்சு செய்ய வேண்டாம்.',
+    addRate: 'ஒரு நாணயத்தைச் சேர்க்க',
+    editRate: 'விகிதத்தைத் திருத்து',
+    newRate: 'புதிய விகிதம்',
+    removeRate: 'இந்த விகிதத்தை நீக்கு',
+    noRates: 'இதுவரை எந்த விகிதமும் இல்லை.',
+    adminOnly: 'நிர்வாகி மட்டுமே பயண விகிதத்தை அமைக்க முடியும்.',
+    swap: 'திசையை மாற்று',
+    typeIt: 'விகிதத்தைத் தட்டச்சு செய்யுங்கள்',
+    oneEquals: '1 {from} =',
+    tierTrip: 'பயண விகிதம்',
+    tierBill: 'இந்த பில்',
+    change: 'மாற்று',
+    removeConfirm: 'ஏற்கெனவே சேமித்த பில்கள் அவை சேமித்த விகிதத்தையே வைத்திருக்கும்.',
+    appliesNote: 'விகிதத்தை மாற்றினாலும் ஏற்கெனவே சேமித்த பில் மாறாது.',
+  },
+
   personal: {
     tab: 'தனிப்பட்டது',
     title: 'தனிப்பட்டது',
@@ -11888,6 +11967,30 @@ const hi: UiStrings = {
     dismiss: 'ठीक है',
     blockedAnnouncement: 'Waves इस्तेमाल करने से पहले उसे अपडेट करना ज़रूरी है।',
   },
+  fx: {
+    section: 'मुद्रा',
+    settlesIn: 'हिसाब इस मुद्रा में',
+    settlesInHint: 'इस समूह का हर बैलेंस इसी मुद्रा में गिना जाता है।',
+    settlesInLocked: 'पहले ख़र्च से पहले तय करें। इस समूह में पहले से एंट्री हैं।',
+    tripRates: 'यात्रा दरें',
+    tripRatesBody:
+      'जिस मुद्रा में ख़र्च करेंगे उसकी दर एक बार लगा दें — फिर हर बिल उसी दर से बदलेगा, बार-बार टाइप नहीं करना पड़ेगा।',
+    addRate: 'मुद्रा जोड़ें',
+    editRate: 'दर बदलें',
+    newRate: 'नई दर',
+    removeRate: 'यह दर हटाएँ',
+    noRates: 'अभी कोई दर तय नहीं है।',
+    adminOnly: 'यात्रा दर सिर्फ़ एडमिन तय कर सकता है।',
+    swap: 'उलट दें',
+    typeIt: 'दर टाइप करें',
+    oneEquals: '1 {from} =',
+    tierTrip: 'यात्रा दर',
+    tierBill: 'यह बिल',
+    change: 'बदलें',
+    removeConfirm: 'पहले सहेजे गए बिल उसी दर पर रहेंगे जिस पर सहेजे गए थे।',
+    appliesNote: 'दर बदलने से पहले सहेजा गया बिल कभी नहीं बदलता।',
+  },
+
   personal: {
     tab: 'निजी',
     title: 'निजी',
@@ -15150,6 +15253,30 @@ const ar: UiStrings = {
     dismiss: 'حسنًا',
     blockedAnnouncement: 'يجب تحديث Waves قبل استخدامه.',
   },
+  fx: {
+    section: 'العملة',
+    settlesIn: 'التسوية بـ',
+    settlesInHint: 'كل رصيد في هذه المجموعة يُحسب بهذه العملة.',
+    settlesInLocked: 'تُحدَّد قبل أول مصروف. هذه المجموعة فيها قيود بالفعل.',
+    tripRates: 'أسعار الرحلة',
+    tripRatesBody:
+      'ثبّت سعراً لكل عملة ستدفع بها، فتتحوّل كل فاتورة بالطريقة نفسها — دون كتابته من جديد مع كل فاتورة.',
+    addRate: 'أضف عملة',
+    editRate: 'تعديل السعر',
+    newRate: 'سعر جديد',
+    removeRate: 'احذف هذا السعر',
+    noRates: 'لا أسعار مثبَّتة بعد.',
+    adminOnly: 'المشرف وحده يثبّت سعر الرحلة.',
+    swap: 'اقلب الاتجاه',
+    typeIt: 'اكتب السعر',
+    oneEquals: '1 {from} =',
+    tierTrip: 'سعر الرحلة',
+    tierBill: 'هذه الفاتورة',
+    change: 'تغيير',
+    removeConfirm: 'الفواتير المحفوظة تبقى على السعر الذي حُفظت به.',
+    appliesNote: 'تغيير السعر لا يحرّك فاتورة محفوظة أبداً.',
+  },
+
   personal: {
     tab: 'الشخصي',
     title: 'الشخصي',
