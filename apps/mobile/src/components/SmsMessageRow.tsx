@@ -111,7 +111,10 @@ export const SmsMessageRow = memo(function SmsMessageRow({
       style={{
         alignItems: 'center',
         gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
+        // The same rhythm Review's rows keep. This list is read down, dozens at
+        // a time, and a row that is generous with its vertical space is a list
+        // that shows four of them.
+        paddingVertical: theme.spacing.sm,
       }}
     >
       {/* The tick box owns its own hit area, so ticking a row and opening it
@@ -150,11 +153,11 @@ export const SmsMessageRow = memo(function SmsMessageRow({
             no shop name stop all sharing one washed-out fallback glyph.
             Nothing has *chosen* a category yet: that happens when the row
             becomes an expense. */}
-        <CategoryBadge category={null} meta={null} description={name} size={38} />
+        <CategoryBadge category={null} meta={null} description={name} size={40} />
 
         <View style={{ flex: 1, minWidth: 0 }}>
           <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
-            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1 }}>
+            <Text variant="body" numberOfLines={1} style={{ flexShrink: 1, fontWeight: '600' }}>
               {name}
             </Text>
             {row.settledAs === null && row.readAt >= new Date(now - 86_400_000).toISOString() ? (
@@ -176,10 +179,22 @@ export const SmsMessageRow = memo(function SmsMessageRow({
                 {`· ${row.accountTail}`}
               </Text>
             ) : null}
+            {/* Already in Review is the ordinary case, not an event: every
+                confident expense is in both places by design. As a filled chip
+                it was on nearly every row at once, which is a chip that has
+                stopped meaning anything and a list that looks busier than it
+                is. It joins the quiet line instead, where it still answers
+                "have I seen this already?" without shouting it. */}
+            {inReview ? (
+              <Text variant="micro" tone="muted" numberOfLines={1}>
+                {`· ${t.smsInbox.inReview}`}
+              </Text>
+            ) : null}
           </Row>
 
-          {/* One line of marks, and only when there is something to say. */}
-          {reason || doubts.length > 0 || inReview ? (
+          {/* One line of marks, and only when something is actually wrong or
+              this row is one of the ones that must not be counted. */}
+          {reason || doubts.length > 0 ? (
             <Row style={{ gap: theme.spacing.xs, flexWrap: 'wrap', marginTop: 2 }}>
               {reason ? <Badge label={reason} /> : null}
               {doubts.includes('date-inferred') ? (
@@ -188,7 +203,6 @@ export const SmsMessageRow = memo(function SmsMessageRow({
               {doubts.includes('hard-to-read') ? (
                 <Badge label={t.smsInbox.hardToRead} tone="negative" />
               ) : null}
-              {inReview ? <Badge label={t.smsInbox.inReview} tone="positive" /> : null}
             </Row>
           ) : null}
         </View>

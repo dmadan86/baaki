@@ -24,7 +24,7 @@ import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { Button, Divider, iconSize, Row, Sheet, Text, useTheme } from '@waves/ui';
+import { Button, ChipRow, Divider, iconSize, Row, Sheet, Text, useTheme } from '@waves/ui';
 
 import { RangeCalendar } from '@/components/RangeCalendar';
 import { useStrings } from '@/i18n';
@@ -113,6 +113,26 @@ export function SmsFilterSheet({
       style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.lg }}
     >
       <Text variant="heading">{t.smsInbox.filterTitle}</Text>
+
+      {/* The four windows people actually reach for. They used to be a band of
+          chips under the hero, on a screen whose whole problem was bands: four
+          of them stacked before the first message. They belong with the other
+          date controls, and the screen says which one is on. */}
+      <View style={{ gap: theme.spacing.sm }}>
+        <Text variant="caption" tone="muted">
+          {t.smsInbox.filterRecent}
+        </Text>
+        <ChipRow<string>
+          value={value.kind === 'window' ? String(value.days) : ''}
+          onChange={(days) => onApply({ kind: 'window', days: Number(days) as 0 | 7 | 30 | 90 })}
+          options={[
+            { value: '7', label: t.smsInbox.last7 },
+            { value: '30', label: t.smsInbox.last30 },
+            { value: '90', label: t.smsInbox.last90 },
+            { value: '0', label: t.smsInbox.allTime },
+          ]}
+        />
+      </View>
 
       <View style={{ gap: theme.spacing.sm }}>
         <Text variant="caption" tone="muted">

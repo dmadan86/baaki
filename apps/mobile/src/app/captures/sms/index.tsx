@@ -53,7 +53,6 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { MutationKind, peopleSignatureKey, SmsKind } from '@waves/core';
 import {
   Button,
-  ChipRow,
   Divider,
   EmptyState,
   iconSize,
@@ -115,9 +114,6 @@ import { smsRowAsCapture, splitPlaceable } from '@/lib/smsPlacement';
 import { useToast } from '@/lib/toast';
 import { usePlaceInPersonal } from '@/lib/usePlaceInPersonal';
 import { useSync } from '@/sync';
-
-/** The quick date windows, as chip values. `'more'` opens the filter sheet. */
-type Quick = '7' | '30' | '90' | 'all' | 'more';
 
 export default function SmsInboxScreen(): React.JSX.Element | null {
   const theme = useTheme();
@@ -502,21 +498,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
 
   // ───────────────────────────────────────────────────── rendering ──
 
-  const quick: Quick =
-    date.kind === 'window' ? (date.days === 0 ? 'all' : (String(date.days) as Quick)) : 'more';
-
-  const onQuick = useCallback((value: Quick): void => {
-    if (value === 'more') {
-      setFilterOpen(true);
-      return;
-    }
-    setDate(
-      value === 'all'
-        ? { kind: 'window', days: 0 }
-        : { kind: 'window', days: Number(value) as 7 | 30 | 90 },
-    );
-  }, []);
-
   const renderRow = useCallback(
     ({ item }: { item: StoredSms }) => (
       <SmsMessageRow
@@ -571,9 +552,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
       <ScreenHero
         icon="chatbubbles"
         title={t.smsInbox.title}
-        // The promise, where it cannot be missed. Not a settings page, not a
-        // paragraph — one line, under the name of the thing it is about.
-        subtitle={t.smsInbox.onDevice}
         back={{ label: t.common.back, onPress: () => router.back() }}
         actions={[
           {
@@ -609,32 +587,50 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
               />
             </Row>
           ) : period.count > 0 ? (
-            <View>
-              <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }} numberOfLines={1}>
-                {kindLabel}
-              </Text>
-              {period.total !== null && kind !== SmsKind.Other ? (
-                <MoneyText
-                  amount={period.total}
-                  currency={period.currency}
-                  locale={locale}
-                  variant="title"
-                  tone="default"
-                  style={{ color: theme.color.onBrand }}
-                />
-              ) : (
-                <Text variant="title" tone="onBrand">
-                  {plural(locale, period.count, t.smsImport.messageCount)}
+            <Row style={{ alignItems: 'flex-end', gap: theme.spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }} numberOfLines={1}>
+                  {/* Which pile, and over what stretch of time. The stretch used
+                      to be a whole band of chips below the panel; it is a fact
+                      about the figure beside it, so it is said here and changed
+                      in the filter sheet the glyph above already opens. */}
+                  {`${kindLabel} · ${filterLabel(date, locale, t)}`}
                 </Text>
-              )}
-              {/* Said out loud rather than left to be noticed: a total that
+                {period.total !== null && kind !== SmsKind.Other ? (
+                  <MoneyText
+                    amount={period.total}
+                    currency={period.currency}
+                    locale={locale}
+                    variant="title"
+                    tone="default"
+                    style={{ color: theme.color.onBrand }}
+                  />
+                ) : (
+                  <Text variant="title" tone="onBrand">
+                    {plural(locale, period.count, t.smsImport.messageCount)}
+                  </Text>
+                )}
+                {/* Said out loud rather than left to be noticed: a total that
                   quietly skipped rows is a number with nothing to question. */}
-              {period.uncounted > 0 && kind !== SmsKind.Other ? (
-                <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
-                  {plural(locale, period.uncounted, t.smsInbox.notCounted)}
-                </Text>
+                {period.uncounted > 0 && kind !== SmsKind.Other ? (
+                  <Text variant="micro" tone="onBrand" style={{ opacity: 0.85 }}>
+                    {plural(locale, period.uncounted, t.smsInbox.notCounted)}
+                  </Text>
+                ) : null}
+              </View>
+              {/* "Select all" lives beside the figure whether or not anything
+                  is ticked — one home, not a band of its own that appears and
+                  disappears. It means the rows on screen, never the ones a
+                  search is hiding. */}
+              {visible.length > 0 ? (
+                <Button
+                  label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
+                  variant="onBrandOutline"
+                  size="sm"
+                  onPress={() => setSelected((current) => toggleAll(visible, current))}
+                />
               ) : null}
-            </View>
+            </Row>
           ) : null}
 
           {/* Search. A plain field rather than an icon that expands into one:
@@ -676,27 +672,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         </View>
       </ScreenHero>
 
-      <View style={{ paddingHorizontal: theme.spacing.xl, paddingVertical: theme.spacing.md }}>
-        <ChipRow
-          options={[
-            { value: '7', label: t.smsInbox.last7 },
-            { value: '30', label: t.smsInbox.last30 },
-            { value: '90', label: t.smsInbox.last90 },
-            { value: 'all', label: t.smsInbox.allTime },
-            // The fifth chip wears whatever the sheet chose, so a month or a
-            // range is visible on the screen rather than only inside the sheet
-            // that set it.
-            {
-              value: 'more',
-              label:
-                date.kind === 'window' ? t.smsInbox.filterByMonth : filterLabel(date, locale, t),
-            },
-          ]}
-          value={quick}
-          onChange={onQuick}
-        />
-      </View>
-
       <SegmentedTabs
         value={kind}
         onChange={setKind}
@@ -729,31 +704,6 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         ]}
       />
 
-      {/* One gesture, on one line, and only while nothing is ticked — once
-          something is, the same control is on the panel beside the count,
-          which is where a scope control belongs and is a shorter reach from
-          the row that was just tapped. Two homes, never both at once.
-
-          "Select all" means the rows on screen, never the ones a search is
-          hiding: the one mistake here that would cost real money. */}
-      {visible.length > 0 && chosen.length === 0 ? (
-        <Row
-          style={{
-            paddingHorizontal: theme.spacing.xl,
-            paddingVertical: theme.spacing.xs,
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Button
-            label={everythingTicked ? t.smsInbox.selectNone : t.smsInbox.selectAll}
-            variant="ghost"
-            size="sm"
-            onPress={() => setSelected((current) => toggleAll(visible, current))}
-          />
-        </Row>
-      ) : null}
-
       <FlashList
         data={loading ? [] : visible}
         keyExtractor={(item) => item.dedupeKey}
@@ -769,6 +719,33 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         drawDistance={1200}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={Divider}
+        // The promise, at the foot of what it is a promise about. It used to be
+        // the hero's subtitle, a second line of type above every control on a
+        // screen whose problem was how much stood between opening it and
+        // reading a message. Saying it under the messages is saying it about
+        // the messages — and it is said again, where it matters most, inside
+        // the scan while somebody watches their own inbox being read.
+        ListFooterComponent={
+          loading || visible.length === 0 ? null : (
+            <Row
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: theme.spacing.xs,
+                paddingVertical: theme.spacing.xl,
+              }}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={iconSize.xs}
+                color={theme.color.textFaint}
+              />
+              <Text variant="micro" tone="faint">
+                {t.smsInbox.onDevice}
+              </Text>
+            </Row>
+          )
+        }
         contentContainerStyle={{
           paddingHorizontal: theme.spacing.xl,
           paddingBottom: clearance + (chosen.length > 0 ? 80 : 0),
