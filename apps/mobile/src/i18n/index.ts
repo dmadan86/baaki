@@ -2818,6 +2818,8 @@ export interface UiStrings {
     /** The detail screen. */
     detailTitle: string;
     fromTheMessage: string;
+    /** Opens the bank message a Review draft was read out of. */
+    seeMessage: string;
     onThisPhoneOnly: string;
     messageUnavailable: string;
     sentBy: string;
@@ -5629,6 +5631,7 @@ const en: UiStrings = {
     reasonRefund: 'Refund',
     detailTitle: 'Message',
     fromTheMessage: 'From the message',
+    seeMessage: 'See the message',
     onThisPhoneOnly: 'On this phone only',
     messageUnavailable: 'The message could not be opened on this phone.',
     sentBy: 'Sent by {sender}',
@@ -8532,6 +8535,7 @@ const ta: UiStrings = {
     reasonRefund: 'திரும்பப் பெற்றது',
     detailTitle: 'செய்தி',
     fromTheMessage: 'செய்தியிலிருந்து',
+    seeMessage: 'செய்தியைப் பார்க்கவும்',
     onThisPhoneOnly: 'இந்த ஃபோனில் மட்டும்',
     messageUnavailable: 'இந்த ஃபோனில் செய்தியைத் திறக்க முடியவில்லை.',
     sentBy: '{sender} அனுப்பியது',
@@ -11376,6 +11380,7 @@ const hi: UiStrings = {
     reasonRefund: 'रिफ़ंड',
     detailTitle: 'संदेश',
     fromTheMessage: 'संदेश से',
+    seeMessage: 'संदेश देखें',
     onThisPhoneOnly: 'सिर्फ़ इस फ़ोन पर',
     messageUnavailable: 'इस फ़ोन पर संदेश नहीं खोला जा सका।',
     sentBy: '{sender} ने भेजा',
@@ -14518,6 +14523,7 @@ const ar: UiStrings = {
     reasonRefund: 'استرداد',
     detailTitle: 'الرسالة',
     fromTheMessage: 'من الرسالة',
+    seeMessage: 'عرض الرسالة',
     onThisPhoneOnly: 'على هذا الهاتف فقط',
     messageUnavailable: 'تعذّر فتح الرسالة على هذا الهاتف.',
     sentBy: 'من {sender}',
