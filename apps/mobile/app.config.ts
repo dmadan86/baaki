@@ -50,6 +50,25 @@ function googleServicesFile(): string | undefined {
 }
 
 /**
+ * The same file for the other half of the app: iOS wants a plist, and it is
+ * not optional there the way it is on Android.
+ *
+ * `@react-native-firebase/app`'s iOS mod *throws* when `ios.googleServicesFile`
+ * is unset — "Path to GoogleService-Info.plist is not defined" — so an iOS
+ * build had no way to succeed while only the Android half of this was wired,
+ * whatever it had in its secrets. Resolved exactly like the Android one: the
+ * EAS file secret first, a local copy second, nothing if this machine has
+ * neither.
+ */
+function googleServicesPlist(): string | undefined {
+  const fromEas = process.env.GOOGLE_SERVICES_INFO_PLIST;
+  if (fromEas && existsSync(fromEas)) return fromEas;
+
+  const local = resolve(__dirname, 'GoogleService-Info.plist');
+  return existsSync(local) ? local : undefined;
+}
+
+/**
  * The native Google Maps SDK key for a platform, or nothing when unset.
  *
  * `react-native-maps` with the Google provider needs an API key baked into the
@@ -125,6 +144,9 @@ export default ({ config: fromAppJson }: ConfigContext): ExpoConfig => {
     ? { ...config.android, googleServicesFile: services }
     : config.android;
 
+  const plist = googleServicesPlist();
+  const iosBase = plist ? { ...config.ios, googleServicesFile: plist } : config.ios;
+
   // Fold the native Maps SDK key into each platform's `config` block when one is
   // set, so `expo prebuild` writes it into the manifest / Info.plist.
   const androidKey = googleMapsKey('android');
@@ -136,8 +158,8 @@ export default ({ config: fromAppJson }: ConfigContext): ExpoConfig => {
       ? { ...androidBase, config: { ...androidBase?.config, googleMaps: { apiKey: androidKey } } }
       : androidBase,
     ios: iosKey
-      ? { ...config.ios, config: { ...config.ios?.config, googleMapsApiKey: iosKey } }
-      : config.ios,
+      ? { ...iosBase, config: { ...iosBase?.config, googleMapsApiKey: iosKey } }
+      : iosBase,
   };
 
   const googleSignIn = googleSignInPlugin();
