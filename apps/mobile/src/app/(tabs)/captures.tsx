@@ -205,6 +205,25 @@ function wasFound(capture: CaptureRow): boolean {
 }
 
 /**
+ * The bank message this draft was read out of, if there is one.
+ *
+ * A person cannot trust a parser they cannot check. The row says "PLASTICS
+ * ₹1,020" and when that is wrong — a merchant taken out of a reference number,
+ * a date read from the wrong half of a UPI string — nothing on this screen says
+ * why, because the message itself never leaves the phone's own store
+ * (`lib/smsMessageStore.ts`) and the draft deliberately carries no copy of it.
+ *
+ * What the draft does carry is the key, so the message can be *opened* rather
+ * than copied: `parsed.dedupeKey` is the same key the Bank messages screen
+ * files a body under, and that screen already exists to show one.
+ */
+function messageKeyOf(capture: CaptureRow): string | null {
+  if (!wasFound(capture)) return null;
+  const key = (capture.parsed as { dedupeKey?: unknown } | null)?.dedupeKey;
+  return typeof key === 'string' && key !== '' ? key : null;
+}
+
+/**
  * Where this row is about to go, said before the gesture that confirms it.
  *
  * Two shapes, and they are different in glyph, in wording and in hue — never in
@@ -1573,6 +1592,18 @@ export default function CapturesScreen() {
   // things to file. Everything it was unsure of waits behind this row.
   const bankMessages = useSmsMessages(smsReader);
   const bankWaiting = useMemo(() => totalWaiting(bankMessages.rows), [bankMessages.rows]);
+
+  // The message behind the row whose ⋯ is open, when it can actually be shown:
+  // this build reads messages, the draft names one, and the store still holds
+  // it. Checked here rather than left to the screen being pushed, which answers
+  // a key it does not have with an empty page — an offer that leads nowhere is
+  // worse than no offer.
+  const menuMessageKey = useMemo(() => {
+    if (!smsReader || !menuCapture) return null;
+    const key = messageKeyOf(menuCapture);
+    if (!key) return null;
+    return bankMessages.rows.some((row) => row.dedupeKey === key) ? key : null;
+  }, [bankMessages.rows, menuCapture, smsReader]);
   const bankMessagesRow = smsReader ? (
     <Pressable
       accessibilityRole="button"
@@ -2062,11 +2093,16 @@ export default function CapturesScreen() {
                 void dismissMany(items);
               }}
             >
-              <Ionicons
-                name={chosenRows.every(wasFound) ? 'close-circle-outline' : 'trash-outline'}
-                size={iconSize.lg}
-                color={theme.color.negative}
-              />
+              {/* A bin, whichever answer this is. The ✕ that used to stand
+                  here for "not an expense" read as *cancel* — the control that
+                  closes a selection and leaves the drafts alone — while it
+                  actually takes every ticked row off the list. Two opposite
+                  meanings on one glyph, in the corner of a bar whose other
+                  buttons all commit. The words still differ, on the button's
+                  accessibility label and in the row's own ⋯ sheet, because
+                  "not an expense" and "delete" are genuinely different things
+                  to say; what they are not is different *gestures*. */}
+              <Ionicons name="trash-outline" size={iconSize.lg} color={theme.color.negative} />
             </IconButton>
             {/* Only where the private ledger is a place these can go: a guest
                 account may not hold one, and a button whose write would be
@@ -2149,6 +2185,28 @@ export default function CapturesScreen() {
               }}
             />
             <Divider />
+            {/* The message this row was read out of. Only when there is one to
+                open: this phone can read messages, the draft names a key, and
+                the store still holds that body — a message forgotten or signed
+                out of would otherwise lead to a screen with nothing on it.
+
+                It sits above "Edit" deliberately. Editing a misread draft is
+                the *answer*; reading the bank's own words is how somebody works
+                out what to put there. */}
+            {menuMessageKey ? (
+              <>
+                <ActionSheetRow
+                  icon="chatbubble-outline"
+                  label={t.smsInbox.seeMessage}
+                  onPress={() => {
+                    const key = menuMessageKey;
+                    setMenu(null);
+                    router.push(`/captures/sms/${encodeURIComponent(key)}` as never);
+                  }}
+                />
+                <Divider />
+              </>
+            ) : null}
             <ActionSheetRow
               icon="create-outline"
               label={t.captures.edit}
