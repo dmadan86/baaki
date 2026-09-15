@@ -43,9 +43,9 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { COMMON_CURRENCIES } from '@/components/CurrencyRate';
 import { ChoiceRow } from '@/components/expense/SheetOverlay';
 import { fetchFxRate } from '@/data/api';
+import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
 import { useGroupFxRates, useSetGroupFxRate } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';

@@ -13,6 +13,11 @@ import { describe, expect, it } from 'vitest';
 import { convert, money, rateFromDecimal } from '@waves/core';
 
 import {
+  canEditSettlementCurrency,
+  COMMON_CURRENCIES,
+  settlementCurrencyLocked,
+} from '../src/lib/currencyChoices';
+import {
   homeFirstFor,
   rateFromTyped,
   rateLine,
@@ -23,6 +28,35 @@ import {
 
 const VND_ROW = { from: 'VND', num: 32n, den: 10000n, source: 'manual' };
 const USD_ROW = { from: 'USD', num: 9125n, den: 100n, source: 'ecb' };
+
+describe('the shared travel currency picker', () => {
+  it('offers the currencies already recognised from traveller speech', () => {
+    expect(COMMON_CURRENCIES).toEqual(
+      expect.arrayContaining(['THB', 'VND', 'IDR', 'MYR', 'PHP', 'JPY', 'KRW']),
+    );
+  });
+});
+
+describe('settlement currency safety', () => {
+  it('lets a financer choose the settlement currency before entries or rates exist', () => {
+    expect(settlementCurrencyLocked(0, 0)).toBe(false);
+    expect(canEditSettlementCurrency(true, 0, 0)).toBe(true);
+  });
+
+  it('keeps riders and travellers who are not admins from changing the group currency', () => {
+    expect(canEditSettlementCurrency(false, 0, 0)).toBe(false);
+  });
+
+  it('locks once expenses exist because balances already depend on the currency', () => {
+    expect(settlementCurrencyLocked(1, 0)).toBe(true);
+    expect(canEditSettlementCurrency(true, 1, 0)).toBe(false);
+  });
+
+  it('locks once trip rates exist because the pinned ratios convert into that currency', () => {
+    expect(settlementCurrencyLocked(0, 1)).toBe(true);
+    expect(canEditSettlementCurrency(true, 0, 1)).toBe(false);
+  });
+});
 
 describe('the rate a group has pinned', () => {
   it('is found by the currency the bill was paid in', () => {

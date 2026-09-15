@@ -61,8 +61,9 @@ import { PaymentMethodRow, PaymentMethodSheet } from '@/components/PaymentMethod
 import { LocationField } from '@/components/LocationField';
 import { captureLocationIfGranted } from '@/lib/location';
 import { friendlyError } from '@/lib/errors';
-import { COMMON_CURRENCIES, CurrencyRate } from '@/components/CurrencyRate';
+import { CurrencyRate } from '@/components/CurrencyRate';
 import { DescriptionField } from '@/components/expense/DescriptionField';
+import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
 import { ExpenseHero } from '@/components/expense/ExpenseHero';
 import { splitIcon } from '@/components/expense/splitIcon';
 import { ChoiceRow, SheetOverlay } from '@/components/expense/SheetOverlay';

@@ -38,26 +38,10 @@ import { Button, Callout, Card, ChipRow, Row, Text, useTheme } from '@waves/ui';
 
 import { useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
+import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
 import { rateLine } from '@/lib/tripRates';
 
 import { fetchFxRate } from '@/data/api';
-
-/** Enough for the currencies an India-first app actually sees. Exported so the
- *  capture screen's currency picker draws from the very same shortlist rather
- *  than a second copy that could drift out of step with this one. */
-export const COMMON_CURRENCIES = [
-  'INR',
-  'USD',
-  'EUR',
-  'GBP',
-  'AED',
-  'SGD',
-  'AUD',
-  'THB',
-  'JPY',
-  'LKR',
-  'NPR',
-];
 
 enum Method {
   Charged = 'charged',

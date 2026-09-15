@@ -46,11 +46,13 @@ import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
 import { SettlesInRow, TripRatesCard } from '@/components/TripRates';
 import { photoGateParam, photoGateStatus } from '@/lib/groupPhotoGate';
+import { canEditSettlementCurrency } from '@/lib/currencyChoices';
 import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import {
   useAddGhostMember,
   useDeleteGroup,
   useGroup,
+  useGroupFxRates,
   useGroupLedger,
   useGroups,
   useLeaveGroup,
@@ -148,6 +150,7 @@ export default function GroupSettingsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = id ?? '';
+  const tripRates = useGroupFxRates(groupId);
 
   // Identity for "which member am I", from the session rather than the profile:
   // the session is on the device at launch, the profile is a fetch that lands
@@ -446,6 +449,11 @@ export default function GroupSettingsScreen() {
   // sees the button; the RPC refuses it regardless (NOT_ADMIN).
   const isAdmin = (members.data ?? []).some(
     (member) => isViewer(member, viewerId) && member.role === 'admin',
+  );
+  const canChangeCurrency = canEditSettlementCurrency(
+    isAdmin,
+    expenses.data?.length ?? 0,
+    tripRates.data?.length ?? 0,
   );
 
   const leave = async (): Promise<void> => {
@@ -779,14 +787,16 @@ export default function GroupSettingsScreen() {
         />
 
         {/* What the group counts in, and what it converts foreign bills with.
-            The settle currency stops being a control once anything is counted
-            in it; the trip's rates can be pinned and re-pinned at any time,
-            because a bill keeps the rate it was saved with (ADR-003). */}
+            Only an admin can choose it. It also stops being a control once
+            anything depends on it: either entries counted in it, or pinned rates
+            whose stored ratios all convert into it. Trip rates themselves can
+            be re-pinned at any time, because a bill keeps the rate it was saved
+            with (ADR-003). */}
         <View style={{ gap: theme.spacing.sm }}>
           <SectionHeader title={t.fx.section} />
           <SettlesInRow
             currency={currency}
-            locked={(expenses.data?.length ?? 0) > 0}
+            locked={!canChangeCurrency}
             onChange={(default_currency) =>
               updateGroup.mutate(
                 { default_currency },
