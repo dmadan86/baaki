@@ -564,16 +564,38 @@ a Firebase account still builds and runs. What does not work then is registering
 for push, and the notifications screen says so in those words rather than sending
 somebody to their phone settings over a problem that is ours.
 
-**iOS does not go through Firebase at all.** Expo talks to APNs directly, so
-there is no iOS app to add to the Firebase project and no `GoogleService-Info.plist`
-this build has any use for. What it needs is an APNs key: a Key with the Apple
-Push Notifications service enabled, from the Apple Developer portal, uploaded
-with `eas credentials` → iOS → Push Notifications. The `.p8` is downloadable
-exactly once.
+**iOS push does not go through Firebase.** Expo talks to APNs directly. What it
+needs is an APNs key: a Key with the Apple Push Notifications service enabled,
+from the Apple Developer portal, uploaded with `eas credentials` → iOS → Push
+Notifications. The `.p8` is downloadable exactly once.
 
 That needs a paid Apple Developer membership. It does **not** need a Mac — EAS
 builds in the cloud and the key comes from a web portal; a Mac is only required
 for local builds and the simulator. Not done either way.
+
+**iOS still needs a Firebase file, for a different reason.** Phone-number
+sign-in is Firebase Auth (`apps/mobile/src/lib/firebaseModule.ts`), and
+`@react-native-firebase/app`'s iOS config plugin _throws_ when
+`ios.googleServicesFile` is unset — "Path to GoogleService-Info.plist is not
+defined" — which fails the prebuild before anything is compiled. So iOS does get
+an app in the Firebase project, with the bundle id `app.wavs.mobile` (the iOS
+spelling, not Android's `app.waves.mobile` — see "The two app identifiers").
+Download `GoogleService-Info.plist`, put it at
+`apps/mobile/GoogleService-Info.plist`, which is gitignored like its Android
+twin, and give the same file to EAS:
+
+```bash
+# from apps/mobile
+eas env:set --name GOOGLE_SERVICES_INFO_PLIST --type file \
+  --value ./GoogleService-Info.plist --scope project --visibility secret \
+  --environment production --environment preview --environment development
+```
+
+Every environment, for the same reason as the Android file. `app.config.ts`
+resolves it the same way — the EAS secret, then a local copy, then nothing — but
+"nothing" is not survivable on iOS the way it is on Android: a missing
+`google-services.json` only costs push, while a missing plist costs the build
+itself, and a build made without it has no phone sign-in.
 
 **When it is set up and still silent**, read the fanout's reply before suspecting
 the phones. It reports `problems` by Expo's error code, and `misconfigured: true`
