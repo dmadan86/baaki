@@ -346,21 +346,36 @@ function TripRateSheet({
 
   const save = (): void => {
     if (!rate) return;
-    setRate.mutate(
-      // Where the number came from rides with it: a fetched rate says so, a
-      // typed one says it was typed, and the list can tell them apart later.
-      { from: rate.from, num: rate.num, den: rate.den, source: rate.source || 'manual' },
-      {
-        onSuccess: onClose,
-        onError: (caught) => setError(friendlyError(caught, '', 'tripRate.set')),
-      },
-    );
+    const write = async (): Promise<void> => {
+      // Editing a rate and changing which currency it is for is a *move*, not a
+      // second rate. The map is keyed by the currency paid in, so writing the
+      // new key alone would leave the old one pinned and the trip would carry
+      // two rates where somebody meant to correct one. Clear the old key first,
+      // in the same gesture.
+      if (editingFrom !== '' && editingFrom !== rate.from) {
+        await setRate.mutateAsync({ from: editingFrom, num: null, den: null });
+      }
+      await setRate.mutateAsync({
+        // Where the number came from rides with it: a fetched rate says so, a
+        // typed one says it was typed, and the list can tell them apart later.
+        from: rate.from,
+        num: rate.num,
+        den: rate.den,
+        source: rate.source || 'manual',
+      });
+    };
+    write()
+      .then(onClose)
+      .catch((caught: unknown) => setError(friendlyError(caught, '', 'tripRate.set')));
   };
 
   const remove = (): void => {
-    if (!foreign) return;
+    // The pinned entry, which is the one this sheet was opened on — not
+    // whatever currency is showing after somebody changed their mind about it.
+    const pinned = editingFrom !== '' ? editingFrom : foreign;
+    if (!pinned) return;
     setRate.mutate(
-      { from: foreign, num: null, den: null },
+      { from: pinned, num: null, den: null },
       {
         onSuccess: onClose,
         onError: (caught) => setError(friendlyError(caught, '', 'tripRate.set')),
