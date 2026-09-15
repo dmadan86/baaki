@@ -3403,6 +3403,14 @@ export interface UiStrings {
     overdue: string;
     tomorrow: string;
     privateNote: string;
+    /**
+     * The first-run state, shown in place of the month once the ledger has
+     * hydrated with nothing in it at all: no entries, no recurring rules, no
+     * loans, no budgets. A dashboard of zeroes is a chore with no reason
+     * attached, so the screen says what the section is for instead.
+     */
+    introTitle: string;
+    introBody: string;
     /** Where income came from — the built-in sources in @waves/core. */
     sources: {
       salary: string;
@@ -3947,7 +3955,8 @@ const en: UiStrings = {
       'This guards the screen, not the data — your ledger is protected by row-level security on the server whether the lock is on or not.',
     personalPrompt: 'Unlock your personal ledger',
     personalLockedTitle: 'Your personal ledger is locked',
-    personalLockedBody: 'Unlock with the same face or fingerprint that opens this phone.',
+    personalLockedBody:
+      'Your income, spending, budgets and loans. Unlock with the same face or fingerprint that opens this phone.',
     personalLockedRefused: 'That did not unlock it. Try again, or go back.',
   },
   signInWall: {
@@ -6202,6 +6211,9 @@ const en: UiStrings = {
     overdue: 'Overdue',
     tomorrow: 'Tomorrow',
     privateNote: 'Private to you · Not shared with groups',
+    introTitle: 'See what you keep each month',
+    introBody:
+      'Track your own income and spending here, apart from every group you share. Start with one entry.',
     sources: {
       salary: 'Salary',
       business: 'Business',
@@ -6757,7 +6769,8 @@ const ta: UiStrings = {
       'இது திரையைக் காக்கிறது, தரவை அல்ல — பூட்டு இருந்தாலும் இல்லாவிட்டாலும் உங்கள் கணக்கு சர்வரில் வரிசை அளவிலான பாதுகாப்பால் காக்கப்படுகிறது.',
     personalPrompt: 'உங்கள் தனிப்பட்ட கணக்கைத் திறக்கவும்',
     personalLockedTitle: 'உங்கள் தனிப்பட்ட கணக்கு பூட்டப்பட்டுள்ளது',
-    personalLockedBody: 'இந்த ஃபோனைத் திறக்கும் அதே முகம் அல்லது கைரேகையால் திறக்கவும்.',
+    personalLockedBody:
+      'உங்கள் வருமானம், செலவு, பட்ஜெட், கடன்கள். இந்த ஃபோனைத் திறக்கும் அதே முகம் அல்லது கைரேகையால் திறக்கவும்.',
     personalLockedRefused: 'அது திறக்கவில்லை. மீண்டும் முயலுங்கள், அல்லது திரும்பிச் செல்லுங்கள்.',
   },
   signInWall: {
@@ -9143,6 +9156,9 @@ const ta: UiStrings = {
     overdue: 'தாமதம்',
     tomorrow: 'நாளை',
     privateNote: 'உங்களுக்கு மட்டும் தனிப்பட்டது · குழுக்களுடன் பகிரப்படாது',
+    introTitle: 'ஒவ்வொரு மாதமும் எவ்வளவு மிச்சம் என்று பாருங்கள்',
+    introBody:
+      'உங்கள் சொந்த வருமானத்தையும் செலவையும் இங்கே பதிவு செய்யுங்கள் — நீங்கள் பகிரும் குழுக்களிலிருந்து தனியாக. ஒரு பதிவோடு தொடங்குங்கள்.',
     sources: {
       salary: 'சம்பளம்',
       business: 'வணிகம்',
@@ -9684,7 +9700,8 @@ const hi: UiStrings = {
       'यह स्क्रीन की रक्षा करता है, डेटा की नहीं — लॉक चालू हो या बंद, आपका हिसाब सर्वर पर रो-लेवल सुरक्षा से सुरक्षित है।',
     personalPrompt: 'अपना निजी हिसाब अनलॉक करें',
     personalLockedTitle: 'आपका निजी हिसाब लॉक है',
-    personalLockedBody: 'उसी चेहरे या फ़िंगरप्रिंट से खोलें जिससे यह फ़ोन खुलता है।',
+    personalLockedBody:
+      'आपकी आमदनी, ख़र्च, बजट और उधार। उसी चेहरे या फ़िंगरप्रिंट से खोलें जिससे यह फ़ोन खुलता है।',
     personalLockedRefused: 'इससे लॉक नहीं खुला। फिर से कोशिश करें, या वापस जाएँ।',
   },
   signInWall: {
@@ -11957,6 +11974,8 @@ const hi: UiStrings = {
     overdue: 'बकाया',
     tomorrow: 'कल',
     privateNote: 'सिर्फ़ आपके लिए निजी · समूहों के साथ साझा नहीं',
+    introTitle: 'देखें हर महीने आपके पास क्या बचता है',
+    introBody: 'अपनी आमदनी और ख़र्च यहाँ रखें — आपके साझा समूहों से अलग। एक एंट्री से शुरू करें।',
     sources: {
       salary: 'वेतन',
       business: 'व्यवसाय',
@@ -12530,7 +12549,8 @@ const ar: UiStrings = {
       'هذا يحمي الشاشة لا البيانات — دفترك محمي على الخادم بأمان على مستوى الصفوف سواء كان القفل مفعّلًا أم لا.',
     personalPrompt: 'افتح قفل دفترك الشخصي',
     personalLockedTitle: 'دفترك الشخصي مقفل',
-    personalLockedBody: 'افتحه بالوجه أو البصمة نفسها التي تفتح هذا الهاتف.',
+    personalLockedBody:
+      'دخلك وإنفاقك وميزانياتك وقروضك. افتحه بالوجه أو البصمة نفسها التي تفتح هذا الهاتف.',
     personalLockedRefused: 'لم يُفتح القفل. حاول مرة أخرى، أو ارجع.',
   },
   signInWall: {
@@ -15215,6 +15235,8 @@ const ar: UiStrings = {
     overdue: 'متأخر',
     tomorrow: 'غداً',
     privateNote: 'خاص بك وحدك · غير مشارَك مع المجموعات',
+    introTitle: 'انظر كم تحتفظ به كل شهر',
+    introBody: 'سجّل دخلك وإنفاقك هنا، بمعزل عن كل مجموعة تشاركها. ابدأ بإدخال واحد.',
     sources: {
       salary: 'الراتب',
       business: 'عمل تجاري',
