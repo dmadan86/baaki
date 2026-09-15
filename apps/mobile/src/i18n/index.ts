@@ -6156,8 +6156,8 @@ const en: UiStrings = {
   fx: {
     section: 'Currency',
     settlesIn: 'Settles in',
-    settlesInHint: 'Every balance in this group is counted in this currency.',
-    settlesInLocked: 'Set before the first expense. This group already has entries.',
+    settlesInHint: 'Every balance is counted in this currency.',
+    settlesInLocked: 'Locked — this group already has entries.',
     tripRates: 'Trip rates',
     tripRatesBody:
       'Pin a rate for each currency you will pay in, and every bill converts the same way — no typing it again per bill.',
@@ -9127,8 +9127,7 @@ const ta: UiStrings = {
     section: 'நாணயம்',
     settlesIn: 'கணக்கு இந்த நாணயத்தில்',
     settlesInHint: 'இந்தக் குழுவின் எல்லா இருப்புகளும் இந்த நாணயத்தில் கணக்கிடப்படும்.',
-    settlesInLocked:
-      'முதல் செலவுக்கு முன் அமைக்க வேண்டும். இந்தக் குழுவில் ஏற்கெனவே பதிவுகள் உள்ளன.',
+    settlesInLocked: 'பூட்டப்பட்டது — ஏற்கெனவே பதிவுகள் உள்ளன.',
     tripRates: 'பயண மாற்று விகிதங்கள்',
     tripRatesBody:
       'நீங்கள் செலவழிக்கும் ஒவ்வொரு நாணயத்துக்கும் ஒரு விகிதத்தை ஒரே முறை குறியுங்கள் — ஒவ்வொரு பில்லுக்கும் மீண்டும் தட்டச்சு செய்ய வேண்டாம்.',
@@ -11971,7 +11970,7 @@ const hi: UiStrings = {
     section: 'मुद्रा',
     settlesIn: 'हिसाब इस मुद्रा में',
     settlesInHint: 'इस समूह का हर बैलेंस इसी मुद्रा में गिना जाता है।',
-    settlesInLocked: 'पहले ख़र्च से पहले तय करें। इस समूह में पहले से एंट्री हैं।',
+    settlesInLocked: 'बंद — इस समूह में पहले से एंट्री हैं।',
     tripRates: 'यात्रा दरें',
     tripRatesBody:
       'जिस मुद्रा में ख़र्च करेंगे उसकी दर एक बार लगा दें — फिर हर बिल उसी दर से बदलेगा, बार-बार टाइप नहीं करना पड़ेगा।',
@@ -15257,7 +15256,7 @@ const ar: UiStrings = {
     section: 'العملة',
     settlesIn: 'التسوية بـ',
     settlesInHint: 'كل رصيد في هذه المجموعة يُحسب بهذه العملة.',
-    settlesInLocked: 'تُحدَّد قبل أول مصروف. هذه المجموعة فيها قيود بالفعل.',
+    settlesInLocked: 'مقفل — في المجموعة قيود بالفعل.',
     tripRates: 'أسعار الرحلة',
     tripRatesBody:
       'ثبّت سعراً لكل عملة ستدفع بها، فتتحوّل كل فاتورة بالطريقة نفسها — دون كتابته من جديد مع كل فاتورة.',

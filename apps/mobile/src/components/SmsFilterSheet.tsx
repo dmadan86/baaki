@@ -24,7 +24,7 @@ import { useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { Button, ChipRow, Divider, iconSize, Row, Sheet, Text, useTheme } from '@waves/ui';
+import { Button, Chip, Divider, iconSize, Row, Sheet, Text, useTheme } from '@waves/ui';
 
 import { RangeCalendar } from '@/components/RangeCalendar';
 import { useStrings } from '@/i18n';
@@ -122,16 +122,27 @@ export function SmsFilterSheet({
         <Text variant="caption" tone="muted">
           {t.smsInbox.filterRecent}
         </Text>
-        <ChipRow<string>
-          value={value.kind === 'window' ? String(value.days) : ''}
-          onChange={(days) => onApply({ kind: 'window', days: Number(days) as 0 | 7 | 30 | 90 })}
-          options={[
-            { value: '7', label: t.smsInbox.last7 },
-            { value: '30', label: t.smsInbox.last30 },
-            { value: '90', label: t.smsInbox.last90 },
-            { value: '0', label: t.smsInbox.allTime },
-          ]}
-        />
+        {/* Wrapped chips rather than a `ChipRow`: that is a horizontal
+            ScrollView, and one inside a sheet card measures to nothing on
+            Android. Four windows fit on a line here anyway. */}
+        <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
+          {(
+            [
+              ['7', t.smsInbox.last7],
+              ['30', t.smsInbox.last30],
+              ['90', t.smsInbox.last90],
+              ['0', t.smsInbox.allTime],
+            ] as const
+          ).map(([days, label]) => (
+            <Chip
+              key={days}
+              label={label}
+              selected={value.kind === 'window' && String(value.days) === days}
+              repeatable
+              onPress={() => onApply({ kind: 'window', days: Number(days) as 0 | 7 | 30 | 90 })}
+            />
+          ))}
+        </Row>
       </View>
 
       <View style={{ gap: theme.spacing.sm }}>
