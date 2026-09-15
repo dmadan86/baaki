@@ -75,6 +75,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { FlashList } from '@shopify/flash-list';
 import { randomUUID } from 'expo-crypto';
 import { Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
+import Reanimated, {
+  SlideInDown,
+  SlideOutDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MutationKind, peopleSignatureKey } from '@waves/core';
@@ -141,6 +148,8 @@ import {
   reviewItemKey,
   type ReviewFeedItem,
 } from '@/lib/reviewFeed';
+import { useReducedMotion } from '@/lib/reducedMotion';
+import { SmsScanSheet } from '@/components/SmsScanSheet';
 import { useSmsAutoRead } from '@/lib/smsAutoRead';
 import { useSmsInboxReader } from '@/lib/smsFeature';
 import { useSmsMessages } from '@/lib/smsMessages';
@@ -772,6 +781,16 @@ export default function CapturesScreen() {
   // that would render nothing.
   const smsReader = useSmsInboxReader();
 
+  // "Check the inbox now", from the screen somebody is actually standing on.
+  // The sheet behind it is the Bank messages screen's own — it owns the choice
+  // between the last month and everything, the progress while it reads, and
+  // what it found — so this is a second door to one control rather than a
+  // second control. It was only ever on the other screen, behind a glyph in a
+  // header somebody had to know to open; a reader that cannot be asked to look
+  // is indistinguishable from one that is not working.
+  const [scanOpen, setScanOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+
   // One slow clock for the whole screen: the status line's "2 min ago" and the
   // empty state's "this week" both read it, and neither may call Date.now()
   // while rendering.
@@ -931,6 +950,25 @@ export default function CapturesScreen() {
     [tabRows, selected, selectableSet],
   );
   const everythingTicked = selectableIds.length > 0 && chosenRows.length === selectableIds.length;
+
+  // The panel's two faces, and the ease between them. 0 is what the screen says
+  // at rest — how much is waiting — and 1 is what it says while rows are ticked.
+  // Both stay mounted, one overlaid on the other, so this is a crossfade rather
+  // than an unmount that cuts: the same value and the same 150ms the Friends
+  // header uses, because it is the same gesture on a different list.
+  const selecting = chosenRows.length > 0;
+  const sel = useSharedValue(selecting ? 1 : 0);
+  useEffect(() => {
+    sel.set(reduceMotion ? (selecting ? 1 : 0) : withTiming(selecting ? 1 : 0, { duration: 150 }));
+  }, [selecting, reduceMotion, sel]);
+  const restingAnim = useAnimatedStyle(() => ({
+    opacity: 1 - sel.get(),
+    transform: [{ translateY: sel.get() * -6 }],
+  }));
+  const selectAnim = useAnimatedStyle(() => ({
+    opacity: sel.get(),
+    transform: [{ translateY: (1 - sel.get()) * 6 }],
+  }));
 
   /**
    * While anything is ticked, the bottom bar stands down.
@@ -1702,18 +1740,64 @@ export default function CapturesScreen() {
         }
       >
         <View style={{ gap: theme.spacing.md }}>
-          {chosenRows.length > 0 ? (
-            /* While rows are ticked the panel stops reporting the pile and
-               reports the selection instead — the shape every list with a
-               selection mode converges on (Todoist, Matter, GitHub, Quo all
-               put the count in the header and nothing but actions at the
-               bottom). Two things are won by moving it up here. The count is
-               a *state*, and a state belongs where this screen already says
-               what it is rather than in the band a thumb is aiming at. And
-               "select all" stops sitting a few pixels from "not an expense":
-               one is a scope control and the other destroys work, and putting
-               them in the same row was a mis-tap waiting to be made. */
-            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+          {/* The panel's two faces share one slot and dissolve between them.
+              What is waiting sits in flow and gives the slot its height; the
+              selection is overlaid on it at the same height, so neither ever
+              unmounts and ticking a row eases the panel over instead of cutting
+              it. Only the face that is showing takes taps. */}
+          <View style={{ justifyContent: 'center' }}>
+            <Reanimated.View pointerEvents={selecting ? 'none' : 'auto'} style={restingAnim}>
+              {rows.length > 0 ? (
+                <>
+                  <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
+                    {t.captures.heroWaiting}
+                  </Text>
+                  {/* The whole screen's figure, not the open tab's: a hero
+                      number that changed every time you touched a tab would be
+                      part of the tab rather than the screen. Counted the way the
+                      tabs count — one per draft, a spoken batch of two counting
+                      twice — so the three numbers on this screen agree. And
+                      short enough to stay on one line, which "N expenses waiting
+                      to be added" was not: at 140 it wrapped and took the panel
+                      with it. */}
+                  <Text variant="title" tone="onBrand" numberOfLines={1}>
+                    {plural(locale, rows.length, t.captures.batchExpenses)}
+                  </Text>
+                </>
+              ) : (
+                /* Review is trying to reach this, so the hero says it plainly
+                   rather than showing a nought. */
+                <Text variant="heading" tone="onBrand">
+                  {t.captures.nothingNeedsYou}
+                </Text>
+              )}
+            </Reanimated.View>
+            {/* While rows are ticked the panel stops reporting the pile and
+                reports the selection instead — the shape every list with a
+                selection mode converges on (Todoist, Matter, GitHub, Quo all
+                put the count in the header and nothing but actions at the
+                bottom). Two things are won by moving it up here. The count is
+                a *state*, and a state belongs where this screen already says
+                what it is rather than in the band a thumb is aiming at. And
+                "select all" stops sitting a few pixels from "not an expense":
+                one is a scope control and the other destroys work, and putting
+                them in the same row was a mis-tap waiting to be made. */}
+            <Reanimated.View
+              pointerEvents={selecting ? 'auto' : 'none'}
+              style={[
+                {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.md,
+                },
+                selectAnim,
+              ]}
+            >
               <Text variant="title" tone="onBrand" numberOfLines={1} style={{ flex: 1 }}>
                 {plural(locale, chosenRows.length, t.smsInbox.selected)}
               </Text>
@@ -1723,30 +1807,8 @@ export default function CapturesScreen() {
                 size="sm"
                 onPress={() => setSelected(everythingTicked ? new Set() : new Set(selectableIds))}
               />
-            </Row>
-          ) : rows.length > 0 ? (
-            <>
-              <Text variant="caption" tone="onBrand" style={{ opacity: 0.85 }}>
-                {t.captures.heroWaiting}
-              </Text>
-              {/* The whole screen's figure, not the open tab's: a hero number
-                  that changed every time you touched a tab would be part of the
-                  tab rather than the screen. Counted the way the tabs count —
-                  one per draft, a spoken batch of two counting twice — so the
-                  three numbers on this screen agree. And short enough to stay
-                  on one line, which "N expenses waiting to be added" was not:
-                  at 140 it wrapped and took the panel with it. */}
-              <Text variant="title" tone="onBrand" numberOfLines={1}>
-                {plural(locale, rows.length, t.captures.batchExpenses)}
-              </Text>
-            </>
-          ) : (
-            /* Review is trying to reach this, so the hero says it plainly
-               rather than showing a nought. */
-            <Text variant="heading" tone="onBrand">
-              {t.captures.nothingNeedsYou}
-            </Text>
-          )}
+            </Reanimated.View>
+          </View>
           {/* No "Save an expense" pill. The raised mic in the bottom bar opens
               a capture from anywhere in the app, and a second door to it was
               standing in the room the panel needed for its number. Bank
@@ -1754,11 +1816,23 @@ export default function CapturesScreen() {
               reaches, and the row in the list below carries the count a circle
               has nowhere to put. */}
           {smsReader ? (
-            <Row style={{ alignItems: 'center' }}>
+            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
               <HeroActionCircle
                 icon="chatbubbles"
                 label={t.smsInbox.entryTitle}
                 onPress={() => router.push('/captures/sms')}
+              />
+              {/* "Look now." Whatever the app does on its own — and on a phone
+                  where the reader is off, or an OEM that suspends background
+                  work, it may do nothing at all — a person has to be able to
+                  ask. It opens the same sheet the Bank messages screen opens,
+                  which chooses the reach, shows the progress and says what it
+                  found, so this is one control with two doors rather than two
+                  controls that will drift. */}
+              <HeroActionCircle
+                icon="refresh"
+                label={t.smsInbox.scan}
+                onPress={() => setScanOpen(true)}
               />
             </Row>
           ) : null}
@@ -2049,7 +2123,15 @@ export default function CapturesScreen() {
           for a spoken batch: one destination for several drafts, everybody in,
           split equally. Nothing new decides anything here. */}
       {ticking && chosenRows.length > 0 ? (
-        <View
+        /* It rises rather than appearing. The bar takes the navigation's place
+           the instant a row is ticked, and a panel that simply *is* there reads
+           as a redraw — something went wrong and the screen repainted — where
+           one that slides up from the edge reads as an answer to the tap. Out
+           the same way, so the navigation coming back is a handover rather than
+           a flicker. Off entirely when the phone asks for less motion. */
+        <Reanimated.View
+          entering={reduceMotion ? undefined : SlideInDown.duration(220)}
+          exiting={reduceMotion ? undefined : SlideOutDown.duration(180)}
           style={{
             position: 'absolute',
             left: 0,
@@ -2137,7 +2219,22 @@ export default function CapturesScreen() {
               onPress={() => openAssignBatch(chosenRows, true)}
             />
           </Row>
-        </View>
+        </Reanimated.View>
+      ) : null}
+
+      {/* The inbox read on demand — the Bank messages screen's own sheet, which
+          owns the choice of how far back to reach, the progress while it reads,
+          and the count of what it found. Mounted here so the answer to "has
+          anything new come in?" is on the screen that asks the question. */}
+      {smsReader ? (
+        <SmsScanSheet
+          visible={scanOpen}
+          ownerId={viewerId ?? ''}
+          onClose={() => setScanOpen(false)}
+          // A scan writes drafts of its own, so the list behind this sheet
+          // has new rows to show the moment it closes.
+          onFinished={() => pull.onRefresh()}
+        />
       ) : null}
 
       {/* The row's ⋯ overflow, as a small sheet. Every gesture this screen has
