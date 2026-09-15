@@ -452,7 +452,11 @@ export default function GroupSettingsScreen() {
   );
   const canChangeCurrency = canEditSettlementCurrency(
     isAdmin,
-    expenses.data?.length ?? 0,
+    // `rows`, not `data`: the first expense of an offline session is in the
+    // queue and nowhere else, and the server would happily take a currency
+    // change queued behind it — leaving one bill counted in a currency the
+    // group no longer settles in.
+    expenses.rows.length,
     tripRates.data?.length ?? 0,
   );
 

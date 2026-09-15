@@ -833,7 +833,14 @@ export default function AddExpenseScreen() {
   // one (`components/TripRates`). It is a default for the rate field below and
   // nothing more — the bill can still carry its own, and whichever rate is on
   // the expense when it saves is the one it keeps (ADR-003).
-  const tripRate = tripRateFor(groupFxRates.data ?? [], currency, groupCurrency);
+  //
+  // Only ever on a *new* bill. A saved expense's own rate is not in the read
+  // model (see the edit branch above, which is why a foreign expense asks for
+  // its rate again), so defaulting one here would put the trip's number on a
+  // bill that was written with a different one and re-price it on save —
+  // quietly, in the one place this feature promised never to touch. Until the
+  // stored rate is readable, an edit asks, exactly as it did before.
+  const tripRate = editing ? null : tripRateFor(groupFxRates.data ?? [], currency, groupCurrency);
 
   // ───────────────────────────────────────────────────────── who paid ──
   //
