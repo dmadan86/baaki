@@ -28,6 +28,10 @@
       "package": "app.waves.mobile",
       "versionCode": 1,
       "permissions": [],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_CONTACTS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#14162a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
