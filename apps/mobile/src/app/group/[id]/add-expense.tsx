@@ -77,8 +77,9 @@ import {
 } from '@/data/api';
 import { router } from '@/lib/navigation';
 import { receiptCapStatus, receiptTapAction } from '@/lib/receiptCapGate';
+import { tripRateFor } from '@/lib/tripRates';
 import { StorageCapError } from '@/lib/storage';
-import { useAssignCapture, useGroup } from '@/data/hooks';
+import { useAssignCapture, useGroup, useGroupFxRates } from '@/data/hooks';
 import { displayName, groupLabel, isGhost, isViewer } from '@/data/types';
 import { fill, plural, useStrings } from '@/i18n';
 import { useViewerId } from '@/lib/auth';
@@ -396,6 +397,7 @@ export default function AddExpenseScreen() {
   const viewerId = useViewerId();
 
   const { group, members, expenses } = useGroup(groupId);
+  const groupFxRates = useGroupFxRates(groupId);
   const { mutate } = useSync();
   const assignCapture = useAssignCapture();
   const guard = useGuestGuard();
@@ -826,6 +828,11 @@ export default function AddExpenseScreen() {
   // The expense keeps the currency it was paid in; the group's is only the
   // default and what a converted total would be shown in (ADR-003).
   const currency = expenseCurrency ?? groupCurrency;
+  // The rate the trip has pinned for whatever this bill is in, if it has pinned
+  // one (`components/TripRates`). It is a default for the rate field below and
+  // nothing more — the bill can still carry its own, and whichever rate is on
+  // the expense when it saves is the one it keeps (ADR-003).
+  const tripRate = tripRateFor(groupFxRates.data ?? [], currency, groupCurrency);
 
   // ───────────────────────────────────────────────────────── who paid ──
   //
@@ -2116,6 +2123,7 @@ export default function AddExpenseScreen() {
               amount={amount}
               fx={fx}
               onFxChange={setFx}
+              tripRate={tripRate}
               showCurrencyPicker={false}
             />
           </View>

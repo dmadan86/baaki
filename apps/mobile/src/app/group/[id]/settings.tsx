@@ -44,6 +44,7 @@ import { CountryRow } from '@/components/CountryPicker';
 import { GroupCoverSheet } from '@/components/CoverEmojiPicker';
 import { InfoDisclosure } from '@/components/InfoDisclosure';
 import { TripDates } from '@/components/TripDates';
+import { SettlesInRow, TripRatesCard } from '@/components/TripRates';
 import { photoGateParam, photoGateStatus } from '@/lib/groupPhotoGate';
 import { canUploadGroupPhoto, removeGroupPhoto, uploadGroupPhoto } from '@/data/api';
 import {
@@ -155,7 +156,7 @@ export default function GroupSettingsScreen() {
   // `lib/auth.useViewerId`.
   const viewerId = useViewerId();
 
-  const { group, members } = useGroup(groupId);
+  const { group, members, expenses } = useGroup(groupId);
   const ledger = useGroupLedger(groupId, viewerId);
   const updateGroup = useUpdateGroup(groupId);
   const leaveGroup = useLeaveGroup(groupId);
@@ -776,6 +777,25 @@ export default function GroupSettingsScreen() {
             updateGroup.mutate({ country_code }, { onSuccess: () => setStatus(t.account.saved) })
           }
         />
+
+        {/* What the group counts in, and what it converts foreign bills with.
+            The settle currency stops being a control once anything is counted
+            in it; the trip's rates can be pinned and re-pinned at any time,
+            because a bill keeps the rate it was saved with (ADR-003). */}
+        <View style={{ gap: theme.spacing.sm }}>
+          <SectionHeader title={t.fx.section} />
+          <SettlesInRow
+            currency={currency}
+            locked={(expenses.data?.length ?? 0) > 0}
+            onChange={(default_currency) =>
+              updateGroup.mutate(
+                { default_currency },
+                { onSuccess: () => setStatus(t.account.saved) },
+              )
+            }
+          />
+        </View>
+        <TripRatesCard groupId={groupId} groupCurrency={currency} canEdit={isAdmin} />
 
         {/* Trip dates and their nudges only mean anything on a trip, so the
             section appears only for that type and disappears the moment the
