@@ -110,7 +110,7 @@ import {
   type PersonChoice,
 } from '@/components/DestinationPicker';
 import { PendingMark } from '@/components/PendingMark';
-import { HeroActionCircle, ScreenHero, useHeroStatusBar } from '@/components/ScreenHero';
+import { ScreenHero, useHeroStatusBar } from '@/components/ScreenHero';
 import { InboxSkeleton } from '@/components/Skeletons';
 import { WatchingLine } from '@/components/WatchingLine';
 import { dayHeading } from '@/data/activity';
@@ -1642,51 +1642,56 @@ export default function CapturesScreen() {
     if (!key) return null;
     return bankMessages.rows.some((row) => row.dedupeKey === key) ? key : null;
   }, [bankMessages.rows, menuCapture, smsReader]);
-  const bankMessagesRow = smsReader ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${t.smsInbox.entryTitle}. ${
-        bankWaiting > 0
-          ? plural(locale, bankWaiting, t.smsInbox.entryWaiting)
-          : t.smsInbox.entryNothing
-      }`}
-      onPress={() => router.push('/captures/sms')}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 12,
+  // Only over the messages. "Added by you" is the drafts somebody typed, spoke
+  // or photographed, and a door to the bank's inbox standing above them is an
+  // answer to a question that tab is not asking — it pushed nine rows of a
+  // person's own work down the screen to advertise a different pile.
+  const bankMessagesRow =
+    smsReader && ticking ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${t.smsInbox.entryTitle}. ${
+          bankWaiting > 0
+            ? plural(locale, bankWaiting, t.smsInbox.entryWaiting)
+            : t.smsInbox.entryNothing
+        }`}
+        onPress={() => router.push('/captures/sms')}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: theme.color.brandSoft,
-        }}
+          gap: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
+          opacity: pressed ? 0.7 : 1,
+        })}
       >
-        <Ionicons name="chatbubbles" size={iconSize.md} color={theme.color.brand} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="body">{t.smsInbox.entryTitle}</Text>
-        <Text variant="micro" tone="muted">
-          {t.smsInbox.onDevice}
-        </Text>
-      </View>
-      {bankWaiting > 0 ? (
-        <Badge label={plural(locale, bankWaiting, t.smsInbox.entryWaiting)} tone="brand" />
-      ) : null}
-      <Ionicons
-        name={directionalIcon('chevron-forward')}
-        size={iconSize.md}
-        color={theme.color.textMuted}
-      />
-    </Pressable>
-  ) : null;
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.brandSoft,
+          }}
+        >
+          <Ionicons name="chatbubbles" size={iconSize.md} color={theme.color.brand} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="body">{t.smsInbox.entryTitle}</Text>
+          <Text variant="micro" tone="muted">
+            {t.smsInbox.onDevice}
+          </Text>
+        </View>
+        {bankWaiting > 0 ? (
+          <Badge label={plural(locale, bankWaiting, t.smsInbox.entryWaiting)} tone="brand" />
+        ) : null}
+        <Ionicons
+          name={directionalIcon('chevron-forward')}
+          size={iconSize.md}
+          color={theme.color.textMuted}
+        />
+      </Pressable>
+    ) : null;
 
   return (
     <Screen edges={[]}>
@@ -1723,13 +1728,23 @@ export default function CapturesScreen() {
             />
           ) : undefined
         }
-        // With nothing reading, the message path keeps its glyph up here: it
-        // is the main way a spend arrives on an iPhone and must not be buried.
-        // With a reader running there is no glyph at all — the app is already
-        // doing the thing the glyph would offer to do by hand.
+        // Everything this screen can be *asked* to do sits in the top corner,
+        // where a header's controls live, rather than as discs under the
+        // number: the panel's job is to say how much is waiting, and two
+        // buttons below that figure pushed the list a row further down every
+        // screen. Where a phone reads messages that is the inbox and a "look
+        // now"; where it does not it is the paste path, which on an iPhone is
+        // the main way a spend arrives and must not be buried.
         actions={
-          auto.enabled
-            ? []
+          smsReader
+            ? [
+                {
+                  icon: 'chatbubbles-outline',
+                  label: t.smsInbox.entryTitle,
+                  onPress: () => router.push('/captures/sms'),
+                },
+                { icon: 'refresh', label: t.smsInbox.scan, onPress: () => setScanOpen(true) },
+              ]
             : [
                 {
                   icon: 'chatbubble-ellipses-outline',
@@ -1809,33 +1824,11 @@ export default function CapturesScreen() {
               />
             </Reanimated.View>
           </View>
-          {/* No "Save an expense" pill. The raised mic in the bottom bar opens
-              a capture from anywhere in the app, and a second door to it was
-              standing in the room the panel needed for its number. Bank
-              messages keeps its circle: that is a screen nothing else on here
-              reaches, and the row in the list below carries the count a circle
-              has nowhere to put. */}
-          {smsReader ? (
-            <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-              <HeroActionCircle
-                icon="chatbubbles"
-                label={t.smsInbox.entryTitle}
-                onPress={() => router.push('/captures/sms')}
-              />
-              {/* "Look now." Whatever the app does on its own — and on a phone
-                  where the reader is off, or an OEM that suspends background
-                  work, it may do nothing at all — a person has to be able to
-                  ask. It opens the same sheet the Bank messages screen opens,
-                  which chooses the reach, shows the progress and says what it
-                  found, so this is one control with two doors rather than two
-                  controls that will drift. */}
-              <HeroActionCircle
-                icon="refresh"
-                label={t.smsInbox.scan}
-                onPress={() => setScanOpen(true)}
-              />
-            </Row>
-          ) : null}
+          {/* No "Save an expense" pill, and no discs under the number either.
+              The raised mic in the bottom bar opens a capture from anywhere in
+              the app, and the two message controls have gone up to the corner
+              with the rest of the header — a panel whose job is one figure
+              should not be pushing the list down with buttons. */}
         </View>
       </ScreenHero>
 

@@ -759,11 +759,14 @@ export default function SmsInboxScreen(): React.JSX.Element | null {
         keyExtractor={(item) => item.dedupeKey}
         renderItem={renderRow}
         extraData={selected}
-        // The group ledger's number, which is the one that has actually been
-        // tuned: 1500 was still being outrun by a hard fling down a long list,
-        // and blank rows flashing past is the failure people report. ~2500px is
-        // three dozen rows ahead, cheap when each row is light to draw.
-        drawDistance={2500}
+        // Half the group ledger's 2500, and the reason is which frame is
+        // expensive here rather than how fast anybody flings. Draw distance is
+        // paid in full on the *first* paint, and this screen is pushed onto a
+        // list of several hundred messages — three dozen rows ahead of the fold
+        // is three dozen rows between the tap and the screen appearing. 1200px
+        // is still most of a screen of runway, and the rest arrives while a
+        // finger is moving rather than while it is waiting.
+        drawDistance={1200}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={Divider}
         contentContainerStyle={{
