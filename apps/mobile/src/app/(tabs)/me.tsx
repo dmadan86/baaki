@@ -8,17 +8,24 @@
  * hides behind a swipe. A month switcher in the hero header steps back through
  * past months so the ledger is a record you can browse, not just today.
  *
- * Below the hero, the white body reads top-down the way a person scans it: the
- * month's entries grouped by day like a bank statement, its category breakdown
- * and trend, and — demoted to a quiet tools shelf at the foot — the three
- * management areas (recurring, loans, budgets). Everything is local-first from
- * the mirror and every figure is computed on the device.
+ * Below the hero, the white body reads top-down the way a person scans it: what
+ * this month is still waiting for, then the month's entries grouped by day like
+ * a bank statement, then the summaries drawn from them (category breakdown,
+ * three-month trend), and — demoted to a quiet tools shelf at the foot — the
+ * three management areas (recurring, loans, budgets). The rows come before the
+ * charts on purpose: the ledger is the evidence, the analytics are claims about
+ * it. Everything is local-first from the mirror and every figure is computed on
+ * the device.
+ *
+ * Before any of that exists — no entry, no rule, no loan, no budget — the tab
+ * is a first run instead (`PersonalFirstRun`), because a dashboard of zeroes
+ * asks for work without ever saying what the work is for.
  *
  * Opening the tab also posts any auto-recurring entries that have come due since
  * it was last open (idempotent — see `postDueRecurring`).
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,9 +52,11 @@ import {
 } from '@waves/core';
 import {
   BarList,
+  Button,
   Card,
   directionalIcon,
   Divider,
+  EmptyState,
   Gradient,
   iconSize,
   Row,
@@ -251,6 +260,22 @@ function MeLedger() {
   // user backwards without a word.
   if (!gate.unlocked) return <PersonalLocked gate={gate} />;
 
+  // Nothing in the section at all — no entry, no recurring rule, no loan, no
+  // budget — and the mirror has finished loading, so that is the truth of it
+  // rather than a screen caught mid-hydration. A month of zeroes over an empty
+  // bar, with three tiles reading 0 · — · 0 beneath, is a form to fill in with
+  // no reason attached: it shows a person who has never used this what the
+  // work looks like before telling them what the work is for. The first run
+  // says the promise instead, and everything below comes back the moment there
+  // is one record to draw.
+  const blank =
+    hydrated &&
+    ledger.txns.length === 0 &&
+    ledger.recurrings.length === 0 &&
+    ledger.loans.length === 0 &&
+    ledger.budgets.length === 0;
+  if (blank) return <PersonalFirstRun t={t} />;
+
   return (
     <Screen edges={[]}>
       <MeHero
@@ -385,34 +410,12 @@ function MeLedger() {
             </View>
           ) : null}
 
-          {/* Where the money went — a ranked bar list of the month's categories. */}
-          {breakdownBars.length > 0 ? (
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-                {t.personal.whereMoneyWent.toUpperCase()}
-              </Text>
-              <Card>
-                <BarList
-                  data={breakdownBars}
-                  accessibilityLabelFor={(d) => `${d.label}, ${d.formatted}`}
-                />
-              </Card>
-            </View>
-          ) : null}
-
-          {/* Cash flow over the last three months — a small saved/spent trend. */}
-          {trendActive ? (
-            <View style={{ gap: theme.spacing.sm }}>
-              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
-                {t.personal.last3Months.toUpperCase()}
-              </Text>
-              <Card>
-                <CashflowStrip trend={trend} currency={dc} locale={locale} />
-              </Card>
-            </View>
-          ) : null}
-
-          {/* The month's entries, grouped by day like a statement. */}
+          {/* The month's entries, grouped by day like a statement. They sit
+              above the analytics on purpose: a breakdown and a trend are claims
+              about the ledger, and the rows are the ledger — somebody who has
+              just added an expense is looking for that line, not for a bar
+              chart that has quietly folded it in. The summaries read as
+              honest once what they are drawn from is already on screen. */}
           <View style={{ gap: theme.spacing.sm }}>
             <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
@@ -473,6 +476,33 @@ function MeLedger() {
             )}
           </View>
 
+          {/* Where the money went — a ranked bar list of the month's categories. */}
+          {breakdownBars.length > 0 ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.personal.whereMoneyWent.toUpperCase()}
+              </Text>
+              <Card>
+                <BarList
+                  data={breakdownBars}
+                  accessibilityLabelFor={(d) => `${d.label}, ${d.formatted}`}
+                />
+              </Card>
+            </View>
+          ) : null}
+
+          {/* Cash flow over the last three months — a small saved/spent trend. */}
+          {trendActive ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="micro" tone="faint" style={{ letterSpacing: 0.8 }}>
+                {t.personal.last3Months.toUpperCase()}
+              </Text>
+              <Card>
+                <CashflowStrip trend={trend} currency={dc} locale={locale} />
+              </Card>
+            </View>
+          ) : null}
+
           {/* The management areas, demoted below the ledger to a quiet tools
               shelf — each tile's figure is the size of that collection, with a
               coloured qualifier for the one thing that wants attention. */}
@@ -510,13 +540,7 @@ function MeLedger() {
             </Row>
           </View>
 
-          {/* A quiet reassurance: this ledger is the person's alone. */}
-          <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
-            <Ionicons name="lock-closed-outline" size={iconSize.xs} color={theme.color.textFaint} />
-            <Text variant="micro" tone="faint">
-              {t.personal.privateNote}
-            </Text>
-          </Row>
+          <PrivateNote />
         </View>
       </ScrollView>
     </Screen>
@@ -615,7 +639,6 @@ function MeHero({
   onNextMonth: () => void;
 }) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
 
   const saved = net >= 0n;
   const fmt = (amount: bigint): string => format(money(amount, currency), { locale });
@@ -627,67 +650,52 @@ function MeHero({
   const ratio =
     income > 0n ? Math.min(1, Number((expense * 1000n) / income) / 1000) : expense > 0n ? 1 : 0;
 
-  return (
-    <View
-      style={{
-        paddingTop: insets.top + theme.spacing.md,
-        paddingHorizontal: theme.spacing.xl,
-        paddingBottom: theme.spacing.lg,
-        borderBottomLeftRadius: theme.radius.xxl,
-        borderBottomRightRadius: theme.radius.xxl,
-        gap: theme.spacing.lg,
-        overflow: 'hidden',
-      }}
-    >
-      {/* The saturated ground. */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Gradient colors={wash} radius={0} style={{ flex: 1 }} />
-      </View>
-      {/* One faint watermark bled off the corner. */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Ionicons
-          name={HERO_GLYPH}
-          size={208}
-          color={theme.color.onBrand}
-          style={{ position: 'absolute', right: -44, bottom: -52, opacity: 0.16 }}
-        />
-      </View>
+  // A ledger one month old has nowhere to step. Two dimmed chevrons either side
+  // of the month are a control that answers every press with nothing, so when
+  // there is no other month to reach the header is the month's name alone.
+  const canBrowse = canGoBack || canGoForward;
 
+  return (
+    <HeroShell wash={wash}>
       {/* Month switcher — the hero's header, centred, ‹ August 2026 ›. */}
       <Row style={{ alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.personal.prevMonth}
-          accessibilityState={{ disabled: !canGoBack }}
-          disabled={!canGoBack}
-          onPress={onPrevMonth}
-          hitSlop={10}
-          style={({ pressed }) => ({ opacity: !canGoBack ? 0.35 : pressed ? 0.5 : 1 })}
-        >
-          <Ionicons
-            name={directionalIcon('chevron-back')}
-            size={iconSize.lg}
-            color={theme.color.onBrand}
-          />
-        </Pressable>
+        {canBrowse ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.personal.prevMonth}
+            accessibilityState={{ disabled: !canGoBack }}
+            disabled={!canGoBack}
+            onPress={onPrevMonth}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: !canGoBack ? 0.35 : pressed ? 0.5 : 1 })}
+          >
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.onBrand}
+            />
+          </Pressable>
+        ) : null}
         <Text variant="subheading" tone="onBrand" numberOfLines={1}>
           {label}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.personal.nextMonth}
-          accessibilityState={{ disabled: !canGoForward }}
-          disabled={!canGoForward}
-          onPress={onNextMonth}
-          hitSlop={10}
-          style={({ pressed }) => ({ opacity: !canGoForward ? 0.35 : pressed ? 0.5 : 1 })}
-        >
-          <Ionicons
-            name={directionalIcon('chevron-forward')}
-            size={iconSize.lg}
-            color={theme.color.onBrand}
-          />
-        </Pressable>
+        {canBrowse ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.personal.nextMonth}
+            accessibilityState={{ disabled: !canGoForward }}
+            disabled={!canGoForward}
+            onPress={onNextMonth}
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: !canGoForward ? 0.35 : pressed ? 0.5 : 1 })}
+          >
+            <Ionicons
+              name={directionalIcon('chevron-forward')}
+              size={iconSize.lg}
+              color={theme.color.onBrand}
+            />
+          </Pressable>
+        ) : null}
       </Row>
 
       {/* The month's net, big and static — the label carries the saved/overspent
@@ -703,21 +711,48 @@ function MeHero({
             than folded into it. Absent when nothing is outstanding, so a settled
             month stays as quiet as it was. */}
         {expectedIncome > 0n || expectedExpense > 0n ? (
-          <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
-            <Text variant="micro" tone="onBrand" numberOfLines={1} style={{ opacity: 0.85 }}>
-              {t.personal.stillExpected}
-            </Text>
-            {expectedIncome > 0n ? (
-              <Text variant="micro" tone="onBrand" numberOfLines={1} style={{ fontWeight: '700' }}>
-                {`+${fmt(expectedIncome)}`}
+          // What is "still expected" is the recurring rules and nothing else, so
+          // the line goes there — the answer to "expected by whom?" is one tap
+          // away rather than a thing to be worked out.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.personal.stillExpected}. ${t.personal.recurring}`}
+            onPress={() => router.push('/personal/recurring')}
+            hitSlop={8}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Row style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+              <Text variant="micro" tone="onBrand" numberOfLines={1} style={{ opacity: 0.85 }}>
+                {t.personal.stillExpected}
               </Text>
-            ) : null}
-            {expectedExpense > 0n ? (
-              <Text variant="micro" tone="onBrand" numberOfLines={1} style={{ fontWeight: '700' }}>
-                {`−${fmt(expectedExpense)}`}
-              </Text>
-            ) : null}
-          </Row>
+              {expectedIncome > 0n ? (
+                <Text
+                  variant="micro"
+                  tone="onBrand"
+                  numberOfLines={1}
+                  style={{ fontWeight: '700' }}
+                >
+                  {`+${fmt(expectedIncome)}`}
+                </Text>
+              ) : null}
+              {expectedExpense > 0n ? (
+                <Text
+                  variant="micro"
+                  tone="onBrand"
+                  numberOfLines={1}
+                  style={{ fontWeight: '700' }}
+                >
+                  {`−${fmt(expectedExpense)}`}
+                </Text>
+              ) : null}
+              <Ionicons
+                name={directionalIcon('chevron-forward')}
+                size={iconSize.xs}
+                color={theme.color.onBrand}
+                style={{ opacity: 0.85 }}
+              />
+            </Row>
+          </Pressable>
         ) : null}
       </View>
 
@@ -752,28 +787,129 @@ function MeHero({
         </Row>
       </View>
 
-      {/* The add actions — both labelled, expense primary, income secondary, with
-          the ledger shortcut on the end. */}
-      <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
-        <HeroPill
-          tone="solid"
-          icon="add"
-          label={t.personal.addExpense}
-          onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })}
+      {/* The add actions — both labelled, expense primary, income secondary.
+          The shortcut to the full ledger used to sit on the end as a third
+          control; the month's own entries are the first thing under the hero
+          now, and their heading carries "See all" to the same screen, so the
+          disc was a second door to a room already in view. Two buttons, both
+          wider for it. */}
+      <AddActions t={t} />
+    </HeroShell>
+  );
+}
+
+/**
+ * The edge-to-edge ground every version of the hero stands on: the saturated
+ * wash under the status bar, its rounded foot, and the one wallet watermark
+ * bled off the corner. Shared so the first run looks like the same section as
+ * the month panel it becomes.
+ */
+function HeroShell({ wash, children }: { wash: readonly string[]; children: ReactNode }) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={{
+        paddingTop: insets.top + theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
+        paddingBottom: theme.spacing.lg,
+        borderBottomLeftRadius: theme.radius.xxl,
+        borderBottomRightRadius: theme.radius.xxl,
+        gap: theme.spacing.lg,
+        overflow: 'hidden',
+      }}
+    >
+      {/* The saturated ground. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Gradient colors={wash} radius={0} style={{ flex: 1 }} />
+      </View>
+      {/* One faint watermark bled off the corner. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Ionicons
+          name={HERO_GLYPH}
+          size={208}
+          color={theme.color.onBrand}
+          style={{ position: 'absolute', right: -44, bottom: -52, opacity: 0.16 }}
         />
-        <HeroPill
-          tone="ghost"
-          icon="add"
-          label={t.personal.addIncome}
-          onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'income' } })}
-        />
-        <HeroCircle
-          icon="list-outline"
-          label={t.personal.transactions}
-          onPress={() => router.push('/personal/transactions')}
-        />
-      </Row>
+      </View>
+      {children}
     </View>
+  );
+}
+
+/** The two ways into the ledger, side by side on the hero. */
+function AddActions({ t }: { t: ReturnType<typeof useStrings>['t'] }) {
+  const theme = useTheme();
+  return (
+    <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+      <HeroPill
+        tone="solid"
+        icon="add"
+        label={t.personal.addExpense}
+        onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'expense' } })}
+      />
+      <HeroPill
+        tone="ghost"
+        icon="add"
+        label={t.personal.addIncome}
+        onPress={() => router.push({ pathname: '/personal/entry', params: { kind: 'income' } })}
+      />
+    </Row>
+  );
+}
+
+/**
+ * The first run: the section with nothing in it yet.
+ *
+ * A private ledger asks for real work — every entry is typed by hand — so the
+ * empty screen has to be worth the first one. It leads with what the month's
+ * figures would eventually say ("see what you keep each month") rather than
+ * with the figures themselves at zero, keeps the same saturated panel so the
+ * tab is recognisably itself, and offers the three doors in the order a person
+ * needs them: spend, earn, and the recurring rules that mean salary and rent
+ * post themselves from here on.
+ *
+ * The privacy line stays, and stays early: the one question anybody has about
+ * a personal ledger inside a bill-splitting app is who else can see it.
+ */
+function PersonalFirstRun({ t }: { t: ReturnType<typeof useStrings>['t'] }) {
+  const theme = useTheme();
+  const clearance = useTabBarClearance();
+  return (
+    <Screen edges={[]}>
+      <HeroShell wash={SAVED_WASH}>
+        <View style={{ gap: theme.spacing.xs }}>
+          <Text variant="title" tone="onBrand" numberOfLines={1}>
+            {t.personal.title}
+          </Text>
+          <Text variant="caption" tone="onBrand" numberOfLines={2} style={{ opacity: 0.85 }}>
+            {t.personal.subtitle}
+          </Text>
+        </View>
+        <AddActions t={t} />
+      </HeroShell>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: clearance }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.xl }}>
+          <EmptyState
+            icon={<Ionicons name={HERO_GLYPH} size={iconSize.xxl} color={theme.color.brand} />}
+            title={t.personal.introTitle}
+            body={t.personal.introBody}
+            action={
+              <Button
+                label={t.personal.addRecurring}
+                variant="secondary"
+                onPress={() => router.push('/personal/recurring')}
+              />
+            }
+          />
+          <PrivateNote />
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
@@ -849,34 +985,19 @@ function HeroPill({
   );
 }
 
-/** A round action on the hero — a translucent white disc with a white glyph. */
-function HeroCircle({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
+/** A quiet reassurance, on every state of the tab: this ledger is nobody
+ *  else's. The one question a private ledger inside a shared-expense app has to
+ *  answer, so it is answered whether or not there is anything in it yet. */
+function PrivateNote() {
   const theme = useTheme();
+  const { t } = useStrings();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: HERO_CONTROL_BG,
-        opacity: pressed ? 0.6 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={iconSize.xl} color={theme.color.onBrand} />
-    </Pressable>
+    <Row style={{ justifyContent: 'center', gap: theme.spacing.xs }}>
+      <Ionicons name="lock-closed-outline" size={iconSize.xs} color={theme.color.textFaint} />
+      <Text variant="micro" tone="faint">
+        {t.personal.privateNote}
+      </Text>
+    </Row>
   );
 }
 
