@@ -820,12 +820,6 @@ export default function ExpenseDetailScreen() {
                 />
               </Card>
             </View>
-
-            {/* Edit and Delete moved up into the header's three-dot menu; the only
-            note left here is the reassurance that an edit keeps every version. */}
-            <Text variant="micro" tone="muted" align="center">
-              {t.extras.nothingOverwritten}
-            </Text>
           </>
         )}
       </ScrollView>
