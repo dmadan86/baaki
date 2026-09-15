@@ -127,10 +127,23 @@ off, and the switch is off unless somebody spells it exactly:
 ```sh
 # The Play artefact. No READ_SMS in the manifest.
 npx expo prebuild --clean --platform android
+cd android && ./gradlew bundleRelease
 
 # A sideloaded build that reads the inbox (A79). Never uploaded to Play.
-WAVES_SMS_READER=1 npx expo prebuild --clean --platform android
+export WAVES_SMS_READER=1
+npx expo prebuild --clean --platform android
+cd android && ./gradlew assembleRelease
 ```
+
+**The variable has to reach both commands, and a build where it reaches only
+one is broken in a way nothing complains about.** `prebuild` writes the
+manifest; the Gradle build evaluates `app.config.ts` again when it bundles the
+JS, and that is where `extra.smsReader` is decided (`smsReaderBuild()` in
+`app.config.ts`) — the fact `src/lib/smsFeature.ts` reads to decide whether
+this build has a reader at all. Set it for the prebuild alone and the artefact
+holds `READ_SMS` while its JS believes there is no reader: no Bank messages
+door, no "check now", no automatic reading, no watching line, and no error
+anywhere to say why. Export it in the shell rather than prefixing one command.
 
 Anything other than `1` — unset, `0`, `true`, `yes` — is off, and one spelling is
 accepted on purpose: a permission this consequential should not be turned on by a
@@ -141,6 +154,15 @@ Verify before every upload, on the generated manifest rather than on memory:
 
 ```sh
 grep -c READ_SMS apps/mobile/android/app/src/main/AndroidManifest.xml   # must print 0
+```
+
+The two halves have to agree, so check the built artefact and not the manifest
+alone — `assets/app.config` inside the APK or AAB carries the flag the JS reads:
+
+```sh
+unzip -p app-release.apk assets/app.config | grep -o '"smsReader":[a-z]*'
+# Play artefact:  "smsReader":false, and no READ_SMS above.
+# Sideload build: "smsReader":true,  and one READ_SMS above.
 ```
 
 The app half of this is designed to survive the permission being absent: the
