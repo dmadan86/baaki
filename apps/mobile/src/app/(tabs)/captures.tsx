@@ -1510,7 +1510,7 @@ export default function CapturesScreen() {
                 paddingBottom: theme.spacing.xs,
               }}
             >
-              {dayHeading(locale, item.createdAt)}
+              {dayHeading(locale, item.on)}
             </Text>
           );
         case 'batch':

@@ -49,7 +49,18 @@ import { foldCaptureBatches, type CaptureInboxItem } from '@/lib/captureFeed';
  * A row in the Review list: a day heading, or a draft (alone, or a spoken batch
  * folded into one card).
  */
-export type ReviewFeedItem = { kind: 'day'; key: string; createdAt: string } | CaptureInboxItem;
+export type ReviewFeedItem =
+  | {
+      kind: 'day';
+      key: string;
+      /**
+       * The day the money moved, at local noon so it can never slip to the
+       * neighbouring day when it is formatted back. Not when the draft was
+       * made: see `buildReviewFeed`.
+       */
+      on: string;
+    }
+  | CaptureInboxItem;
 
 /**
  * What the app was unsure of about one draft, as machine-readable reasons the
@@ -139,28 +150,66 @@ export function openingTab(rows: readonly CaptureRow[]): ReviewTabId {
 }
 
 /**
- * The list, in the order the drafts arrived.
+ * The list, cut into the days the money moved on, newest first.
  *
- * Day headings only when the pile actually spans more than one day — a month
- * pasted in one go still reads as a calendar, while the ordinary case
- * (everything caught today) is not made to carry a "TODAY" that says nothing.
- * Expenses spoken in one breath are folded into one card.
+ * **By `expense_date`, not by `created_at`.** The drafts used to be grouped by
+ * the moment the row was written, which is the same thing for anything a person
+ * types as they spend it and badly wrong for everything the app finds by
+ * itself: one scan of a phone's inbox writes three months of bank messages in a
+ * single second, so a hundred and forty drafts spanning a whole summer all
+ * arrived under "Today" — a list of dates that were all the same date and none
+ * of them the date on the bill. The day the money moved is the fact a person is
+ * reading the heading for; when the row was created is an implementation
+ * detail of the scan that found it.
+ *
+ * Sorted on that date too, for the same reason: rows come back newest-written
+ * first, and grouping a scan's output without re-sorting would put September's
+ * lunch above July's hotel under a heading that says July.
+ *
+ * Day headings only when the pile actually spans more than one day — a handful
+ * of spends caught today is not made to carry a "TODAY" that says nothing.
+ * Expenses spoken in one breath are still folded into one card, and they share
+ * a day, so folding happens inside a day exactly as it did.
  */
 export function buildReviewFeed(rows: readonly CaptureRow[]): ReviewFeedItem[] {
   if (rows.length === 0) return [];
 
+  // Newest spend first; two spends on one day keep the order they were written
+  // in, which is what makes a spoken run stay a run.
+  const byDate = [...rows].sort((a, b) => {
+    const left = spendDay(a);
+    const right = spendDay(b);
+    if (left !== right) return left < right ? 1 : -1;
+    return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0;
+  });
+
   const items: ReviewFeedItem[] = [];
-  const days = groupByDay(rows);
+  const days = groupByDay(byDate, spendDay);
 
   for (const day of days) {
     if (days.length > 1) {
-      const first = day.entries[0];
-      if (first) items.push({ kind: 'day', key: `day-${day.key}`, createdAt: first.created_at });
+      items.push({ kind: 'day', key: `day-${day.key}`, on: `${day.key}T12:00:00` });
     }
     for (const entry of foldCaptureBatches(day.entries)) items.push(entry);
   }
 
   return items;
+}
+
+/**
+ * The day a draft's money moved, as `YYYY-MM-DD`.
+ *
+ * `expense_date` is a date column and always this shape; the fallback is for a
+ * row that arrived from somewhere older or stranger than the app's own writes,
+ * where the day it was written is a better answer than no heading at all.
+ */
+function spendDay(row: CaptureRow): string {
+  const date = (row.expense_date ?? '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const when = new Date(Date.parse(row.created_at));
+  if (Number.isNaN(when.getTime())) return date;
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
 }
 
 /** The key FlashList tracks a row by. */
