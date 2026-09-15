@@ -3290,7 +3290,6 @@ export interface UiStrings {
     deliveryComesLater: string;
     perCurrencyNote: string;
     savedStraightAway: string;
-    nothingOverwritten: string;
   };
   errorBoundary: {
     title: string;
@@ -6146,8 +6145,6 @@ const en: UiStrings = {
       'Amounts are kept per currency, never converted into one total. People without an account are counted per group, because two people can share a name.',
     savedStraightAway:
       'Saved on this phone straight away, with or without a signal. The server recomputes every share before it is stored, so no device can push a wrong number into the ledger.',
-    nothingOverwritten:
-      'Nothing here is ever overwritten. Every version above is kept, and a deleted expense can be brought back for 30 days.',
   },
   errorBoundary: {
     title: 'Something went wrong',
@@ -9121,8 +9118,6 @@ const ta: UiStrings = {
       'தொகைகள் ஒவ்வொரு நாணயத்திற்கும் தனித்தனியாக வைக்கப்படும், ஒரே மொத்தமாக மாற்றப்படுவதில்லை. கணக்கு இல்லாதவர்கள் ஒவ்வொரு குழுவிலும் தனியாகக் கணக்கிடப்படுவார்கள், ஏனெனில் இரண்டு பேருக்கு ஒரே பெயர் இருக்கலாம்.',
     savedStraightAway:
       'சிக்னல் இருந்தாலும் இல்லாவிட்டாலும் உடனே இந்த ஃபோனில் சேமிக்கப்படும். சேமிக்கும் முன் ஒவ்வொரு பங்கையும் சேவையகம் மீண்டும் கணக்கிடுகிறது, எனவே எந்தச் சாதனமும் தவறான எண்ணைக் கணக்கில் தள்ள முடியாது.',
-    nothingOverwritten:
-      'இங்கே எதுவும் மேலெழுதப்படுவதில்லை. மேலே உள்ள ஒவ்வொரு பதிப்பும் வைக்கப்படுகிறது, நீக்கப்பட்ட செலவை 30 நாட்களுக்கு மீட்கலாம்.',
   },
   errorBoundary: {
     title: 'ஏதோ தவறாகிவிட்டது',
@@ -11970,8 +11965,6 @@ const hi: UiStrings = {
       'रकमें हर मुद्रा के हिसाब से अलग रखी जाती हैं, कभी एक कुल में नहीं बदली जातीं। जिनका खाता नहीं है उन्हें हर समूह में अलग गिना जाता है, क्योंकि दो लोगों का नाम एक हो सकता है।',
     savedStraightAway:
       'सिग्नल हो या न हो, इसी फ़ोन पर तुरंत सेव। सर्वर हर हिस्सा दोबारा जोड़कर ही रखता है, इसलिए कोई डिवाइस हिसाब में ग़लत आँकड़ा नहीं डाल सकती।',
-    nothingOverwritten:
-      'यहाँ कुछ भी मिटाकर ऊपर नहीं लिखा जाता। ऊपर का हर संस्करण रखा जाता है, और हटाया गया खर्च 30 दिन तक वापस लाया जा सकता है।',
   },
   errorBoundary: {
     title: 'कुछ गड़बड़ हो गई',
@@ -15261,8 +15254,6 @@ const ar: UiStrings = {
       'تُحفظ المبالغ لكل عملة على حدة، ولا تُحوَّل أبدًا إلى مجموع واحد. ومن ليس لهم حساب يُحصَون في كل مجموعة على حدة، لأن شخصين قد يحملان الاسم نفسه.',
     savedStraightAway:
       'يُحفظ على هذا الهاتف فورًا، بإشارة أو بدونها. يعيد الخادم حساب كل حصة قبل تخزينها، فلا يستطيع أي جهاز دفع رقم خاطئ إلى الدفتر.',
-    nothingOverwritten:
-      'لا يُستبدل هنا شيء أبدًا. تُحفظ كل نسخة أعلاه، ويمكن استرجاع مصروف محذوف خلال 30 يومًا.',
   },
   errorBoundary: {
     title: 'حدث خطأ ما',
