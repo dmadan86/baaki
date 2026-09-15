@@ -2,8 +2,9 @@
  * Filling in the `Intl` features Hermes does not ship.
  *
  * The Android Hermes build carries `Intl.NumberFormat` and `Intl.DateTimeFormat`
- * (so money and absolute dates format natively) but not `Intl.RelativeTimeFormat`
- * — the constructor is simply absent. Every relative stamp in the app
+ * (so money and absolute dates format natively) but neither
+ * `Intl.RelativeTimeFormat` nor `Intl.DisplayNames` — both constructors are
+ * simply absent. Every relative stamp in the app
  * ("2 days ago", "yesterday") feature-detects it and falls back to an absolute
  * date when it is missing, so the feed reads "Aug 27, 8:16 PM" instead of the
  * skimmable relative time it was built for. That degrade is app-wide, not just
@@ -39,3 +40,14 @@ import '@formatjs/intl-relativetimeformat/locale-data/en';
 import '@formatjs/intl-relativetimeformat/locale-data/hi';
 import '@formatjs/intl-relativetimeformat/locale-data/ta';
 import '@formatjs/intl-relativetimeformat/locale-data/ar';
+
+// Currency names — "Vietnamese dong" rather than "VND" — which the trip-rate
+// picker and the settle-currency list are built around (`lib/tripRates.ts`).
+// Hermes has no `DisplayNames` at all, so without this the lists fall back to
+// bare codes on exactly the phones the feature is for, and a list of sixteen
+// codes is a memory test.
+import '@formatjs/intl-displaynames/polyfill.js';
+import '@formatjs/intl-displaynames/locale-data/en.js';
+import '@formatjs/intl-displaynames/locale-data/hi.js';
+import '@formatjs/intl-displaynames/locale-data/ta.js';
+import '@formatjs/intl-displaynames/locale-data/ar.js';
