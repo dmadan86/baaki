@@ -72,7 +72,7 @@ minimumReleaseAgeExclude:
 # the app's own pin was silently ignored — which `expo doctor` then reported as
 # a version mismatch the app's package.json appeared to have already fixed.
 overrides:
-  expo-constants: 57.0.17
+  expo-constants: 57.0.18
 
 # Expo loads a package's config plugin from inside that package, and several of
 # them require `@expo/config-plugins` without declaring it — it is always
