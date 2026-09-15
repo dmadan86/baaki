@@ -13,10 +13,13 @@
  *      questions people actually have — catch up, or go back and get
  *      everything. The slow one says it is slow on the row that offers it,
  *      rather than in a toast after it has been chosen.
- *   2. **A warning, on the phones where it is true.** Several manufacturers
- *      stop scheduled background work by default, which is what silently kills
- *      the hourly check (`lib/smsBattery.ts`). It is shown to those phones and
- *      not to the rest: a warning everybody sees is a warning nobody reads.
+ *   2. **The hourly check, as a switch.** Whether Waves may wake the phone to
+ *      look for new messages, or should only look when it is opened. It used to
+ *      be a warning here — several manufacturers stop scheduled work by default
+ *      (`lib/smsBattery.ts`) — and a warning is the wrong shape for it: there is
+ *      nothing wrong, nothing to fix in the app, and messages are read on the
+ *      way in either way. The question mark beside the switch holds what to
+ *      change on the phones where the check does get stopped, named by maker.
  *   3. **Progress, in three honest stages.** Reading is indeterminate because
  *      the native call genuinely has no progress to report, and a fake bar is a
  *      small lie told every time. Sorting counts real messages. Saving is the
@@ -34,10 +37,21 @@ import { useCallback, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, View } from 'react-native';
 
-import { Button, Callout, ProgressBar, Row, Sheet, Text, iconSize, useTheme } from '@waves/ui';
+import {
+  Button,
+  Popup,
+  ProgressBar,
+  Row,
+  Sheet,
+  Text,
+  Toggle,
+  iconSize,
+  useTheme,
+} from '@waves/ui';
 
 import { plural, useStrings, type UiStrings } from '@/i18n';
 import { batteryLimitsLikely, deviceMaker, openAppSettings } from '@/lib/smsBattery';
+import { useBackgroundCheck } from '@/lib/useBackgroundCheck';
 import { useReducedMotion } from '@/lib/reducedMotion';
 import { ScanScope, scanFor, type ScanProgress, type ScanResult } from '@/lib/smsScan';
 
@@ -138,6 +152,8 @@ export function SmsScanSheet({
 
   const [scope, setScope] = useState<ScanScope>(ScanScope.Recent);
   const [phase, setPhase] = useState<Phase>({ kind: 'choosing' });
+  const [helpOpen, setHelpOpen] = useState(false);
+  const background = useBackgroundCheck();
 
   const warnBattery = batteryLimitsLikely();
   const maker = deviceMaker();
@@ -192,19 +208,41 @@ export function SmsScanSheet({
             {t.smsInbox.scanKeepsWhatYouDid}
           </Text>
 
-          {warnBattery ? (
-            <Callout tone="warning" title={t.smsInbox.batteryTitle}>
-              <Text variant="caption" tone="muted">
-                {t.smsInbox.batteryBody.replace('{maker}', maker ?? 'Some Android')}
+          {/* The hourly wake-up, as a switch rather than an alarm. What stood
+              here was an orange panel telling somebody their phone would
+              probably stop the feature working — true on about half of Android,
+              and no use to anybody: it is not a fault, there is nothing to fix
+              in the app, and new messages are read whenever it is opened
+              regardless. A switch says the same fact without the fright, and
+              the question mark beside it holds what to change on the phones
+              where the check does get stopped. */}
+          <Row style={{ alignItems: 'center', gap: theme.spacing.md }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Row style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+                <Text variant="body">{t.smsInbox.backgroundTitle}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.smsInbox.backgroundHelp}
+                  hitSlop={10}
+                  onPress={() => setHelpOpen(true)}
+                >
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={iconSize.md}
+                    color={theme.color.brand}
+                  />
+                </Pressable>
+              </Row>
+              <Text variant="micro" tone="muted">
+                {t.smsInbox.backgroundNote}
               </Text>
-              <Button
-                label={t.smsInbox.batteryOpenSettings}
-                variant="ghost"
-                size="sm"
-                onPress={() => void openAppSettings()}
-              />
-            </Callout>
-          ) : null}
+            </View>
+            <Toggle
+              value={background.wanted}
+              onValueChange={background.setWanted}
+              accessibilityLabel={t.smsInbox.backgroundTitle}
+            />
+          </Row>
 
           <Button label={t.smsInbox.scan} fullWidth onPress={() => void start()} />
         </>
@@ -244,6 +282,28 @@ export function SmsScanSheet({
           <Button label={t.common.done} fullWidth onPress={close} />
         </View>
       )}
+      <Popup visible={helpOpen} onClose={() => setHelpOpen(false)} closeLabel={t.common.close}>
+        <Text variant="heading">{t.smsInbox.backgroundHelpTitle}</Text>
+        <Text variant="caption" tone="muted">
+          {t.smsInbox.backgroundHelpBody}
+        </Text>
+        {/* Named only where the naming is worth something: the phones that do
+            this have the setting in different places, and "usually under
+            Battery" is the difference between a person finding it and giving
+            up. Everyone else is told nothing they would have to translate. */}
+        {warnBattery && maker ? (
+          <Text variant="caption" tone="muted">
+            {t.smsInbox.backgroundHelpMaker.replace('{maker}', maker)}
+          </Text>
+        ) : null}
+        <Button
+          label={t.smsInbox.batteryOpenSettings}
+          variant="secondary"
+          fullWidth
+          onPress={() => void openAppSettings()}
+        />
+        <Button label={t.common.done} fullWidth onPress={() => setHelpOpen(false)} />
+      </Popup>
     </Sheet>
   );
 }

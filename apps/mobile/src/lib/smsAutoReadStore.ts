@@ -49,6 +49,14 @@ const LAST_CHECKED_KEY = 'waves.sms_auto_read.last_checked_at';
  * scope by until it reads this, which is the entire reason it exists.
  */
 const ARMED_KEY = 'waves.sms_auto_read.armed';
+/**
+ * Whether the hourly wake-up is wanted at all. Device-level, like the armed
+ * record, because it is a statement about this phone rather than this account.
+ *
+ * Absent means yes: the schedule is the default, and a person who has never
+ * been asked has not said no.
+ */
+const SCHEDULE_KEY = 'waves.sms_auto_read.background';
 
 const scoped = (ownerId: string): string => `${LAST_CHECKED_KEY}.${ownerId}`;
 
@@ -97,6 +105,23 @@ export async function armAutoRead(ownerId: string): Promise<void> {
  */
 export async function disarmAutoRead(): Promise<void> {
   await AsyncStorage.removeItem(ARMED_KEY).catch(() => {});
+}
+
+/**
+ * Whether the hourly background check is wanted on this phone.
+ *
+ * True unless somebody has turned it off. The app reads new messages when it is
+ * opened either way — that path is the foreground driver and nothing here gates
+ * it — so turning this off costs freshness between launches and nothing else.
+ */
+export async function backgroundCheckWanted(): Promise<boolean> {
+  const stored = await AsyncStorage.getItem(SCHEDULE_KEY).catch(() => null);
+  return stored !== 'off';
+}
+
+/** Remember the answer. A write that fails leaves the default in place. */
+export async function saveBackgroundCheckWanted(wanted: boolean): Promise<void> {
+  await AsyncStorage.setItem(SCHEDULE_KEY, wanted ? 'on' : 'off').catch(() => {});
 }
 
 /**

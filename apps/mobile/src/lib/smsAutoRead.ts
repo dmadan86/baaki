@@ -56,6 +56,7 @@ import { useAuth } from '@/lib/auth';
 import { deviceGatesOpen, runAutoReadFor } from './smsAutoReadRun';
 import {
   armAutoRead,
+  backgroundCheckWanted,
   loadArmedOwner,
   loadLastCheckedAt,
   onSmsPermissionGranted,
@@ -63,7 +64,7 @@ import {
 // Imported for its side effect as much as its exports: defining the background
 // task has to happen in the global scope of the bundle, and this is the import
 // that puts it there in both the foreground process and a headless wake-up.
-import { syncAutoReadTask } from './smsAutoReadTask';
+import { syncAutoReadSchedule, syncAutoReadTask } from './smsAutoReadTask';
 import { useSmsInboxReaderVerdict, type SmsInboxReaderVerdict } from './smsFeature';
 
 /**
@@ -196,7 +197,11 @@ async function runEvaluate(ownerId: string, verdict: SmsInboxReaderVerdict): Pro
 
   publish({ enabled: true, lastCheckedAt });
   await armAutoRead(ownerId);
-  await syncAutoReadTask(true);
+  // The hourly wake-up is a preference, not a gate. Off, the reader still does
+  // everything it does here — the backfill and the read on the way in — and
+  // simply stops waking the phone in between. On the phones whose manufacturer
+  // stops background work anyway, that is what was happening in practice.
+  await syncAutoReadSchedule(await backgroundCheckWanted());
   // The backfill is forced past the quiet window; an ordinary launch is not.
   await pass(ownerId, lastCheckedAt === null);
 }
