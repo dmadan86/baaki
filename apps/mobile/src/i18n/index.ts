@@ -2760,6 +2760,8 @@ export interface UiStrings {
     last90: string;
     allTime: string;
     filterTitle: string;
+    /** The heading over the four quick windows in the filter sheet. */
+    filterRecent: string;
     filterByMonth: string;
     filterCustom: string;
     filterOlder: string;
@@ -5584,6 +5586,7 @@ const en: UiStrings = {
     last90: '90 days',
     allTime: 'All',
     filterTitle: 'Show which days',
+    filterRecent: 'Recent',
     filterByMonth: 'By month',
     filterCustom: 'Pick your own dates',
     filterOlder: 'Earlier month',
@@ -8489,6 +8492,7 @@ const ta: UiStrings = {
     last90: '90 நாள்',
     allTime: 'எல்லாம்',
     filterTitle: 'எந்த நாட்களைக் காட்ட?',
+    filterRecent: 'சமீபத்தில்',
     filterByMonth: 'மாதவாரியாக',
     filterCustom: 'உங்கள் தேதிகளைத் தேர்ந்தெடுங்கள்',
     filterOlder: 'முந்தைய மாதம்',
@@ -11341,6 +11345,7 @@ const hi: UiStrings = {
     last90: '90 दिन',
     allTime: 'सब',
     filterTitle: 'कौन से दिन दिखाएँ',
+    filterRecent: 'हाल का',
     filterByMonth: 'महीने के हिसाब से',
     filterCustom: 'अपनी तारीख़ें चुनें',
     filterOlder: 'पिछला महीना',
@@ -14434,6 +14439,7 @@ const ar: UiStrings = {
     last90: '٩٠ يومًا',
     allTime: 'الكل',
     filterTitle: 'أي الأيام تُعرض',
+    filterRecent: 'الأحدث',
     filterByMonth: 'حسب الشهر',
     filterCustom: 'اختر تواريخك',
     filterOlder: 'الشهر السابق',
