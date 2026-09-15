@@ -3346,6 +3346,8 @@ export interface UiStrings {
     tierBill: string;
     /** The button that opens the full rate methods on an expense. */
     change: string;
+    /** The quiet link that fills the rate in from today’s mid-market rate. */
+    useTodaysRate: string;
     /** Confirmation before a pinned rate is dropped. */
     removeConfirm: string;
     /** What a pinned rate does and does not touch. */
@@ -6187,6 +6189,7 @@ const en: UiStrings = {
     tierTrip: 'Trip rate',
     tierBill: 'This bill',
     change: 'Change',
+    useTodaysRate: 'Use today’s rate',
     removeConfirm: 'Bills already saved keep the rate they were saved with.',
     appliesNote: 'Changing a rate never moves a bill already saved.',
   },
@@ -9162,6 +9165,7 @@ const ta: UiStrings = {
     tierTrip: 'பயண விகிதம்',
     tierBill: 'இந்த பில்',
     change: 'மாற்று',
+    useTodaysRate: 'இன்றைய விகிதத்தைப் பயன்படுத்து',
     removeConfirm: 'ஏற்கெனவே சேமித்த பில்கள் அவை சேமித்த விகிதத்தையே வைத்திருக்கும்.',
     appliesNote: 'விகிதத்தை மாற்றினாலும் ஏற்கெனவே சேமித்த பில் மாறாது.',
   },
@@ -12009,6 +12013,7 @@ const hi: UiStrings = {
     tierTrip: 'यात्रा दर',
     tierBill: 'यह बिल',
     change: 'बदलें',
+    useTodaysRate: 'आज की दर लें',
     removeConfirm: 'पहले सहेजे गए बिल उसी दर पर रहेंगे जिस पर सहेजे गए थे।',
     appliesNote: 'दर बदलने से पहले सहेजा गया बिल कभी नहीं बदलता।',
   },
@@ -15299,6 +15304,7 @@ const ar: UiStrings = {
     tierTrip: 'سعر الرحلة',
     tierBill: 'هذه الفاتورة',
     change: 'تغيير',
+    useTodaysRate: 'استخدم سعر اليوم',
     removeConfirm: 'الفواتير المحفوظة تبقى على السعر الذي حُفظت به.',
     appliesNote: 'تغيير السعر لا يحرّك فاتورة محفوظة أبداً.',
   },

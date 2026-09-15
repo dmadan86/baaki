@@ -22,6 +22,36 @@ import {
   rateToDecimal,
 } from '@waves/core';
 
+/**
+ * A currency's mark, or nothing.
+ *
+ * `currencySymbol` falls back to the code when a currency has no symbol of its
+ * own, which put "AED AED" and "SGD SGD" on the chips — a label that says the
+ * same word twice reads as a bug even when it is only a fallback showing
+ * through. Empty means the code can stand alone.
+ */
+export function currencyMark(code: string): string {
+  const mark = currencySymbol(code);
+  return mark === code ? '' : mark;
+}
+
+/**
+ * A currency's name in the reader's own language — "Vietnamese dong" — or null
+ * where the platform has no currency display names (older JSC builds, and a
+ * locale ICU was trimmed for). Null means the code is all there is to show,
+ * which is what the picker fell back to before it could show names at all.
+ */
+export function currencyName(code: string, locale: string): string | null {
+  try {
+    const names = Intl.DisplayNames as typeof Intl.DisplayNames | undefined;
+    if (typeof names !== 'function') return null;
+    const name = new names([locale], { type: 'currency' }).of(code);
+    return name && name !== code ? name : null;
+  } catch {
+    return null;
+  }
+}
+
 /** One pinned rate as `useGroupFxRates` hands it over. */
 export interface TripRateRow {
   readonly from: string;

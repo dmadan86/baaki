@@ -21,19 +21,13 @@
 
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import {
-  type CurrencyCode,
-  currencySymbol,
-  fromFxRecord,
-  type FxRate,
-  isCurrencyCode,
-} from '@waves/core';
+import { type CurrencyCode, fromFxRecord, type FxRate, isCurrencyCode } from '@waves/core';
 import {
   Button,
   Card,
-  Chip,
+  directionalIcon,
   iconSize,
   ListRow,
   Row,
@@ -43,13 +37,14 @@ import {
   useTheme,
 } from '@waves/ui';
 
-import { ChoiceRow } from '@/components/expense/SheetOverlay';
 import { fetchFxRate } from '@/data/api';
 import { COMMON_CURRENCIES } from '@/lib/currencyChoices';
 import { useGroupFxRates, useSetGroupFxRate } from '@/data/hooks';
 import { useStrings } from '@/i18n';
 import { friendlyError } from '@/lib/errors';
 import {
+  currencyMark,
+  currencyName,
   homeFirstFor,
   rateFromTyped,
   rateLine,
@@ -72,8 +67,8 @@ function CurrencyMark({ code }: { code: string }) {
         backgroundColor: theme.color.brandSoft,
       }}
     >
-      <Text variant="subheading" tone="brand" numberOfLines={1} adjustsFontSizeToFit>
-        {currencySymbol(code)}
+      <Text variant="caption" tone="brand" numberOfLines={1} adjustsFontSizeToFit>
+        {currencyMark(code) || code}
       </Text>
     </View>
   );
@@ -98,7 +93,7 @@ export function SettlesInRow({
   onChange: (currency: string) => void;
 }) {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const [open, setOpen] = useState(false);
 
   return (
@@ -129,20 +124,30 @@ export function SettlesInRow({
         style={{ maxHeight: '82%' }}
       >
         <Text variant="heading">{t.fx.settlesIn}</Text>
-        <View style={{ gap: theme.spacing.xs }}>
-          {COMMON_CURRENCIES.map((code) => (
-            <ChoiceRow
-              key={code}
-              leading={<CurrencyMark code={code} />}
-              label={code}
-              selected={code === currency}
-              onPress={() => {
-                setOpen(false);
-                if (code !== currency) onChange(code);
-              }}
-            />
-          ))}
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+          {COMMON_CURRENCIES.map((code) => {
+            const name = currencyName(code, locale);
+            return (
+              <ListRow
+                key={code}
+                title={name ?? code}
+                subtitle={name ? code : undefined}
+                leading={<CurrencyMark code={code} />}
+                trailing={
+                  code === currency ? (
+                    <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
+                  ) : undefined
+                }
+                accessibilityRole="radio"
+                accessibilityState={{ selected: code === currency }}
+                onPress={() => {
+                  setOpen(false);
+                  if (code !== currency) onChange(code);
+                }}
+              />
+            );
+          })}
+        </ScrollView>
       </Sheet>
     </>
   );
@@ -165,7 +170,7 @@ export function TripRatesCard({
   canEdit: boolean;
 }) {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const rates = useGroupFxRates(groupId);
   const rows: TripRateRow[] = rates.data ?? [];
   /** The currency being edited, or `''` for a rate that does not exist yet. */
@@ -188,10 +193,11 @@ export function TripRatesCard({
         ) : (
           rows.map((row) => {
             const rate = tripRateFor([row], row.from, groupCurrency);
+            const name = currencyName(row.from, locale);
             return (
               <ListRow
                 key={row.from}
-                title={row.from}
+                title={name ? `${name} · ${row.from}` : row.from}
                 subtitle={rate ? rateLine(rate) : undefined}
                 leading={<CurrencyMark code={row.from} />}
                 trailing={
@@ -251,6 +257,21 @@ export function TripRatesCard({
 /**
  * Pin one currency's rate.
  *
+ * The shape every app that converts money has arrived at, and it is worth
+ * saying why rather than only that: **two cards, one currency each, and a
+ * circle on the seam between them that turns the pair around** (Wise, Revolut,
+ * Airwallex and Trust Wallet all draw this, and a traveller has met it before).
+ * One card holds a bare `1`, the other holds the number being typed — which is
+ * exactly what a rate is, said as a picture instead of as the sentence
+ * "1 USD = ⬚ INR" with a text link called "turn it around" beside it.
+ *
+ * What it replaces was a wall of sixteen chips, a label, a link, a field, a
+ * full-width fetch button and a line restating the rate that had just been
+ * typed: six controls to enter one number. The currency moved into its own
+ * pane, reached by tapping the pill on the card it belongs to, because picking
+ * from sixteen currencies is a list with names in it rather than a strip of
+ * codes.
+ *
  * Two ways to arrive at the number, in the order somebody actually has one:
  * typing what they know, and asking for today's mid-market rate. There is no
  * "what my card charged" here — that is a fact about one payment, and this is
@@ -271,7 +292,7 @@ function TripRateSheet({
   onClose: () => void;
 }) {
   const theme = useTheme();
-  const { t } = useStrings();
+  const { t, locale } = useStrings();
   const rates = useGroupFxRates(groupId);
   const setRate = useSetGroupFxRate(groupId);
 
@@ -279,22 +300,23 @@ function TripRateSheet({
     editingFrom === '' ? null : tripRateFor(rates.data ?? [], editingFrom, groupCurrency);
 
   const [from, setFrom] = useState(editingFrom);
-  // Which way round the input reads. On an existing rate, open it the way it is
-  // shown in the list — that is the way its number is readable.
+  // Which currency holds the bare 1. An existing rate opens the way its number
+  // is readable — 312 to the rupee rather than 0.0032 to the dong.
   const [homeFirst, setHomeFirst] = useState(existing ? homeFirstFor(existing) : false);
   const [text, setText] = useState(() =>
     existing ? shownText(existing, homeFirstFor(existing)) : '',
   );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // The rate as it actually is, when we have it exactly: the one already pinned,
-  // the one just fetched, the one carried through a turn of the direction.
+  // The rate as it actually is, when we have it exactly: the one already
+  // pinned, the one just fetched, the one carried through a turn.
   //
   // The field cannot hold it. Turned around, 1/91.25 is 0.010958…, and what the
-  // input shows is that rounded — so reading the rate back out of the text would
-  // shave a tenth of a percent off it every time somebody pressed "turn it
-  // around". Typing clears this, because then the typed number IS the rate.
+  // input shows is that rounded — so reading the rate back out of the text
+  // would shave a tenth of a percent off it every time somebody pressed the
+  // swap. Typing clears this, because then the typed number IS the rate.
   const [exact, setExact] = useState<FxRate | null>(existing);
+  const [picking, setPicking] = useState(editingFrom === '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const foreign = isCurrencyCode(from) ? (from as CurrencyCode) : null;
   const home = groupCurrency as CurrencyCode;
@@ -310,10 +332,7 @@ function TripRateSheet({
     setError(null);
     setBusy(true);
     try {
-      const record = await fetchFxRate(foreign, home);
-      // Show the fetched number the way this input is currently pointing, so
-      // the field the person is reading is the field that changed.
-      const fetched = fromFxRecord(record);
+      const fetched = fromFxRecord(await fetchFxRate(foreign, home));
       setExact(fetched);
       setText(shownText(fetched, homeFirst));
     } catch (caught) {
@@ -349,131 +368,143 @@ function TripRateSheet({
     );
   };
 
-  const leftCode = homeFirst ? groupCurrency : from;
-  const rightCode = homeFirst ? from : groupCurrency;
+  const turnAround = (): void => {
+    const next = !homeFirst;
+    // Carry the rate itself across and show it rounded: the display is the only
+    // thing that rounds.
+    if (rate) setText(shownText(rate, next));
+    setHomeFirst(next);
+  };
+
+  // Which currency sits on which card. The one holding the bare 1 is whichever
+  // the person is quoting from; the other holds the number they are typing.
+  const unitCode = homeFirst ? groupCurrency : from;
+  const rateCode = homeFirst ? from : groupCurrency;
+
+  if (picking) {
+    return (
+      <Sheet
+        visible
+        onClose={onClose}
+        closeLabel={t.common.close}
+        style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.lg, maxHeight: '88%' }}
+      >
+        <CurrencyPane
+          choices={choices}
+          chosen={from}
+          locale={locale}
+          canGoBack={Boolean(foreign)}
+          onPick={(code) => {
+            if (code !== from) {
+              setFrom(code);
+              setText('');
+              setExact(null);
+              setError(null);
+            }
+            setPicking(false);
+          }}
+          onBack={() => setPicking(false)}
+        />
+      </Sheet>
+    );
+  }
 
   return (
-    <Sheet visible onClose={onClose} closeLabel={t.common.close} style={{ maxHeight: '88%' }}>
+    <Sheet
+      visible
+      onClose={onClose}
+      closeLabel={t.common.close}
+      style={{ paddingHorizontal: theme.spacing.xl, gap: theme.spacing.lg, maxHeight: '88%' }}
+    >
       <Text variant="heading">{editingFrom === '' ? t.fx.newRate : t.fx.editRate}</Text>
 
-      {editingFrom === '' ? (
-        <View style={{ gap: theme.spacing.sm }}>
-          <Text variant="caption" tone="muted">
-            {t.captures.currencyPickerTitle}
-          </Text>
-          {/* Wrapped, not a `ChipRow`. That one is a horizontal ScrollView, and
-              a horizontal scroller inside a sheet card measures to nothing on
-              Android — the sheet opened with a title, a footnote and a dead
-              Save button, and no way to choose anything. Sixteen currencies
-              also read better as a block than as a strip that has to be
-              dragged sideways to find the one you want. */}
-          <Row style={{ flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {choices.map((code) => (
-              <Chip
-                key={code}
-                label={`${currencySymbol(code)} ${code}`}
-                selected={code === from}
-                repeatable
-                onPress={() => {
-                  setFrom(code);
-                  setText('');
-                  setExact(null);
-                  setError(null);
-                }}
-              />
-            ))}
-          </Row>
-        </View>
-      ) : null}
+      {/* The pair, and the circle that turns it around. The cards are drawn a
+          hair apart so the circle can sit on the seam between them, which is
+          the whole reason that control reads as "these two swap" with no label
+          on it at all. */}
+      <View>
+        <RateCard
+          value="1"
+          code={unitCode}
+          locale={locale}
+          muted
+          onPickCurrency={homeFirst ? undefined : () => setPicking(true)}
+        />
+        <View style={{ height: theme.spacing.xs }} />
+        <RateCard
+          value={text}
+          code={rateCode}
+          locale={locale}
+          placeholder="312"
+          onChangeText={(next) => {
+            setText(next);
+            // Typed over: the number in the field is now the rate itself.
+            setExact(null);
+            setError(null);
+          }}
+          onPickCurrency={homeFirst ? () => setPicking(true) : undefined}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.fx.swap}
+          onPress={turnAround}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            alignSelf: 'center',
+            top: '50%',
+            marginTop: -18,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.color.surface,
+            borderWidth: 2,
+            // The card's own ground, so the circle punches a hole through the
+            // seam rather than sitting on top of both cards.
+            borderColor: theme.color.bg,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Ionicons name="swap-vertical" size={iconSize.md} color={theme.color.brand} />
+        </Pressable>
+      </View>
 
-      {foreign ? (
-        <>
-          <View style={{ gap: theme.spacing.xs }}>
-            <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text variant="caption" tone="muted">
-                {t.fx.oneEquals.replace('{from}', leftCode)}
-              </Text>
-              <Button
-                label={t.fx.swap}
-                variant="ghost"
-                size="sm"
-                onPress={() => {
-                  // Turning it around re-states the same rate the other way up,
-                  // read off the stored rational — never off the text, which
-                  // has already been rounded for display once.
-                  const next = !homeFirst;
-                  if (rate) {
-                    // Carry the rate itself across, and show it rounded — the
-                    // display is the only thing that rounds.
-                    setExact(rate);
-                    setText(shownText(rate, next));
-                  }
-                  setHomeFirst(next);
-                }}
-              />
-            </Row>
-            <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-              <TextInput
-                value={text}
-                onChangeText={(next) => {
-                  setText(next);
-                  // Typed over: the number in the field is now the rate itself.
-                  setExact(null);
-                  setError(null);
-                }}
-                keyboardType="decimal-pad"
-                accessibilityLabel={t.fx.oneEquals.replace('{from}', leftCode)}
-                placeholder="312"
-                placeholderTextColor={theme.color.textFaint}
-                style={{
-                  flex: 1,
-                  borderWidth: 1,
-                  borderColor: theme.color.border,
-                  borderRadius: theme.radius.md,
-                  paddingHorizontal: theme.spacing.md,
-                  paddingVertical: theme.spacing.sm,
-                  color: theme.color.text,
-                  fontSize: 18,
-                }}
-              />
-              <Text variant="subheading" tone="muted">
-                {rightCode}
-              </Text>
-            </Row>
-          </View>
-
+      {/* Quiet, and under the thing it fills in. It was a full-width secondary
+          button, which made "ask the internet" look like the action of the
+          sheet when the action of the sheet is Save. */}
+      <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <Button
+          label={busy ? t.misc.askingRate : t.fx.useTodaysRate}
+          variant="ghost"
+          size="sm"
+          disabled={busy || !foreign}
+          onPress={() => void fetchToday()}
+        />
+        {existing ? (
           <Button
-            label={
-              busy
-                ? t.misc.askingRate
-                : t.misc.getTodaysRate.replace('{from}', from).replace('{to}', groupCurrency)
-            }
-            variant="secondary"
-            disabled={busy}
-            onPress={() => void fetchToday()}
+            label={t.fx.removeRate}
+            variant="ghostDanger"
+            size="sm"
+            disabled={setRate.isPending}
+            onPress={remove}
           />
-
-          {rate ? (
-            <Text variant="caption" tone="positive">
-              {rateLine(rate)}
-            </Text>
-          ) : text.trim() ? (
-            <Text variant="caption" tone="negative">
-              {t.misc.notARate}
-            </Text>
-          ) : null}
-        </>
-      ) : null}
+        ) : null}
+      </Row>
 
       {error ? (
         <Text variant="caption" tone="negative">
           {error}
         </Text>
-      ) : null}
-
-      <Text variant="micro" tone="faint">
-        {t.fx.removeConfirm}
-      </Text>
+      ) : !rate && text.trim() ? (
+        <Text variant="caption" tone="negative">
+          {t.misc.notARate}
+        </Text>
+      ) : (
+        <Text variant="micro" tone="faint">
+          {t.fx.removeConfirm}
+        </Text>
+      )}
 
       <Button
         label={t.common.save}
@@ -481,15 +512,184 @@ function TripRateSheet({
         disabled={!rate || setRate.isPending}
         onPress={save}
       />
-      {existing ? (
-        <Button
-          label={t.fx.removeRate}
-          variant="ghostDanger"
-          fullWidth
-          disabled={setRate.isPending}
-          onPress={remove}
-        />
-      ) : null}
     </Sheet>
+  );
+}
+
+/**
+ * One side of the rate: a number, and the currency it is in.
+ *
+ * The number is the size of an amount because that is what it is, and the
+ * currency is a pill on the right — tappable, with a chevron, only on the side
+ * that can change. The group's own currency has no chevron: it is not a choice
+ * being made here, and drawing one would offer a door that opens onto nothing.
+ */
+function RateCard({
+  value,
+  code,
+  locale,
+  muted = false,
+  placeholder,
+  onChangeText,
+  onPickCurrency,
+}: {
+  value: string;
+  code: string;
+  locale: string;
+  /** The fixed `1` side: shown, never typed in. */
+  muted?: boolean;
+  placeholder?: string;
+  onChangeText?: (value: string) => void;
+  onPickCurrency?: () => void;
+}) {
+  const theme = useTheme();
+  const mark = currencyMark(code);
+  const name = currencyName(code, locale);
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+        paddingVertical: theme.spacing.md,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.color.surfaceMuted,
+        minHeight: 72,
+      }}
+    >
+      {onChangeText ? (
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          accessibilityLabel={name ?? code}
+          placeholder={placeholder}
+          placeholderTextColor={theme.color.textFaint}
+          style={{
+            flex: 1,
+            fontSize: 28,
+            fontWeight: '700',
+            color: theme.color.text,
+            paddingVertical: 0,
+          }}
+        />
+      ) : (
+        <Text
+          variant="title"
+          tone={muted ? 'muted' : undefined}
+          numberOfLines={1}
+          style={{ flex: 1 }}
+        >
+          {value}
+        </Text>
+      )}
+
+      <Pressable
+        accessibilityRole={onPickCurrency ? 'button' : 'text'}
+        accessibilityLabel={name ?? code}
+        disabled={!onPickCurrency}
+        onPress={onPickCurrency}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.spacing.xs,
+          paddingHorizontal: theme.spacing.md,
+          paddingVertical: theme.spacing.xs,
+          borderRadius: theme.radius.pill,
+          backgroundColor: onPickCurrency ? theme.color.surface : 'transparent',
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        {mark ? (
+          <Text variant="subheading" tone="muted">
+            {mark}
+          </Text>
+        ) : null}
+        <Text variant="subheading">{code}</Text>
+        {onPickCurrency ? (
+          <Ionicons name="chevron-down" size={iconSize.sm} color={theme.color.textMuted} />
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * Choosing the currency, as a list with names in it.
+ *
+ * A second pane inside the same sheet rather than a second sheet: a modal
+ * opened from inside a modal is a fight with Android, and the cover picker
+ * settled this same question the same way.
+ *
+ * Names, not only codes. "VND" is what somebody types afterwards; "Vietnamese
+ * dong" is how they find it in the first place, and sixteen bare codes is a
+ * memory test. It is also where a new rate starts — the first question is
+ * which currency, so the sheet opens on the answer to it rather than on an
+ * empty pair of cards.
+ */
+function CurrencyPane({
+  choices,
+  chosen,
+  locale,
+  canGoBack,
+  onPick,
+  onBack,
+}: {
+  choices: readonly string[];
+  chosen: string;
+  locale: string;
+  /** False on a brand-new rate: there is no rate behind this pane to go back to. */
+  canGoBack: boolean;
+  onPick: (code: string) => void;
+  onBack: () => void;
+}) {
+  const theme = useTheme();
+  const { t } = useStrings();
+
+  return (
+    <>
+      <Row style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        {canGoBack ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.common.back}
+            hitSlop={10}
+            onPress={onBack}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Ionicons
+              name={directionalIcon('chevron-back')}
+              size={iconSize.lg}
+              color={theme.color.text}
+            />
+          </Pressable>
+        ) : null}
+        <Text variant="heading">{t.captures.currencyPickerTitle}</Text>
+      </Row>
+
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+        {choices.map((code) => {
+          const name = currencyName(code, locale);
+          return (
+            <ListRow
+              key={code}
+              title={name ?? code}
+              subtitle={name ? code : undefined}
+              leading={<CurrencyMark code={code} />}
+              trailing={
+                code === chosen ? (
+                  <Ionicons name="checkmark" size={iconSize.md} color={theme.color.brand} />
+                ) : undefined
+              }
+              accessibilityRole="radio"
+              accessibilityState={{ selected: code === chosen }}
+              onPress={() => onPick(code)}
+            />
+          );
+        })}
+      </ScrollView>
+    </>
   );
 }
