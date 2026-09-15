@@ -178,3 +178,23 @@ export async function syncAutoReadTask(enabled: boolean): Promise<void> {
   }
   await registerAutoReadTask();
 }
+
+/**
+ * Put the schedule where the person asked for it, without touching the armed
+ * record.
+ *
+ * The two are different statements and were one function. Armed means "this
+ * account passed every gate", which is what a headless wake-up reads and what a
+ * shut gate must clear. The schedule is only whether the hourly wake-up is
+ * wanted at all — somebody can turn it off and still have the reader work
+ * perfectly well every time the app is opened, because that path is the
+ * foreground driver and nothing here gates it.
+ *
+ * So switching the schedule off leaves the account armed and unregisters the
+ * job. A gate shutting still goes through {@link syncAutoReadTask}, which does
+ * both.
+ */
+export async function syncAutoReadSchedule(wanted: boolean): Promise<void> {
+  if (wanted) await registerAutoReadTask();
+  else await unregisterAutoReadTask();
+}

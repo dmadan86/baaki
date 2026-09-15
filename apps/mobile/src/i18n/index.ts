@@ -2787,11 +2787,21 @@ export interface UiStrings {
     scanUnreadable: PluralForms;
     scanDrafted: PluralForms;
     /**
-     * The warning for phones whose manufacturer stops scheduled work. Named
-     * rather than universal — see `lib/smsBattery.ts`.
+     * The hourly wake-up, as a choice rather than a warning.
+     *
+     * It used to be an orange panel telling somebody their phone would probably
+     * break the feature — true on about half of Android (`lib/smsBattery.ts`)
+     * and no use to anybody, because the thing it warned about is not a fault
+     * and the app reads new messages when it is opened either way. So the
+     * switch says what it does, and the question mark beside it explains what
+     * to change on the phones where the hourly check gets stopped.
      */
-    batteryTitle: string;
-    batteryBody: string;
+    backgroundTitle: string;
+    backgroundNote: string;
+    backgroundHelp: string;
+    backgroundHelpTitle: string;
+    backgroundHelpBody: string;
+    backgroundHelpMaker: string;
     batteryOpenSettings: string;
     /** Ticking rows and doing something with them. */
     selected: PluralForms;
@@ -5644,9 +5654,13 @@ const en: UiStrings = {
       one: '{n} was clear enough to go straight to Review.',
       other: '{n} were clear enough to go straight to Review.',
     },
-    batteryTitle: 'Your phone may stop the hourly check',
-    batteryBody:
-      '{maker} phones often stop background work to save battery. To keep Waves reading new messages on its own, allow it to run in the background in your phone settings.',
+    backgroundTitle: 'Keep checking on its own',
+    backgroundNote: 'Looks for new messages about once an hour. Off, Waves looks when you open it.',
+    backgroundHelp: 'What this needs',
+    backgroundHelpTitle: 'If it stops checking on its own',
+    backgroundHelpBody:
+      'Android pauses background work to save battery, and some phones pause it for good. To keep the hourly check going, allow Waves to run in the background in your phone settings. Nothing is lost either way — Waves reads new messages every time you open it.',
+    backgroundHelpMaker: 'On {maker} phones this is usually under Battery.',
     batteryOpenSettings: 'Open settings',
     selected: { one: '{n} selected', other: '{n} selected' },
     selectAll: 'Select all',
@@ -8577,9 +8591,14 @@ const ta: UiStrings = {
       one: '{n} தெளிவாக இருந்ததால் நேராக Review-க்குச் சென்றது.',
       other: '{n} தெளிவாக இருந்ததால் நேராக Review-க்குச் சென்றன.',
     },
-    batteryTitle: 'உங்கள் ஃபோன் ஒவ்வொரு மணிநேரச் சோதனையையும் நிறுத்தக்கூடும்',
-    batteryBody:
-      'பேட்டரியைச் சேமிக்க {maker} ஃபோன்கள் பின்னணி வேலையை அடிக்கடி நிறுத்தும். புதிய செய்திகளை Waves தானாகப் படித்துக்கொண்டே இருக்க, ஃபோன் அமைப்புகளில் பின்னணியில் இயங்க அனுமதியுங்கள்.',
+    backgroundTitle: 'தானாகவே தொடர்ந்து பார்க்கட்டும்',
+    backgroundNote:
+      'மணிக்கு ஒருமுறை புதிய செய்திகளைப் பார்க்கும். அணைத்தால், நீங்கள் திறக்கும்போது பார்க்கும்.',
+    backgroundHelp: 'இதற்கு என்ன தேவை',
+    backgroundHelpTitle: 'தானாகப் பார்ப்பது நின்றுவிட்டால்',
+    backgroundHelpBody:
+      'பேட்டரியைச் சேமிக்க ஆண்ட்ராய்டு பின்னணி வேலையை நிறுத்தும்; சில ஃபோன்களில் அது நிரந்தரமாக நிற்கும். மணிநேரச் சோதனை தொடர, ஃபோன் அமைப்புகளில் Waves பின்னணியில் இயங்க அனுமதியுங்கள். எப்படியும் எதுவும் தொலையாது — நீங்கள் திறக்கும் ஒவ்வொரு முறையும் புதிய செய்திகள் படிக்கப்படும்.',
+    backgroundHelpMaker: '{maker} ஃபோன்களில் இது பொதுவாக பேட்டரி அமைப்புகளில் இருக்கும்.',
     batteryOpenSettings: 'அமைப்புகளைத் திற',
     selected: { one: '{n} தேர்ந்தெடுக்கப்பட்டது', other: '{n} தேர்ந்தெடுக்கப்பட்டன' },
     selectAll: 'எல்லாவற்றையும் தேர்வு',
@@ -11451,9 +11470,13 @@ const hi: UiStrings = {
       one: '{n} इतना साफ़ था कि सीधे Review में चला गया।',
       other: '{n} इतने साफ़ थे कि सीधे Review में चले गए।',
     },
-    batteryTitle: 'आपका फ़ोन हर घंटे की जाँच रोक सकता है',
-    batteryBody:
-      'बैटरी बचाने के लिए {maker} फ़ोन अक्सर बैकग्राउंड का काम रोक देते हैं। Waves नए संदेश ख़ुद पढ़ता रहे, इसके लिए फ़ोन सेटिंग्स में इसे बैकग्राउंड में चलने दें।',
+    backgroundTitle: 'अपने आप देखता रहे',
+    backgroundNote: 'हर घंटे नए संदेश देखता है। बंद रहने पर, ऐप खोलने पर देखता है।',
+    backgroundHelp: 'इसके लिए क्या चाहिए',
+    backgroundHelpTitle: 'अगर अपने आप देखना रुक जाए',
+    backgroundHelpBody:
+      'बैटरी बचाने के लिए Android बैकग्राउंड काम रोक देता है, और कुछ फ़ोन उसे हमेशा के लिए रोक देते हैं। हर घंटे की जाँच चलती रहे इसके लिए फ़ोन सेटिंग्स में Waves को बैकग्राउंड में चलने दें। वैसे भी कुछ छूटता नहीं — ऐप खोलते ही नए संदेश पढ़ लिए जाते हैं।',
+    backgroundHelpMaker: '{maker} फ़ोन में यह आम तौर पर बैटरी सेटिंग्स में मिलता है।',
     batteryOpenSettings: 'सेटिंग्स खोलें',
     selected: { one: '{n} चुना गया', other: '{n} चुने गए' },
     selectAll: 'सब चुनें',
@@ -14584,9 +14607,13 @@ const ar: UiStrings = {
       many: 'كانت {n} واضحة بما يكفي لتنتقل مباشرة إلى Review.',
       other: 'كانت {n} واضحة بما يكفي لتنتقل مباشرة إلى Review.',
     },
-    batteryTitle: 'قد يوقف هاتفك الفحص كل ساعة',
-    batteryBody:
-      'كثيرًا ما توقف هواتف {maker} العمل في الخلفية توفيرًا للبطارية. ولكي يواصل Waves قراءة الرسائل الجديدة وحده، اسمح له بالعمل في الخلفية من إعدادات الهاتف.',
+    backgroundTitle: 'ليواصل التحقّق بنفسه',
+    backgroundNote: 'يبحث عن رسائل جديدة كل ساعة تقريباً. عند الإيقاف، يبحث عند فتح التطبيق.',
+    backgroundHelp: 'ما يحتاجه هذا',
+    backgroundHelpTitle: 'إذا توقّف التحقّق التلقائي',
+    backgroundHelpBody:
+      'يوقف أندرويد العمل في الخلفية لتوفير البطارية، وبعض الهواتف توقفه نهائياً. لمواصلة الفحص كل ساعة، اسمح لـ Waves بالعمل في الخلفية من إعدادات هاتفك. لا يضيع شيء على أي حال — تُقرأ الرسائل الجديدة كلما فتحت التطبيق.',
+    backgroundHelpMaker: 'في هواتف {maker} تجد ذلك عادةً ضمن إعدادات البطارية.',
     batteryOpenSettings: 'افتح الإعدادات',
     selected: {
       zero: 'لم يُحدَّد شيء',
